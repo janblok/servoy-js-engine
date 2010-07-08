@@ -42,8 +42,11 @@
 
 package org.mozilla.javascript;
 
-import java.util.Date;
 import java.text.DateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.TimeZone;
 
 /**
  * This class implements the Date native object. See ECMA 15.9.
@@ -81,8 +84,37 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 	{
 		this();
 		this.javaDate = date;
-		this.date = TimeClip(date.getTime());
+		this.date = convertToUTCMillisFromJava(date);
 
+	}
+	
+	/**
+	 * This method converts java date milliseconds into javaScript date milliseconds (the two are not compatible; for example the same milliseconds that mean in java 7 Jul 0010 mean in javaScript 5 Jul 0010).
+	 * When we convert from a Java date to a JS date, it should remain the same not in milliseconds, but in actual year/month/day/hh/mm/ss/ms.
+	 */
+	private static double convertToUTCMillisFromJava(Date javaDate)
+	{
+		GregorianCalendar calendar = new GregorianCalendar(TimeZone.getTimeZone("GMT"));
+		calendar.setTimeInMillis(javaDate.getTime());
+		return TimeClip(date_msecFromDate(calendar.get(Calendar.YEAR),
+				calendar.get(Calendar.MONTH),
+				calendar.get(Calendar.DAY_OF_MONTH),
+				calendar.get(Calendar.HOUR_OF_DAY),
+				calendar.get(Calendar.MINUTE),
+				calendar.get(Calendar.SECOND),
+				calendar.get(Calendar.MILLISECOND)));
+	}
+
+	/**
+	 * This method converts javaScript date milliseconds into java date milliseconds (the two are not compatible; for example the same milliseconds that mean in java 7 Jul 0010 mean in javaScript 5 Jul 0010).
+	 * When we convert from a JS date to a Java date, it should remain the same not in milliseconds, but in actual year/month/day/hh/mm/ss/ms.
+	 */
+	private static long convertFromUTCMillisToJava(double t)
+	{
+		GregorianCalendar calendar = new GregorianCalendar(TimeZone.getTimeZone("GMT"));
+		calendar.set(YearFromTime(t), MonthFromTime(t), DateFromTime(t), HourFromTime(t), MinFromTime(t), SecFromTime(t));
+		calendar.set(Calendar.MILLISECOND, msFromTime(t));
+		return calendar.getTimeInMillis();
 	}
 
 	public String getClassName()
@@ -468,10 +500,7 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 			case Id_setTime:
 				t = TimeClip(ScriptRuntime.toNumber(args, 0));
 				realThis.date = t;
-				if (realThis.javaDate != null)
-				{
-					realThis.javaDate.setTime((long) realThis.date);
-				}
+				updateJavaDateIfNecessary(realThis);
 				return ScriptRuntime.wrapNumber(t);
 
 			case Id_setMilliseconds:
@@ -484,10 +513,7 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 			case Id_setUTCHours:
 				t = makeTime(t, args, id);
 				realThis.date = t;
-				if (realThis.javaDate != null)
-				{
-					realThis.javaDate.setTime((long) realThis.date);
-				}
+				updateJavaDateIfNecessary(realThis);
 				return ScriptRuntime.wrapNumber(t);
 
 			case Id_setDate:
@@ -498,10 +524,7 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 			case Id_setUTCFullYear:
 				t = makeDate(t, args, id);
 				realThis.date = t;
-				if (realThis.javaDate != null)
-				{
-					realThis.javaDate.setTime((long) realThis.date);
-				}
+				updateJavaDateIfNecessary(realThis);
 				return ScriptRuntime.wrapNumber(t);
 
 			case Id_setYear:
@@ -533,16 +556,20 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 				}
 			}
 				realThis.date = t;
-				if (realThis.javaDate != null)
-				{
-					realThis.javaDate.setTime((long) realThis.date);
-				}
+				updateJavaDateIfNecessary(realThis);
 				return ScriptRuntime.wrapNumber(t);
 
 			default:
 				throw new IllegalArgumentException(String.valueOf(id));
 		}
 
+	}
+
+	private void updateJavaDateIfNecessary(NativeDate realThis) {
+		if (realThis.javaDate != null)
+		{
+			realThis.javaDate.setTime(convertFromUTCMillisToJava(realThis.date));
+		}
 	}
 
 	/* ECMA helper functions */
@@ -831,7 +858,7 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 		}
 		if (!TZO_WORKAROUND)
 		{
-			Date date = new Date((long) t);
+			Date date = new Date(convertFromUTCMillisToJava(t));
 			if (thisTimeZone.inDaylightTime(date))
 				return msPerHour;
 			else return 0;
@@ -1391,7 +1418,7 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 				t = MakeDate(day, TimeWithinDay(t));
 			}
 			result.append(" (");
-			java.util.Date date = new Date((long) t);
+			java.util.Date date = new Date(convertFromUTCMillisToJava(t));
 			synchronized (timeZoneFormatter)
 			{
 				result.append(timeZoneFormatter.format(date));
@@ -1415,7 +1442,7 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 		}
 
 		// if called with just one arg -
-		if (args.length == 1)
+		if (args.length == 1 && !(args[0] instanceof Date))
 		{
 			if (args[0] instanceof CharSequenceBuffer)
 			{
@@ -1423,34 +1450,34 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 			}
 			double date;
 			Object arg0 = args[0];
-			if (arg0 instanceof Date)
+			if (arg0 instanceof Scriptable)
+				arg0 = ((Scriptable) arg0).getDefaultValue(null);
+			if (arg0 instanceof String)
 			{
-				obj.javaDate = (Date) arg0;
-				date = obj.javaDate.getTime();
+				// it's a string; parse it.
+				date = date_parseString((String) arg0);
 			}
 			else
 			{
-				if (arg0 instanceof Scriptable)
-					arg0 = ((Scriptable) arg0).getDefaultValue(null);
-				if (arg0 instanceof String)
-				{
-					// it's a string; parse it.
-					date = date_parseString((String) arg0);
-				}
-				else
-				{
-					// if it's not a string, use it as a millisecond date
-					date = ScriptRuntime.toNumber(arg0);
-				}
+				// if it's not a string, use it as a millisecond date
+				date = ScriptRuntime.toNumber(arg0);
 			}
 			obj.date = TimeClip(date);
 			return obj;
 		}
 
-		double time = date_msecFromArgs(args);
-
-		if (!Double.isNaN(time) && !Double.isInfinite(time))
-			time = TimeClip(internalUTC(time));
+		double time;
+		if (args.length == 1 && args[0] instanceof Date)
+		{
+			obj.javaDate = (Date) args[0];
+			time = convertToUTCMillisFromJava(obj.javaDate);
+		}
+		else
+		{
+			time = date_msecFromArgs(args);
+			if (!Double.isNaN(time) && !Double.isInfinite(time))
+				time = TimeClip(internalUTC(time));
+		}
 
 		obj.date = time;
 
@@ -1489,7 +1516,7 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 
 		synchronized (formatter)
 		{
-			return formatter.format(new Date((long) t));
+			return formatter.format(new Date(convertFromUTCMillisToJava(t)));
 		}
 	}
 
@@ -2124,7 +2151,7 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 	{
 		if (javaDate == null)
 		{
-			javaDate = new Date((long) this.date);
+			javaDate = new Date(convertFromUTCMillisToJava(this.date));
 		}
 		return javaDate;
 	}
