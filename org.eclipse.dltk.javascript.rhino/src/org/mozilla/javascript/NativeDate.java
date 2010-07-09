@@ -84,7 +84,7 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 	{
 		this();
 		this.javaDate = date;
-		this.date = convertToUTCMillisFromJava(date);
+		this.date = convertToUTCMillisFromJava(date.getTime());
 
 	}
 	
@@ -92,10 +92,10 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 	 * This method converts java date milliseconds into javaScript date milliseconds (the two are not compatible; for example the same milliseconds that mean in java 7 Jul 0010 mean in javaScript 5 Jul 0010).
 	 * When we convert from a Java date to a JS date, it should remain the same not in milliseconds, but in actual year/month/day/hh/mm/ss/ms.
 	 */
-	private static double convertToUTCMillisFromJava(Date javaDate)
+	private static double convertToUTCMillisFromJava(long javaMillis)
 	{
 		GregorianCalendar calendar = new GregorianCalendar(TimeZone.getTimeZone("GMT"));
-		calendar.setTimeInMillis(javaDate.getTime());
+		calendar.setTimeInMillis(javaMillis);
 		return TimeClip(date_msecFromDate(calendar.get(Calendar.YEAR),
 				calendar.get(Calendar.MONTH),
 				calendar.get(Calendar.DAY_OF_MONTH),
@@ -117,11 +117,13 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 		return calendar.getTimeInMillis();
 	}
 
+	@Override
 	public String getClassName()
 	{
 		return "Date";
 	}
 
+	@Override
 	public Object getDefaultValue(Class typeHint)
 	{
 		if (typeHint == null)
@@ -134,6 +136,7 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 		return date;
 	}
 
+	@Override
 	protected void fillConstructorProperties(IdFunctionObject ctor)
 	{
 		addIdFunctionProperty(ctor, DATE_TAG, ConstructorId_now, "now", 0);
@@ -142,6 +145,7 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 		super.fillConstructorProperties(ctor);
 	}
 
+	@Override
 	protected void initPrototypeId(int id)
 	{
 		String s;
@@ -334,6 +338,7 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 		initPrototypeMethod(DATE_TAG, id, s, arity);
 	}
 
+	@Override
 	public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope, Scriptable thisObj, Object[] args)
 	{
 		if (!f.hasTag(DATE_TAG)) { return super.execIdCall(f, cx, scope, thisObj, args); }
@@ -555,9 +560,9 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 					t = TimeClip(t);
 				}
 			}
-				realThis.date = t;
-				updateJavaDateIfNecessary(realThis);
-				return ScriptRuntime.wrapNumber(t);
+			realThis.date = t;
+			updateJavaDateIfNecessary(realThis);
+			return ScriptRuntime.wrapNumber(t);
 
 			default:
 				throw new IllegalArgumentException(String.valueOf(id));
@@ -832,7 +837,7 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 
 	private static double now()
 	{
-		return System.currentTimeMillis();
+		return convertToUTCMillisFromJava(System.currentTimeMillis());
 	}
 
 	/*
@@ -1470,7 +1475,7 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 		if (args.length == 1 && args[0] instanceof Date)
 		{
 			obj.javaDate = (Date) args[0];
-			time = convertToUTCMillisFromJava(obj.javaDate);
+			time = convertToUTCMillisFromJava(obj.javaDate.getTime());
 		}
 		else
 		{
@@ -1817,6 +1822,7 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 
 	// #string_id_map#
 
+	@Override
 	protected int findPrototypeId(String s)
 	{
 		int id;
