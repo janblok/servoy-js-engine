@@ -133,6 +133,8 @@ public class DBGPStackManager {
 	}
 
 	private boolean suspended = false;
+
+	private boolean throwException;
 	/**
 	 * @param reason TODO
 	 * 
@@ -140,7 +142,7 @@ public class DBGPStackManager {
 	public void sendSuspend(String reason)
 	{
 		if (stop) return;
-		
+		throwException = false;
 		if (observer.sendBreak(reason))
 		{
 			synchronized (this)
@@ -155,6 +157,11 @@ public class DBGPStackManager {
 						{
 							suspended = false;
 							observer.close();
+						}
+						if (throwException)
+						{
+							throwException = false;
+							throw new RuntimeException("Script execution stopped");
 						}
 					}
 					catch (InterruptedException e)
@@ -195,6 +202,15 @@ public class DBGPStackManager {
 		for (int a = 0; a < this.getStackDepth(); a++) {
 			this.getStackFrame(a).setSuspend(false);
 		}
+		endSuspend();
+	}
+	
+	public synchronized void resumeWithStop()
+	{
+		for (int a = 0; a < this.getStackDepth(); a++) {
+			this.getStackFrame(a).setSuspend(false);
+		}
+		throwException = true;
 		endSuspend();
 	}
 

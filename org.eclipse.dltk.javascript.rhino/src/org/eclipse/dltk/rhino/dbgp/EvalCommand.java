@@ -34,8 +34,16 @@ final class EvalCommand extends DBGPDebugger.Command {
 		Object evaluated = "<error evaluating>";
 		try
 		{
-			DBGPDebugFrame fr = this.debugger.getStackManager().getStackFrame(0);
-			 evaluated = fr.eval(value);
+			if (value.equals("!stop_current_script!"))
+			{
+				this.debugger.getStackManager().resumeWithStop();
+				evaluated = "!stopped!";
+			}
+			else
+			{
+				DBGPDebugFrame fr = this.debugger.getStackManager().getStackFrame(0);
+				evaluated = fr.eval(value);
+			}
 		}
 		catch(Exception e) 
 		{
