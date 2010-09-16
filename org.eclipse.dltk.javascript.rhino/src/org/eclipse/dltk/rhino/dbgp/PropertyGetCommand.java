@@ -66,8 +66,14 @@ final class PropertyGetCommand extends DBGPDebugger.Command {
 				}
 			}
 		}
-		this.debugger.printProperty(shortName, longName, value, properties, 0,
-				true);
+		try
+		{
+			this.debugger.printProperty(shortName, longName, value, properties, 0,
+					true);
+		} catch (Exception e)
+		{
+			e.printStackTrace();
+		}
 		this.debugger.printResponse("<response command=\"property_get\"\r\n"
 				+ " transaction_id=\"" + options.get("-i") + "\">\r\n"
 				+ properties + "</response>\r\n" + "");
