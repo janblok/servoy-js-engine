@@ -99,7 +99,7 @@ public class Codegen extends Interpreter
 		}
 		catch (Exception ex)
 		{
-			throw new RuntimeException("Unable to instantiate compiled class:" + ex.toString());
+			throw new RuntimeException("Unable to instantiate compiled class:" + ex.toString(), ex);
 		}
 		return f;
 	}
