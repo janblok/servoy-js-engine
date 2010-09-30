@@ -81,7 +81,8 @@ public class DBGPStackManager {
 	public void changeLine(DBGPDebugFrame frame, int lineNumber) {
 		if (stop)
 		{
-			throw new RuntimeException("Current script terminated");
+			System.err.print("Current script terminated");
+			return;
 		}
 		if (suspenOnChangeLine) {
 			suspenOnChangeLine = false;

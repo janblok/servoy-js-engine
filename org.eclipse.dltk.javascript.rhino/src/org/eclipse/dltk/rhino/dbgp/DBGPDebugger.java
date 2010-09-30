@@ -126,6 +126,12 @@ public class DBGPDebugger extends Thread implements Debugger, IDeguggerWithWatch
 
 	synchronized void printResponse(String response)
 	{
+		if (out == null || socket == null)
+		{
+			System.err.println("wanted to print response to the eclipse debugger, but already closed:" + response );
+			return;
+		}
+		
 		try
 		{
 			byte[] bytes = response.getBytes("UTF-8");
@@ -138,7 +144,12 @@ public class DBGPDebugger extends Thread implements Debugger, IDeguggerWithWatch
 			{
 				try
 				{
-					socket.close();
+					if (socket != null) 
+					{
+						socket.close();
+						socket = null;
+						out = null;
+					}
 				}
 				catch (IOException ex)
 				{
@@ -155,7 +166,7 @@ public class DBGPDebugger extends Thread implements Debugger, IDeguggerWithWatch
 	public boolean isConnected()
 	{
 		outputStdOut("");
-		if (socket == null || socket.isClosed())
+		if (socket == null || socket.isClosed() || out == null)
 		{
 			return false;
 		}
@@ -582,12 +593,9 @@ public class DBGPDebugger extends Thread implements Debugger, IDeguggerWithWatch
 
 	public boolean sendBreak(String reason)
 	{
-//		System.err.println("JC:" + runTransctionId);
-//		if (runTransctionId != null)
-			printResponse("<response command=\"run\"\r\n" + "status=\"break\"" + " reason=\"ok\"" + " transaction_id=\""
-					+ runTransctionId + "\">\r\n" + Base64Helper.encodeString(reason) + "</response>\r\n" + "");
-//		return runTransctionId != null;
-			return true;
+		printResponse("<response command=\"run\"\r\n" + "status=\"break\"" + " reason=\"ok\"" + " transaction_id=\""
+				+ runTransctionId + "\">\r\n" + Base64Helper.encodeString(reason) + "</response>\r\n" + "");
+		return socket != null && out != null;
 	}
 
 	public void outputStdOut(String value)
@@ -621,6 +629,7 @@ public class DBGPDebugger extends Thread implements Debugger, IDeguggerWithWatch
 			{
 				socket.close();
 				socket = null;
+				out = null;
 			}
 			catch (IOException ex)
 			{
