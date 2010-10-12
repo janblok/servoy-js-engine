@@ -555,7 +555,7 @@ public class DBGPDebugger extends Thread implements Debugger, IDeguggerWithWatch
 
 			}
 		}
-		catch (IOException e)
+		catch (Exception e)
 		{
 			// e.printStackTrace(); // ignore just a disconnect exception
 			try
