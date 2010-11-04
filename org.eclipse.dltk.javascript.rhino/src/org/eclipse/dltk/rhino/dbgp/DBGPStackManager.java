@@ -239,6 +239,11 @@ public class DBGPStackManager {
 		suspended = false;
 		this.notifyAll();
 	}
+	
+	public boolean isSuspended()
+	{
+		return suspended;
+	}
 
 	public synchronized void stepOut() {
 		getStackFrame(0).setSuspend(false);
