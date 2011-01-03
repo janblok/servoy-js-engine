@@ -3740,6 +3740,7 @@ public class ScriptRuntime
 		Context.reportWarning(message);
 		// Just to be sure that it would be noticed
 		System.err.println(message);
+		new RuntimeException().printStackTrace();
 	}
 
 	public static RegExpProxy getRegExpProxy(Context cx)
