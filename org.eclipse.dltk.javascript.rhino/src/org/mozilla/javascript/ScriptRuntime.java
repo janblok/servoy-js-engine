@@ -2919,6 +2919,14 @@ public class ScriptRuntime
 		{
 			return y.equals(x);
 		}
+		else if (y instanceof Date)
+		{
+			return y.equals(x);
+		}
+		else if (x instanceof Date)
+		{
+			return x.equals(y);
+		}
 		else if (x == null || x == Undefined.instance)
 		{
 			return false;
