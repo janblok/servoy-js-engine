@@ -889,7 +889,15 @@ public final class NativeDate extends IdScriptableObject implements Wrapper
 
 	private static double internalUTC(double t)
 	{
-		return t - LocalTZA - DaylightSavingTA(t - LocalTZA);
+		double varTime = t - LocalTZA;
+		// if time is between the first hour after entering dts, add an hour so the time is correctly displayed
+		// ex. if dts is changed at 3h, 3h will become 4h, so 3h10min will become 4h10min,
+		// as because of dts change the time between 3-4 does not exist
+		if(thisTimeZone.inDaylightTime(new Date(convertFromUTCMillisToJava(varTime))) &&
+				!thisTimeZone.inDaylightTime(new Date(convertFromUTCMillisToJava(varTime - msPerHour))))
+			varTime += msPerHour;
+
+		return varTime - DaylightSavingTA(varTime);
 	}
 
 	private static int HourFromTime(double t)
