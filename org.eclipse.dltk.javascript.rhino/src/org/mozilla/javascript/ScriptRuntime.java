@@ -3744,7 +3744,7 @@ public class ScriptRuntime
 				+ " of class "
 				+ nonJSObject.getClass().getName()
 				+ " where it expected String, Number, Boolean or Scriptable instance. Please check your code for missing Context.javaToJS() call.";
-		Context.reportWarning(message);
+		Context.reportWarning(message,new RuntimeException(message));
 		// Just to be sure that it would be noticed
 		System.err.println(message);
 		new RuntimeException().printStackTrace();
