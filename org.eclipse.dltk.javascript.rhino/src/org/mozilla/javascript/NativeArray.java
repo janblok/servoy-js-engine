@@ -41,9 +41,6 @@
 package org.mozilla.javascript;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashMap;
 
 /**
  * This class implements the Array native object.
@@ -1613,51 +1610,28 @@ public class NativeArray extends IdScriptableObject implements Wrapper
 	{
 		Object[] ids = getIds();
 		
-		boolean hasStrings = false;
 		for (int i = 0; i < ids.length; i++)
 		{
 			if (ids[i] instanceof String) {
-				hasStrings = true;
-				break;
+				return this;
 			}
 		}
-		if (hasStrings) {
-			HashMap<Object, Object> map = new HashMap<Object, Object>(ids.length);
-			for (int i = 0; i < ids.length; i++)
+		
+		ArrayList<Object> al = new ArrayList<Object>(ids.length);
+		for (int i = 0; i < ids.length; i++)
+		{
+			if (ids[i] instanceof Number)
 			{
-				Object o = NOT_FOUND;
-				if (ids[i] instanceof String)
-				{
-					o = get((String) ids[i], this);
-				}
-				else if (ids[i] instanceof Number)
-				{
-					o = get(((Number) ids[i]).intValue(), this);
-				}
+				int index = ((Number) ids[i]).intValue();
+				Object o = get(index, this);
 				if (o != NOT_FOUND)
 				{
-					map.put(ids[i], o);
-				}
-			}	
-			return this;
-		}
-		else {
-			ArrayList<Object> al = new ArrayList<Object>(ids.length);
-			for (int i = 0; i < ids.length; i++)
-			{
-				if (ids[i] instanceof Number)
-				{
-					int index = ((Number) ids[i]).intValue();
-					Object o = get(index, this);
-					if (o != NOT_FOUND)
-					{
-						while (al.size() <= index) al.add(null);
-						al.set(index,o);
-					}
+					while (al.size() <= index) al.add(null);
+					al.set(index,o);
 				}
 			}
-			return al.toArray();
 		}
+		return al.toArray();
 	}
 
 	private static final int Id_constructor = 1, Id_toString = 2, Id_toLocaleString = 3, Id_toSource = 4, Id_join = 5,
