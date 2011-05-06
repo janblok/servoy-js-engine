@@ -301,7 +301,7 @@ public class NativeJavaMethod extends BaseFunction
 			}
 		}
 
-		// unwrap CharSequenceBuffers inside arrays.
+		// unwrap CharSequenceBuffers inside arrays and unwrap args second time
 		for (int i = 0; i < args.length; i++)
 		{
 			if (args[i] instanceof Object[])
@@ -313,7 +313,15 @@ public class NativeJavaMethod extends BaseFunction
 					{
 						arg[j] = arg[j].toString();
 					}
+					else if (arg[j] instanceof Wrapper)
+					{
+						arg[j] = ((Wrapper)arg[j]).unwrap();
+					}
 				}
+			}
+			else if (args[i] instanceof Wrapper)
+			{
+				args[i] = ((Wrapper)args[i]).unwrap();
 			}
 		}
 		Object javaObject;
