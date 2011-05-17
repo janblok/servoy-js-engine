@@ -413,6 +413,12 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable
 					javaObj = ((Wrapper) javaObj).unwrap();
 				}
 				if (to.isInstance(javaObj)) { return CONVERSION_NONTRIVIAL; }
+				// unwrap this again as may be wrapped twice
+				if (javaObj instanceof Wrapper)
+				{
+					javaObj = ((Wrapper) javaObj).unwrap();
+				}
+				if (to.isInstance(javaObj)) { return CONVERSION_NONTRIVIAL; }
 				if (to == ScriptRuntime.StringClass)
 				{
 					return 2;
@@ -720,6 +726,11 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable
 				if (value instanceof Wrapper)
 				{
 					value = ((Wrapper) value).unwrap();
+					// if we have another wrapper that doesn't match, unwrap this again
+					if (!type.isInstance(value) && value instanceof Wrapper) 
+					{
+						value = ((Wrapper) value).unwrap();
+					}
 				}
 				if (type.isPrimitive())
 				{
