@@ -31,13 +31,16 @@ final class UpdateBreakPointCommand extends DBGPDebugger.Command {
 			condEString = Base64Helper.decodeString(condEString);
 		}
 
-		this.debugger.getStackManager().updateBreakpoint(id, newState, newLine,
-				hitValue, hitCondition, condEString);
-		String enabled = newState;
+		try {
+			this.debugger.getStackManager().updateBreakpoint(id, newState,
+					newLine, hitValue, hitCondition, condEString);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 		this.debugger
 				.printResponse("<response command=\"breakpoint_update\"\r\n"
 						+ " transaction_id=\"" + options.get("-i") + "\">\r\n"
-						+ " id=\"" + id + "\" state=\"" + enabled + "\" "
+						+ " id=\"" + id + "\" state=\"" + newState + "\" "
 						+ "</response>\r\n" + "");
 	}
 }

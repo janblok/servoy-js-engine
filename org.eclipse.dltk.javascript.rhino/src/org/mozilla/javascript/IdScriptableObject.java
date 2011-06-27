@@ -41,7 +41,7 @@ package org.mozilla.javascript;
 import java.io.*;
 
 import org.mozilla.javascript.debug.Debugger;
-import org.mozilla.javascript.debug.IDeguggerWithWatchPoints;
+import org.mozilla.javascript.debug.IDebuggerWithWatchPoints;
 
 /**
  * Base class for native object implementation that uses IdFunctionObject to
@@ -396,9 +396,9 @@ public abstract class IdScriptableObject extends ScriptableObject implements IdF
 		if (currentContext != null)
 		{
 			Debugger debugger = currentContext.getDebugger();
-			if (debugger instanceof IDeguggerWithWatchPoints)
+			if (debugger instanceof IDebuggerWithWatchPoints)
 			{
-				IDeguggerWithWatchPoints wp = (IDeguggerWithWatchPoints) debugger;
+				IDebuggerWithWatchPoints wp = (IDebuggerWithWatchPoints) debugger;
 				wp.access(name, this);
 			}
 		}
@@ -424,9 +424,9 @@ public abstract class IdScriptableObject extends ScriptableObject implements IdF
 			Debugger debugger = currentContext.getDebugger();
 			if (debugger != null)
 			{
-				if (debugger instanceof IDeguggerWithWatchPoints)
+				if (debugger instanceof IDebuggerWithWatchPoints)
 				{
-					IDeguggerWithWatchPoints wp = (IDeguggerWithWatchPoints) debugger;
+					IDebuggerWithWatchPoints wp = (IDebuggerWithWatchPoints) debugger;
 					wp.modification(name, this);
 				}
 			}

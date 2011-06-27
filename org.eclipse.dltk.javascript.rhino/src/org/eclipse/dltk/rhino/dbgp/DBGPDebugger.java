@@ -25,10 +25,10 @@ import org.mozilla.javascript.Wrapper;
 import org.mozilla.javascript.debug.DebugFrame;
 import org.mozilla.javascript.debug.DebuggableScript;
 import org.mozilla.javascript.debug.Debugger;
-import org.mozilla.javascript.debug.IDeguggerWithWatchPoints;
+import org.mozilla.javascript.debug.IDebuggerWithWatchPoints;
 import org.mozilla.javascript.xml.XMLObject;
 
-public class DBGPDebugger extends Thread implements Debugger, IDeguggerWithWatchPoints
+public class DBGPDebugger extends Thread implements Debugger, IDebuggerWithWatchPoints
 {
 
 	/**
@@ -651,7 +651,7 @@ public class DBGPDebugger extends Thread implements Debugger, IDeguggerWithWatch
 		runTransctionId = id;
 	}
 
-	public void access(String property, ScriptableObject object)
+	public void access(String property, Scriptable object)
 	{
 		ArrayList list = (ArrayList) getBreakPointManager().getWatchPoints(property);
 		if (list != null)
@@ -680,7 +680,7 @@ public class DBGPDebugger extends Thread implements Debugger, IDeguggerWithWatch
 
 	WeakHashMap cache = new WeakHashMap();
 
-	public void modification(String property, ScriptableObject object)
+	public void modification(String property, Scriptable object)
 	{
 
 		ArrayList list = (ArrayList) getBreakPointManager().getWatchPoints(property);
