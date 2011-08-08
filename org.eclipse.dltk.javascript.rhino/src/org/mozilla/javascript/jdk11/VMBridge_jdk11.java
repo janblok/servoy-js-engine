@@ -42,47 +42,37 @@ import java.util.Hashtable;
 
 import org.mozilla.javascript.*;
 
-public class VMBridge_jdk11 extends VMBridge
-{
+public class VMBridge_jdk11 extends VMBridge {
 	private Hashtable threadsWithContext = new Hashtable();
 
-	protected Object getThreadContextHelper()
-	{
+	protected Object getThreadContextHelper() {
 		return Thread.currentThread();
 	}
 
-	protected Context getContext(Object contextHelper)
-	{
+	protected Context getContext(Object contextHelper) {
 		Thread t = (Thread) contextHelper;
 		return (Context) threadsWithContext.get(t);
 	}
 
-	protected void setContext(Object contextHelper, Context cx)
-	{
+	protected void setContext(Object contextHelper, Context cx) {
 		Thread t = (Thread) contextHelper;
-		if (cx == null)
-		{
+		if (cx == null) {
 			// Allow to garbage collect thread reference
 			threadsWithContext.remove(t);
-		}
-		else
-		{
+		} else {
 			threadsWithContext.put(t, cx);
 		}
 	}
 
-	protected ClassLoader getCurrentThreadClassLoader()
-	{
+	protected ClassLoader getCurrentThreadClassLoader() {
 		return null;
 	}
 
-	protected boolean tryToMakeAccessible(Object accessibleObject)
-	{
+	protected boolean tryToMakeAccessible(Object accessibleObject) {
 		return false;
 	}
 
-	protected boolean isVarArgs(Member member)
-	{
+	protected boolean isVarArgs(Member member) {
 		return false;
 	}
 }

@@ -45,8 +45,7 @@ package org.mozilla.javascript;
  * unwrap the object.
  */
 
-public interface Wrapper
-{
+public interface Wrapper {
 
 	/**
 	 * Unwrap the object by returning the wrapped value.

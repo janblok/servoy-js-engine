@@ -22,9 +22,10 @@ final class StackDepthCommand extends DBGPDebugger.Command {
 
 	void parseAndExecute(String command, final HashMap options) {
 		this.debugger.printResponse("<response command=\"stack_depth\"\r\n"
-				+ "          depth=\"" + (this.debugger.getStackManager().getStackDepth())
-				+ "\"\r\n" + "          transaction_id=\""
-				+ options.get("-i") + "\">\r\n" + "</response>\r\n" + "");
+				+ "          depth=\""
+				+ (this.debugger.getStackManager().getStackDepth()) + "\"\r\n"
+				+ "          transaction_id=\"" + options.get("-i") + "\">\r\n"
+				+ "</response>\r\n" + "");
 
 	}
 }

@@ -44,14 +44,12 @@ import org.mozilla.javascript.*;
  * @author Igor Bukanov
  */
 
-public class ClassCompiler
-{
+public class ClassCompiler {
 	/**
 	 * Construct ClassCompiler that uses the specified compiler environment when
 	 * generating classes.
 	 */
-	public ClassCompiler(CompilerEnvirons compilerEnv)
-	{
+	public ClassCompiler(CompilerEnvirons compilerEnv) {
 		if (compilerEnv == null)
 			throw new IllegalArgumentException();
 		this.compilerEnv = compilerEnv;
@@ -66,8 +64,7 @@ public class ClassCompiler
 	 * class. The class name should be fully qulified name and include the
 	 * package name like in <tt>org.foo.Bar<tt>.
 	 */
-	public void setMainMethodClass(String className)
-	{
+	public void setMainMethodClass(String className) {
 		// XXX Should this check for a valid class name?
 		mainMethodClassName = className;
 	}
@@ -77,24 +74,21 @@ public class ClassCompiler
 	 * 
 	 * @see #setMainMethodClass(String)
 	 */
-	public String getMainMethodClass()
-	{
+	public String getMainMethodClass() {
 		return mainMethodClassName;
 	}
 
 	/**
 	 * Get the compiler environment the compiler uses.
 	 */
-	public CompilerEnvirons getCompilerEnv()
-	{
+	public CompilerEnvirons getCompilerEnv() {
 		return compilerEnv;
 	}
 
 	/**
 	 * Get the class that the generated target will extend.
 	 */
-	public Class getTargetExtends()
-	{
+	public Class getTargetExtends() {
 		return targetExtends;
 	}
 
@@ -102,31 +96,30 @@ public class ClassCompiler
 	 * Set the class that the generated target will extend.
 	 * 
 	 * @param extendsClass
-	 *           the class it extends
+	 *            the class it extends
 	 */
-	public void setTargetExtends(Class extendsClass)
-	{
+	public void setTargetExtends(Class extendsClass) {
 		targetExtends = extendsClass;
 	}
 
 	/**
 	 * Get the interfaces that the generated target will implement.
 	 */
-	public Class[] getTargetImplements()
-	{
-		return targetImplements == null ? null : (Class[]) targetImplements.clone();
+	public Class[] getTargetImplements() {
+		return targetImplements == null ? null : (Class[]) targetImplements
+				.clone();
 	}
 
 	/**
 	 * Set the interfaces that the generated target will implement.
 	 * 
 	 * @param implementsClasses
-	 *           an array of Class objects, one for each interface the target
-	 *           will extend
+	 *            an array of Class objects, one for each interface the target
+	 *            will extend
 	 */
-	public void setTargetImplements(Class[] implementsClasses)
-	{
-		targetImplements = implementsClasses == null ? null : (Class[]) implementsClasses.clone();
+	public void setTargetImplements(Class[] implementsClasses) {
+		targetImplements = implementsClasses == null ? null
+				: (Class[]) implementsClasses.clone();
 	}
 
 	/**
@@ -136,8 +129,8 @@ public class ClassCompiler
 	 * implementation simply appends auxMarker to mainClassName but this can be
 	 * overridden.
 	 */
-	protected String makeAuxiliaryClassName(String mainClassName, String auxMarker)
-	{
+	protected String makeAuxiliaryClassName(String mainClassName,
+			String auxMarker) {
 		return mainClassName + auxMarker;
 	}
 
@@ -149,12 +142,12 @@ public class ClassCompiler
 	 * and implement specified interfaces.
 	 * 
 	 * @return array where elements with even indexes specifies class name and
-	 *         the followinf odd index gives class file body as byte[] array. The
-	 *         initial elemnt of the array always holds mainClassName and
+	 *         the followinf odd index gives class file body as byte[] array.
+	 *         The initial elemnt of the array always holds mainClassName and
 	 *         array[1] holds its byte code.
 	 */
-	public Object[] compileToClassFiles(String source, String sourceLocation, int lineno, String mainClassName)
-	{
+	public Object[] compileToClassFiles(String source, String sourceLocation,
+			int lineno, String mainClassName) {
 		Parser p = new Parser(compilerEnv, compilerEnv.getErrorReporter());
 		ScriptOrFnNode tree = p.parse(source, sourceLocation, lineno);
 		String encodedSource = p.getEncodedSource();
@@ -163,39 +156,37 @@ public class ClassCompiler
 		Class[] interfaces = getTargetImplements();
 		String scriptClassName;
 		boolean isPrimary = (interfaces == null && superClass == null);
-		if (isPrimary)
-		{
+		if (isPrimary) {
 			scriptClassName = mainClassName;
-		}
-		else
-		{
+		} else {
 			scriptClassName = makeAuxiliaryClassName(mainClassName, "1");
 		}
 
 		Codegen codegen = new Codegen();
 		codegen.setMainMethodClass(mainMethodClassName);
-		byte[] scriptClassBytes = codegen.compileToClassFile(compilerEnv, scriptClassName, tree, encodedSource, false);
+		byte[] scriptClassBytes = codegen.compileToClassFile(compilerEnv,
+				scriptClassName, tree, encodedSource, false);
 
-		if (isPrimary) { return new Object[] { scriptClassName, scriptClassBytes }; }
+		if (isPrimary) {
+			return new Object[] { scriptClassName, scriptClassBytes };
+		}
 		int functionCount = tree.getFunctionCount();
 		ObjToIntMap functionNames = new ObjToIntMap(functionCount);
-		for (int i = 0; i != functionCount; ++i)
-		{
+		for (int i = 0; i != functionCount; ++i) {
 			FunctionNode ofn = tree.getFunctionNode(i);
 			String name = ofn.getFunctionName();
-			if (name != null && name.length() != 0)
-			{
+			if (name != null && name.length() != 0) {
 				functionNames.put(name, ofn.getParamCount());
 			}
 		}
-		if (superClass == null)
-		{
+		if (superClass == null) {
 			superClass = ScriptRuntime.ObjectClass;
 		}
-		byte[] mainClassBytes = JavaAdapter.createAdapterCode(functionNames, mainClassName, superClass, interfaces,
-				scriptClassName);
+		byte[] mainClassBytes = JavaAdapter.createAdapterCode(functionNames,
+				mainClassName, superClass, interfaces, scriptClassName);
 
-		return new Object[] { mainClassName, mainClassBytes, scriptClassName, scriptClassBytes };
+		return new Object[] { mainClassName, mainClassBytes, scriptClassName,
+				scriptClassBytes };
 	}
 
 	private String mainMethodClassName;

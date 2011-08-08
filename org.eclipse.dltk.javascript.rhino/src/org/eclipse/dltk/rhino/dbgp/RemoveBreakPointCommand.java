@@ -21,8 +21,10 @@ final class RemoveBreakPointCommand extends DBGPDebugger.Command {
 	}
 
 	void parseAndExecute(String command, HashMap options) {
-		this.debugger.getStackManager().removeBreakpoint((String) options.get("-d"));
-		this.debugger.printResponse("<response command=\"breakpoint_remove\"\r\n"
-				+ " transaction_id=\"" + options.get("-i") + "\" />");
+		this.debugger.getStackManager().removeBreakpoint(
+				(String) options.get("-d"));
+		this.debugger
+				.printResponse("<response command=\"breakpoint_remove\"\r\n"
+						+ " transaction_id=\"" + options.get("-i") + "\" />");
 	}
 }

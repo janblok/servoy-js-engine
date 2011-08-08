@@ -23,24 +23,24 @@ final class StackGetCommand extends DBGPDebugger.Command {
 
 	void parseAndExecute(String command, final HashMap options) {
 		String string = (String) options.get("-d");
-		int level=-1;
-		if (string!=null){
-			level = Integer.parseInt(string);	
-		}		
+		int level = -1;
+		if (string != null) {
+			level = Integer.parseInt(string);
+		}
 		StringBuffer stack = new StringBuffer();
 		if (this.debugger.getStackManager().getStackDepth() >= level) {
-			if (level==-1){
-				for (int a=0;a<this.debugger.getStackManager().getStackDepth();a++){
+			if (level == -1) {
+				for (int a = 0; a < this.debugger.getStackManager()
+						.getStackDepth(); a++) {
 					appendLevel(a, stack);
 				}
+			} else {
+
+				appendLevel(level, stack);
 			}
-			else{
-			
-			appendLevel(level, stack);
-			}
-			this.debugger.printResponse("<response command=\"stack_get\"\r\n" + "\r\n"
-					+ "          transaction_id=\"" + options.get("-i")
-					+ "\">\r\n" +
+			this.debugger.printResponse("<response command=\"stack_get\"\r\n"
+					+ "\r\n" + "          transaction_id=\""
+					+ options.get("-i") + "\">\r\n" +
 
 					stack + "</response>\r\n" + "");
 		}
@@ -48,18 +48,16 @@ final class StackGetCommand extends DBGPDebugger.Command {
 	}
 
 	private void appendLevel(int level, StringBuffer stack) {
-		DBGPDebugFrame stackFrame = this.debugger.getStackManager().getStackFrame(level);
-		stack.append("<stack level=\""
-				+ level
-				+ "\"\r\n"
-				+ "           type=\"file\"\r\n"
-				+ "           filename=\""
-				+ new File(stackFrame.getSourceName()).toURI()
-						.toASCIIString() + "\"\r\n"
-				+ "           lineno=\""
+		DBGPDebugFrame stackFrame = this.debugger.getStackManager()
+				.getStackFrame(level);
+		stack.append("<stack level=\"" + level + "\"\r\n"
+				+ "           type=\"file\"\r\n" + "           filename=\""
+				+ new File(stackFrame.getSourceName()).toURI().toASCIIString()
+				+ "\"\r\n" + "           lineno=\""
 				+ (stackFrame.getLineNumber()) + "\"\r\n"
-				+ "           where=\"" + stackFrame.getWhere()
-				+ "\"\r\n" + "           cmdbegin=\"" + stackFrame.getLineNumber() + ":0\"\r\n"
-				+ "           cmdend=\"" + stackFrame.getLineNumber() + ":-1\"/>");
+				+ "           where=\"" + stackFrame.getWhere() + "\"\r\n"
+				+ "           cmdbegin=\"" + stackFrame.getLineNumber()
+				+ ":0\"\r\n" + "           cmdend=\""
+				+ stackFrame.getLineNumber() + ":-1\"/>");
 	}
 }

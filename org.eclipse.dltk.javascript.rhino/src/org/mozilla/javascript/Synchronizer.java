@@ -52,27 +52,24 @@ package org.mozilla.javascript;
  * @author Matthias Radestock
  */
 
-public class Synchronizer extends Delegator
-{
+public class Synchronizer extends Delegator {
 
 	/**
 	 * Create a new synchronized function from an existing one.
 	 * 
 	 * @param obj
-	 *           the existing function
+	 *            the existing function
 	 */
-	public Synchronizer(Scriptable obj)
-	{
+	public Synchronizer(Scriptable obj) {
 		super(obj);
 	}
 
 	/**
 	 * @see org.mozilla.javascript.Function#call
 	 */
-	public Object call(Context cx, Scriptable scope, Scriptable thisObj, Object[] args)
-	{
-		synchronized (thisObj)
-		{
+	public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+			Object[] args) {
+		synchronized (thisObj) {
 			return ((Function) obj).call(cx, scope, thisObj, args);
 		}
 	}

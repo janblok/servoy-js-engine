@@ -49,31 +49,27 @@ import java.util.List;
 /**
  * The class of exceptions thrown by the JavaScript engine.
  */
-public abstract class RhinoException extends RuntimeException
-{
-	RhinoException()
-	{
+public abstract class RhinoException extends RuntimeException {
+	RhinoException() {
 		Interpreter.captureInterpreterStackInfo(this);
 	}
 
-	RhinoException(String details)
-	{
+	RhinoException(String details) {
 		super(details);
 		Interpreter.captureInterpreterStackInfo(this);
 	}
 
-	public String getMessage()
-	{
+	public String getMessage() {
 		String details = details();
-		if (sourceName == null || lineNumber <= 0) { return details; }
+		if (sourceName == null || lineNumber <= 0) {
+			return details;
+		}
 		StringBuffer buf = new StringBuffer(details);
 		buf.append(" (");
-		if (sourceName != null)
-		{
+		if (sourceName != null) {
 			buf.append(sourceName);
 		}
-		if (lineNumber > 0)
-		{
+		if (lineNumber > 0) {
 			buf.append('#');
 			buf.append(lineNumber);
 		}
@@ -81,8 +77,7 @@ public abstract class RhinoException extends RuntimeException
 		return buf.toString();
 	}
 
-	public String details()
-	{
+	public String details() {
 		return super.getMessage();
 	}
 
@@ -90,8 +85,7 @@ public abstract class RhinoException extends RuntimeException
 	 * Get the uri of the script source containing the error, or null if that
 	 * information is not available.
 	 */
-	public final String sourceName()
-	{
+	public final String sourceName() {
 		return sourceName;
 	}
 
@@ -99,13 +93,12 @@ public abstract class RhinoException extends RuntimeException
 	 * Initialize the uri of the script source containing the error.
 	 * 
 	 * @param sourceName
-	 *           the uri of the script source reponsible for the error. It should
-	 *           not be <tt>null</tt>.
+	 *            the uri of the script source reponsible for the error. It
+	 *            should not be <tt>null</tt>.
 	 * @throws IllegalStateException
-	 *            if the method is called more then once.
+	 *             if the method is called more then once.
 	 */
-	public final void initSourceName(String sourceName)
-	{
+	public final void initSourceName(String sourceName) {
 		if (sourceName == null)
 			throw new IllegalArgumentException();
 		if (this.sourceName != null)
@@ -114,11 +107,10 @@ public abstract class RhinoException extends RuntimeException
 	}
 
 	/**
-	 * Returns the line number of the statement causing the error, or zero if not
-	 * available.
+	 * Returns the line number of the statement causing the error, or zero if
+	 * not available.
 	 */
-	public final int lineNumber()
-	{
+	public final int lineNumber() {
 		return lineNumber;
 	}
 
@@ -126,13 +118,12 @@ public abstract class RhinoException extends RuntimeException
 	 * Initialize the line number of the script statement causing the error.
 	 * 
 	 * @param lineNumber
-	 *           the line number in the script source. It should be positive
-	 *           number.
+	 *            the line number in the script source. It should be positive
+	 *            number.
 	 * @throws IllegalStateException
-	 *            if the method is called more then once.
+	 *             if the method is called more then once.
 	 */
-	public final void initLineNumber(int lineNumber)
-	{
+	public final void initLineNumber(int lineNumber) {
 		if (lineNumber <= 0)
 			throw new IllegalArgumentException(String.valueOf(lineNumber));
 		if (this.lineNumber > 0)
@@ -143,8 +134,7 @@ public abstract class RhinoException extends RuntimeException
 	/**
 	 * The column number of the location of the error, or zero if unknown.
 	 */
-	public final int columnNumber()
-	{
+	public final int columnNumber() {
 		return columnNumber;
 	}
 
@@ -152,13 +142,12 @@ public abstract class RhinoException extends RuntimeException
 	 * Initialize the column number of the script statement causing the error.
 	 * 
 	 * @param columnNumber
-	 *           the column number in the script source. It should be positive
-	 *           number.
+	 *            the column number in the script source. It should be positive
+	 *            number.
 	 * @throws IllegalStateException
-	 *            if the method is called more then once.
+	 *             if the method is called more then once.
 	 */
-	public final void initColumnNumber(int columnNumber)
-	{
+	public final void initColumnNumber(int columnNumber) {
 		if (columnNumber <= 0)
 			throw new IllegalArgumentException(String.valueOf(columnNumber));
 		if (this.columnNumber > 0)
@@ -169,8 +158,7 @@ public abstract class RhinoException extends RuntimeException
 	/**
 	 * The source text of the line causing the error, or null if unknown.
 	 */
-	public final String lineSource()
-	{
+	public final String lineSource() {
 		return lineSource;
 	}
 
@@ -178,13 +166,12 @@ public abstract class RhinoException extends RuntimeException
 	 * Initialize the text of the source line containing the error.
 	 * 
 	 * @param lineSource
-	 *           the text of the source line reponsible for the error. It should
-	 *           not be <tt>null</tt>.
+	 *            the text of the source line reponsible for the error. It
+	 *            should not be <tt>null</tt>.
 	 * @throws IllegalStateException
-	 *            if the method is called more then once.
+	 *             if the method is called more then once.
 	 */
-	public final void initLineSource(String lineSource)
-	{
+	public final void initLineSource(String lineSource) {
 		if (lineSource == null)
 			throw new IllegalArgumentException();
 		if (this.lineSource != null)
@@ -192,34 +179,28 @@ public abstract class RhinoException extends RuntimeException
 		this.lineSource = lineSource;
 	}
 
-	final void recordErrorOrigin(String sourceName, int lineNumber, String lineSource, int columnNumber)
-	{
+	final void recordErrorOrigin(String sourceName, int lineNumber,
+			String lineSource, int columnNumber) {
 		// XXX: for compatibility allow for now -1 to mean 0
-		if (lineNumber == -1)
-		{
+		if (lineNumber == -1) {
 			lineNumber = 0;
 		}
 
-		if (sourceName != null)
-		{
+		if (sourceName != null) {
 			initSourceName(sourceName);
 		}
-		if (lineNumber != 0)
-		{
+		if (lineNumber != 0) {
 			initLineNumber(lineNumber);
 		}
-		if (lineSource != null)
-		{
+		if (lineSource != null) {
 			initLineSource(lineSource);
 		}
-		if (columnNumber != 0)
-		{
+		if (columnNumber != 0) {
 			initColumnNumber(columnNumber);
 		}
 	}
 
-	private String generateStackTrace()
-	{
+	private String generateStackTrace() {
 		// Get stable reference to work properly with concurrent access
 		CharArrayWriter writer = new CharArrayWriter();
 		super.printStackTrace(new PrintWriter(writer));
@@ -235,12 +216,9 @@ public abstract class RhinoException extends RuntimeException
 	 * @return a script stack dump
 	 * @since 1.6R6
 	 */
-	public String getScriptStackTrace()
-	{
-		return getScriptStackTrace(new FilenameFilter()
-		{
-			public boolean accept(File dir, String name)
-			{
+	public String getScriptStackTrace() {
+		return getScriptStackTrace(new FilenameFilter() {
+			public boolean accept(File dir, String name) {
 				return name.endsWith(".js");
 			}
 		});
@@ -252,59 +230,50 @@ public abstract class RhinoException extends RuntimeException
 	 * a source name matching the <code>filter</code>.
 	 * 
 	 * @param filter
-	 *           the file name filter to determine whether a file is a script
-	 *           file
+	 *            the file name filter to determine whether a file is a script
+	 *            file
 	 * @return a script stack dump
 	 * @since 1.6R6
 	 */
-	public String getScriptStackTrace(FilenameFilter filter)
-	{
+	public String getScriptStackTrace(FilenameFilter filter) {
 		List interpreterStack = Interpreter.getScriptStack(this);
 		int interpreterStackIndex = 0;
 		StringBuffer buffer = new StringBuffer();
-		String lineSeparator = SecurityUtilities.getSystemProperty("line.separator");
+		String lineSeparator = SecurityUtilities
+				.getSystemProperty("line.separator");
 		StackTraceElement[] stack = getStackTrace();
-		for (int i = 0; i < stack.length; i++)
-		{
+		for (int i = 0; i < stack.length; i++) {
 			StackTraceElement e = stack[i];
 			String name = e.getFileName();
-			if (e.getLineNumber() > -1 && name != null && filter.accept(null, name))
-			{
+			if (e.getLineNumber() > -1 && name != null
+					&& filter.accept(null, name)) {
 				buffer.append("\tat ");
 				buffer.append(e.getFileName());
 				buffer.append(':');
 				buffer.append(e.getLineNumber());
 				buffer.append(lineSeparator);
-			}
-			else if (interpreterStack != null && "org.mozilla.javascript.Interpreter".equals(e.getClassName())
-					&& "interpretLoop".equals(e.getMethodName()))
-			{
+			} else if (interpreterStack != null
+					&& "org.mozilla.javascript.Interpreter".equals(e
+							.getClassName())
+					&& "interpretLoop".equals(e.getMethodName())) {
 				buffer.append(interpreterStack.get(interpreterStackIndex++));
 			}
 		}
 		return buffer.toString();
 	}
 
-	public void printStackTrace(PrintWriter s)
-	{
-		if (interpreterStackInfo == null)
-		{
+	public void printStackTrace(PrintWriter s) {
+		if (interpreterStackInfo == null) {
 			super.printStackTrace(s);
-		}
-		else
-		{
+		} else {
 			s.print(generateStackTrace());
 		}
 	}
 
-	public void printStackTrace(PrintStream s)
-	{
-		if (interpreterStackInfo == null)
-		{
+	public void printStackTrace(PrintStream s) {
+		if (interpreterStackInfo == null) {
 			super.printStackTrace(s);
-		}
-		else
-		{
+		} else {
 			s.print(generateStackTrace());
 		}
 	}

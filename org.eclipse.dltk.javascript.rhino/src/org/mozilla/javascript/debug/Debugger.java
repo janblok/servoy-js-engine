@@ -45,21 +45,21 @@ import org.mozilla.javascript.Context;
  * Interface to implement if the application is interested in receiving debug
  * information.
  */
-public interface Debugger
-{
+public interface Debugger {
 
 	/**
 	 * Called when compilation of a particular function or script into internal
 	 * bytecode is done.
 	 * 
 	 * @param cx
-	 *           current Context for this thread
+	 *            current Context for this thread
 	 * @param fnOrScript
-	 *           object describing the function or script
+	 *            object describing the function or script
 	 * @param source
-	 *           the function or script source
+	 *            the function or script source
 	 */
-	void handleCompilationDone(Context cx, DebuggableScript fnOrScript, String source);
+	void handleCompilationDone(Context cx, DebuggableScript fnOrScript,
+			String source);
 
 	/**
 	 * Called when execution entered a particular function or script.

@@ -47,8 +47,7 @@ import java.util.Hashtable;
  * @author Igor Bukanov
  * @since Rhino 1.5 Release 5
  */
-public class ClassCache
-{
+public class ClassCache {
 	private static final Object AKEY = new Object();
 
 	private volatile boolean cachingIsEnabled = true;
@@ -65,22 +64,20 @@ public class ClassCache
 
 	/**
 	 * Search for ClassCache object in the given scope. The method first calls
-	 * {@link ScriptableObject#getTopLevelScope(Scriptable scope)} to get the top
-	 * most scope and then tries to locate associated ClassCache object in the
-	 * prototype chain of the top scope.
+	 * {@link ScriptableObject#getTopLevelScope(Scriptable scope)} to get the
+	 * top most scope and then tries to locate associated ClassCache object in
+	 * the prototype chain of the top scope.
 	 * 
 	 * @param scope
-	 *           scope to search for ClassCache object.
+	 *            scope to search for ClassCache object.
 	 * @return previously associated ClassCache object or a new instance of
 	 *         ClassCache if no ClassCache object was found.
 	 * @see #associate(ScriptableObject topScope)
 	 */
-	public static ClassCache get(Scriptable scope)
-	{
+	public static ClassCache get(Scriptable scope) {
 		ClassCache cache;
 		cache = (ClassCache) ScriptableObject.getTopScopeValue(scope, AKEY);
-		if (cache == null)
-		{
+		if (cache == null) {
 			// XXX warn somehow about wrong cache usage ?
 			cache = new ClassCache();
 		}
@@ -88,25 +85,22 @@ public class ClassCache
 	}
 
 	/**
-	 * Associate ClassCache object with the given top-level scope. The ClassCache
-	 * object can only be associated with the given scope once.
+	 * Associate ClassCache object with the given top-level scope. The
+	 * ClassCache object can only be associated with the given scope once.
 	 * 
 	 * @param topScope
-	 *           scope to associate this ClassCache object with.
-	 * @return true if no prevous ClassCache objects were embedded into the scope
-	 *         and this ClassCache were successfully associated or false
+	 *            scope to associate this ClassCache object with.
+	 * @return true if no prevous ClassCache objects were embedded into the
+	 *         scope and this ClassCache were successfully associated or false
 	 *         otherwise.
 	 * @see #get(Scriptable scope)
 	 */
-	public boolean associate(ScriptableObject topScope)
-	{
-		if (topScope.getParentScope() != null)
-		{
+	public boolean associate(ScriptableObject topScope) {
+		if (topScope.getParentScope() != null) {
 			// Can only associate cache with top level scope
 			throw new IllegalArgumentException();
 		}
-		if (this == topScope.associateValue(AKEY, this))
-		{
+		if (this == topScope.associateValue(AKEY, this)) {
 			scope = topScope;
 			return true;
 		}
@@ -116,28 +110,25 @@ public class ClassCache
 	/**
 	 * Empty caches of generated Java classes and Java reflection information.
 	 */
-	public synchronized void clearCaches()
-	{
+	public synchronized void clearCaches() {
 		classTable = new Hashtable();
 		javaAdapterGeneratedClasses = new Hashtable();
 		interfaceAdapterCache = null;
 	}
 
 	/**
-	 * Check if generated Java classes and Java reflection information is cached.
+	 * Check if generated Java classes and Java reflection information is
+	 * cached.
 	 */
-	public final boolean isCachingEnabled()
-	{
+	public final boolean isCachingEnabled() {
 		return cachingIsEnabled;
 	}
 
-	public Hashtable getClassTable()
-	{
+	public Hashtable getClassTable() {
 		return classTable;
 	}
 
-	public Scriptable getScope()
-	{
+	public Scriptable getScope() {
 		return scope;
 	}
 
@@ -156,11 +147,10 @@ public class ClassCache
 	 * Caching is enabled by default.
 	 * 
 	 * @param enabled
-	 *           if true, caching is enabled
+	 *            if true, caching is enabled
 	 * @see #clearCaches()
 	 */
-	public synchronized void setCachingEnabled(boolean enabled)
-	{
+	public synchronized void setCachingEnabled(boolean enabled) {
 		if (enabled == cachingIsEnabled)
 			return;
 		if (!enabled)
@@ -172,8 +162,7 @@ public class ClassCache
 	 * @deprecated The method always returns false.
 	 * @see #setInvokerOptimizationEnabled(boolean enabled)
 	 */
-	public boolean isInvokerOptimizationEnabled()
-	{
+	public boolean isInvokerOptimizationEnabled() {
 		return false;
 	}
 
@@ -184,40 +173,31 @@ public class ClassCache
 	 *             initialization time overweight small speed increase that can
 	 *             be gained using generated proxy class to replace reflection.
 	 */
-	public synchronized void setInvokerOptimizationEnabled(boolean enabled)
-	{
+	public synchronized void setInvokerOptimizationEnabled(boolean enabled) {
 	}
 
 	/**
 	 * Internal engine method to return serial number for generated classes to
 	 * ensure name uniqueness.
 	 */
-	public final synchronized int newClassSerialNumber()
-	{
+	public final synchronized int newClassSerialNumber() {
 		return ++generatedClassSerial;
 	}
 
-	Object getInterfaceAdapter(Class cl)
-	{
+	Object getInterfaceAdapter(Class cl) {
 		Object result;
 		Hashtable cache = interfaceAdapterCache;
-		if (cache == null)
-		{
+		if (cache == null) {
 			result = null;
-		}
-		else
-		{
+		} else {
 			result = cache.get(cl);
 		}
 		return result;
 	}
 
-	synchronized void cacheInterfaceAdapter(Class cl, Object iadapter)
-	{
-		if (cachingIsEnabled)
-		{
-			if (interfaceAdapterCache == null)
-			{
+	synchronized void cacheInterfaceAdapter(Class cl, Object iadapter) {
+		if (cachingIsEnabled) {
+			if (interfaceAdapterCache == null) {
 				interfaceAdapterCache = new Hashtable();
 			}
 			interfaceAdapterCache.put(cl, iadapter);

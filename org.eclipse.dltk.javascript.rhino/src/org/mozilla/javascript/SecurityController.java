@@ -61,13 +61,11 @@ package org.mozilla.javascript;
  * @see java.lang.ClassLoader
  * @since 1.5 Release 4
  */
-public abstract class SecurityController
-{
+public abstract class SecurityController {
 	private static SecurityController global;
 
 	// The method must NOT be public or protected
-	static SecurityController global()
-	{
+	static SecurityController global() {
 		return global;
 	}
 
@@ -76,8 +74,7 @@ public abstract class SecurityController
 	 * 
 	 * @see #initGlobal(SecurityController controller)
 	 */
-	public static boolean hasGlobal()
-	{
+	public static boolean hasGlobal() {
 		return global != null;
 	}
 
@@ -92,11 +89,13 @@ public abstract class SecurityController
 	 * 
 	 * @see #hasGlobal()
 	 */
-	public static void initGlobal(SecurityController controller)
-	{
+	public static void initGlobal(SecurityController controller) {
 		if (controller == null)
 			throw new IllegalArgumentException();
-		if (global != null) { throw new SecurityException("Cannot overwrite already installed global SecurityController"); }
+		if (global != null) {
+			throw new SecurityException(
+					"Cannot overwrite already installed global SecurityController");
+		}
 		global = controller;
 	}
 
@@ -105,44 +104,41 @@ public abstract class SecurityController
 	 * given security context.
 	 * 
 	 * @param parentLoader
-	 *           parent class loader to delegate search for classes not defined
-	 *           by the class loader itself
+	 *            parent class loader to delegate search for classes not defined
+	 *            by the class loader itself
 	 * @param securityDomain
-	 *           some object specifying the security context of the code that is
-	 *           defined by the returned class loader.
+	 *            some object specifying the security context of the code that
+	 *            is defined by the returned class loader.
 	 */
-	public abstract GeneratedClassLoader createClassLoader(ClassLoader parentLoader, Object securityDomain);
+	public abstract GeneratedClassLoader createClassLoader(
+			ClassLoader parentLoader, Object securityDomain);
 
 	/**
 	 * Create {@link GeneratedClassLoader} with restrictions imposed by
 	 * staticDomain and all current stack frames. The method uses the
-	 * SecurityController instance associated with the current {@link Context} to
-	 * construct proper dynamic domain and create corresponding class loader.
+	 * SecurityController instance associated with the current {@link Context}
+	 * to construct proper dynamic domain and create corresponding class loader.
 	 * <par> If no SecurityController is associated with the current
 	 * {@link Context} , the method calls
 	 * {@link Context#createClassLoader(ClassLoader parent)}.
 	 * 
 	 * @param parent
-	 *           parent class loader. If null,
-	 *           {@link Context#getApplicationClassLoader()} will be used.
+	 *            parent class loader. If null,
+	 *            {@link Context#getApplicationClassLoader()} will be used.
 	 * @param staticDomain
-	 *           static security domain.
+	 *            static security domain.
 	 */
-	public static GeneratedClassLoader createLoader(ClassLoader parent, Object staticDomain)
-	{
+	public static GeneratedClassLoader createLoader(ClassLoader parent,
+			Object staticDomain) {
 		Context cx = Context.getContext();
-		if (parent == null)
-		{
+		if (parent == null) {
 			parent = cx.getApplicationClassLoader();
 		}
 		SecurityController sc = cx.getSecurityController();
 		GeneratedClassLoader loader;
-		if (sc == null)
-		{
+		if (sc == null) {
 			loader = cx.createClassLoader(parent);
-		}
-		else
-		{
+		} else {
 			Object dynamicDomain = sc.getDynamicSecurityDomain(staticDomain);
 			loader = sc.createClassLoader(parent, dynamicDomain);
 		}
@@ -150,19 +146,19 @@ public abstract class SecurityController
 	}
 
 	/**
-	 * Get dynamic security domain that allows an action only if it is allowed by
-	 * the current Java stack and <i>securityDomain</i>. If <i>securityDomain</i>
-	 * is null, return domain representing permissions allowed by the current
-	 * stack.
+	 * Get dynamic security domain that allows an action only if it is allowed
+	 * by the current Java stack and <i>securityDomain</i>. If
+	 * <i>securityDomain</i> is null, return domain representing permissions
+	 * allowed by the current stack.
 	 */
 	public abstract Object getDynamicSecurityDomain(Object securityDomain);
 
 	/**
-	 * Call {@link Callable#call(Context cx, Scriptable scope, Scriptable
-	 * thisObj, Object[] args)} of <i>callable</i> under restricted security
-	 * domain where an action is allowed only if it is allowed according to the
-	 * Java stack on the moment of the <i>execWithDomain</i> call and
-	 * <i>securityDomain</i>. Any call to
+	 * Call
+	 * {@link Callable#call(Context cx, Scriptable scope, Scriptable thisObj, Object[] args)}
+	 * of <i>callable</i> under restricted security domain where an action is
+	 * allowed only if it is allowed according to the Java stack on the moment
+	 * of the <i>execWithDomain</i> call and <i>securityDomain</i>. Any call to
 	 * {@link #getDynamicSecurityDomain(Object)} during execution of
 	 * <tt>callable.call(cx, scope, thisObj, args)</tt> should return a domain
 	 * incorporate restrictions imposed by <i>securityDomain</i> and Java stack
@@ -171,13 +167,11 @@ public abstract class SecurityController
 	 * The method should always be overridden, it is not declared abstract for
 	 * compatibility reasons.
 	 */
-	public Object callWithDomain(Object securityDomain, Context cx, final Callable callable, Scriptable scope,
-			final Scriptable thisObj, final Object[] args)
-	{
-		return execWithDomain(cx, scope, new Script()
-		{
-			public Object exec(Context cx, Scriptable scope)
-			{
+	public Object callWithDomain(Object securityDomain, Context cx,
+			final Callable callable, Scriptable scope,
+			final Scriptable thisObj, final Object[] args) {
+		return execWithDomain(cx, scope, new Script() {
+			public Object exec(Context cx, Scriptable scope) {
 				return callable.call(cx, scope, thisObj, args);
 			}
 
@@ -187,10 +181,11 @@ public abstract class SecurityController
 	/**
 	 * @deprecated The application should not override this method and instead
 	 *             override
-	 *             {@link #callWithDomain(Object securityDomain, Context cx, Callable callable, Scriptable scope, Scriptable thisObj, Object[] args)}.
+	 *             {@link #callWithDomain(Object securityDomain, Context cx, Callable callable, Scriptable scope, Scriptable thisObj, Object[] args)}
+	 *             .
 	 */
-	public Object execWithDomain(Context cx, Scriptable scope, Script script, Object securityDomain)
-	{
+	public Object execWithDomain(Context cx, Scriptable scope, Script script,
+			Object securityDomain) {
 		throw new IllegalStateException("callWithDomain should be overridden");
 	}
 

@@ -47,79 +47,64 @@ import java.util.Hashtable;
  * @author Norris Boyd
  */
 
-class OptTransformer extends NodeTransformer
-{
+class OptTransformer extends NodeTransformer {
 
-	OptTransformer(Hashtable possibleDirectCalls, ObjArray directCallTargets)
-	{
+	OptTransformer(Hashtable possibleDirectCalls, ObjArray directCallTargets) {
 		this.possibleDirectCalls = possibleDirectCalls;
 		this.directCallTargets = directCallTargets;
 	}
 
-	protected void visitNew(Node node, ScriptOrFnNode tree)
-	{
+	protected void visitNew(Node node, ScriptOrFnNode tree) {
 		detectDirectCall(node, tree);
 		super.visitNew(node, tree);
 	}
 
-	protected void visitCall(Node node, ScriptOrFnNode tree)
-	{
+	protected void visitCall(Node node, ScriptOrFnNode tree) {
 		detectDirectCall(node, tree);
 		super.visitCall(node, tree);
 	}
 
-	private void detectDirectCall(Node node, ScriptOrFnNode tree)
-	{
-		if (tree.getType() == Token.FUNCTION)
-		{
+	private void detectDirectCall(Node node, ScriptOrFnNode tree) {
+		if (tree.getType() == Token.FUNCTION) {
 			Node left = node.getFirstChild();
 
 			// count the arguments
 			int argCount = 0;
 			Node arg = left.getNext();
-			while (arg != null)
-			{
+			while (arg != null) {
 				arg = arg.getNext();
 				argCount++;
 			}
 
-			if (argCount == 0)
-			{
+			if (argCount == 0) {
 				OptFunctionNode.get(tree).itsContainsCalls0 = true;
 			}
 
 			/*
 			 * Optimize a call site by converting call("a", b, c) into :
-			 * FunctionObjectFor"a" <-- instance variable init'd by constructor //
-			 * this is a DIRECTCALL node fn = GetProp(tmp = GetBase("a"), "a"); if
-			 * (fn == FunctionObjectFor"a") fn.call(tmp, b, c) else
+			 * FunctionObjectFor"a" <-- instance variable init'd by constructor
+			 * // this is a DIRECTCALL node fn = GetProp(tmp = GetBase("a"),
+			 * "a"); if (fn == FunctionObjectFor"a") fn.call(tmp, b, c) else
 			 * ScriptRuntime.Call(fn, tmp, b, c)
 			 */
-			if (possibleDirectCalls != null)
-			{
+			if (possibleDirectCalls != null) {
 				String targetName = null;
-				if (left.getType() == Token.NAME)
-				{
+				if (left.getType() == Token.NAME) {
 					targetName = left.getString();
-				}
-				else if (left.getType() == Token.GETPROP)
-				{
+				} else if (left.getType() == Token.GETPROP) {
 					targetName = left.getFirstChild().getNext().getString();
 				}
-				if (targetName != null)
-				{
+				if (targetName != null) {
 					OptFunctionNode ofn;
 					ofn = (OptFunctionNode) possibleDirectCalls.get(targetName);
-					if (ofn != null && argCount == ofn.fnode.getParamCount() && !ofn.fnode.requiresActivation())
-					{
+					if (ofn != null && argCount == ofn.fnode.getParamCount()
+							&& !ofn.fnode.requiresActivation()) {
 						// Refuse to directCall any function with more
 						// than 32 parameters - prevent code explosion
 						// for wacky test cases
-						if (argCount <= 32)
-						{
+						if (argCount <= 32) {
 							node.putProp(Node.DIRECTCALL_PROP, ofn);
-							if (!ofn.isTargetOfDirectCall())
-							{
+							if (!ofn.isTargetOfDirectCall()) {
 								int index = directCallTargets.size();
 								directCallTargets.add(ofn);
 								ofn.setDirectTargetIndex(index);

@@ -44,8 +44,8 @@ public class DefaultRhinoRunner {
 					}
 					cx.setGeneratingDebug(true);
 					cx.setOptimizationLevel(-1);
-					cx.evaluateReader(scope, new FileReader(args[0]),new File(args[0]).getAbsolutePath(),
-							0, null);
+					cx.evaluateReader(scope, new FileReader(args[0]), new File(
+							args[0]).getAbsolutePath(), 0, null);
 
 				} catch (FileNotFoundException e) {
 					// TODO Auto-generated catch block

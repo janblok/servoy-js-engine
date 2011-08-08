@@ -44,8 +44,7 @@ import java.lang.reflect.Method;
  * Adapter to use JS function as implementation of Java interfaces with single
  * method or multiple methods with the same signature.
  */
-public class InterfaceAdapter
-{
+public class InterfaceAdapter {
 	private final Object proxyHelper;
 
 	/**
@@ -56,8 +55,7 @@ public class InterfaceAdapter
 	 * @return The glue object or null if <tt>cl</tt> is not interface or has
 	 *         methods with different signatures.
 	 */
-	static Object create(Context cx, Class cl, Callable function)
-	{
+	static Object create(Context cx, Class cl, Callable function) {
 		if (!cl.isInterface())
 			throw new IllegalArgumentException();
 
@@ -66,84 +64,77 @@ public class InterfaceAdapter
 		InterfaceAdapter adapter;
 		adapter = (InterfaceAdapter) cache.getInterfaceAdapter(cl);
 		ContextFactory cf = cx.getFactory();
-		if (adapter == null)
-		{
+		if (adapter == null) {
 			Method[] methods = cl.getMethods();
-			if (methods.length == 0) { throw Context.reportRuntimeError2("msg.no.empty.interface.conversion", String
-					.valueOf(function), cl.getClass().getName()); }
+			if (methods.length == 0) {
+				throw Context.reportRuntimeError2(
+						"msg.no.empty.interface.conversion",
+						String.valueOf(function), cl.getClass().getName());
+			}
 			boolean canCallFunction = false;
-			canCallFunctionChecks:
-			{
+			canCallFunctionChecks: {
 				Class[] argTypes = methods[0].getParameterTypes();
 				// check that the rest of methods has the same signature
-				for (int i = 1; i != methods.length; ++i)
-				{
+				for (int i = 1; i != methods.length; ++i) {
 					Class[] types2 = methods[i].getParameterTypes();
-					if (types2.length != argTypes.length)
-					{
+					if (types2.length != argTypes.length) {
 						break canCallFunctionChecks;
 					}
-					for (int j = 0; j != argTypes.length; ++j)
-					{
-						if (types2[j] != argTypes[j])
-						{
+					for (int j = 0; j != argTypes.length; ++j) {
+						if (types2[j] != argTypes[j]) {
 							break canCallFunctionChecks;
 						}
 					}
 				}
 				canCallFunction = true;
 			}
-			if (!canCallFunction) { throw Context.reportRuntimeError2("msg.no.function.interface.conversion", String
-					.valueOf(function), cl.getClass().getName()); }
+			if (!canCallFunction) {
+				throw Context.reportRuntimeError2(
+						"msg.no.function.interface.conversion",
+						String.valueOf(function), cl.getClass().getName());
+			}
 			adapter = new InterfaceAdapter(cf, cl);
 			cache.cacheInterfaceAdapter(cl, adapter);
 		}
-		return VMBridge.instance.newInterfaceProxy(adapter.proxyHelper, cf, adapter, function, topScope);
+		return VMBridge.instance.newInterfaceProxy(adapter.proxyHelper, cf,
+				adapter, function, topScope);
 	}
 
-	private InterfaceAdapter(ContextFactory cf, Class cl)
-	{
-		this.proxyHelper = VMBridge.instance.getInterfaceProxyHelper(cf, new Class[] { cl });
+	private InterfaceAdapter(ContextFactory cf, Class cl) {
+		this.proxyHelper = VMBridge.instance.getInterfaceProxyHelper(cf,
+				new Class[] { cl });
 	}
 
-	public Object invoke(ContextFactory cf, final Object target, final Scriptable topScope, final Method method,
-			final Object[] args)
-	{
-		ContextAction action = new ContextAction()
-		{
-			public Object run(Context cx)
-			{
+	public Object invoke(ContextFactory cf, final Object target,
+			final Scriptable topScope, final Method method, final Object[] args) {
+		ContextAction action = new ContextAction() {
+			public Object run(Context cx) {
 				return invokeImpl(cx, target, topScope, method, args);
 			}
 		};
 		return cf.call(action);
 	}
 
-	Object invokeImpl(Context cx, Object target, Scriptable topScope, Method method, Object[] args)
-	{
+	Object invokeImpl(Context cx, Object target, Scriptable topScope,
+			Method method, Object[] args) {
 		int N = (args == null) ? 0 : args.length;
 
 		Callable function = (Callable) target;
 		Scriptable thisObj = topScope;
 		Object[] jsargs = new Object[N + 1];
 		jsargs[N] = method.getName();
-		if (N != 0)
-		{
+		if (N != 0) {
 			WrapFactory wf = cx.getWrapFactory();
-			for (int i = 0; i != N; ++i)
-			{
+			for (int i = 0; i != N; ++i) {
 				jsargs[i] = wf.wrap(cx, topScope, args[i], null);
 			}
 		}
 
 		Object result = function.call(cx, topScope, thisObj, jsargs);
 		Class javaResultType = method.getReturnType();
-		if (javaResultType == Void.TYPE)
-		{
+		if (javaResultType == Void.TYPE) {
 			result = null;
-		}
-		else
-		{
+		} else {
 			result = Context.jsToJava(result, javaResultType);
 		}
 		return result;

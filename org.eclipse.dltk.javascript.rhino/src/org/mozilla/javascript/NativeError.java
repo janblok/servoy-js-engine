@@ -42,14 +42,12 @@ package org.mozilla.javascript;
 /**
  * The class of error objects ECMA 15.11
  */
-public final class NativeError extends IdScriptableObject
-{
+public final class NativeError extends IdScriptableObject {
 	static final long serialVersionUID = -5338413581437645187L;
 
 	private static final Object ERROR_TAG = new Object();
 
-	static void init(Scriptable scope, boolean sealed)
-	{
+	static void init(Scriptable scope, boolean sealed) {
 		NativeError obj = new NativeError();
 		ScriptableObject.putProperty(obj, "name", "Error");
 		ScriptableObject.putProperty(obj, "message", "");
@@ -58,8 +56,8 @@ public final class NativeError extends IdScriptableObject
 		obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);
 	}
 
-	static NativeError make(Context cx, Scriptable scope, IdFunctionObject ctorObj, Object[] args)
-	{
+	static NativeError make(Context cx, Scriptable scope,
+			IdFunctionObject ctorObj, Object[] args) {
 		Scriptable proto = (Scriptable) (ctorObj.get("prototype", ctorObj));
 
 		NativeError obj = new NativeError();
@@ -67,93 +65,89 @@ public final class NativeError extends IdScriptableObject
 		obj.setParentScope(scope);
 
 		int arglen = args.length;
-		if (arglen >= 1)
-		{
-			ScriptableObject.putProperty(obj, "message", ScriptRuntime.toString(args[0]));
-			if (arglen >= 2)
-			{
+		if (arglen >= 1) {
+			ScriptableObject.putProperty(obj, "message",
+					ScriptRuntime.toString(args[0]));
+			if (arglen >= 2) {
 				ScriptableObject.putProperty(obj, "fileName", args[1]);
-				if (arglen >= 3)
-				{
+				if (arglen >= 3) {
 					int line = ScriptRuntime.toInt32(args[2]);
-					ScriptableObject.putProperty(obj, "lineNumber", new Integer(line));
+					ScriptableObject.putProperty(obj, "lineNumber",
+							new Integer(line));
 				}
 			}
 		}
-		if (arglen < 3 && cx.hasFeature(Context.FEATURE_LOCATION_INFORMATION_IN_ERROR))
-		{
+		if (arglen < 3
+				&& cx.hasFeature(Context.FEATURE_LOCATION_INFORMATION_IN_ERROR)) {
 			// Fill in fileName and lineNumber automatically when not specified
 			// explicitly, see Bugzilla issue #342807
 			int[] linep = new int[1];
 			String fileName = Context.getSourcePositionFromStack(linep);
-			ScriptableObject.putProperty(obj, "lineNumber", new Integer(linep[0]));
-			if (arglen < 2)
-			{
+			ScriptableObject.putProperty(obj, "lineNumber", new Integer(
+					linep[0]));
+			if (arglen < 2) {
 				ScriptableObject.putProperty(obj, "fileName", fileName);
 			}
 		}
 		return obj;
 	}
 
-	public String getClassName()
-	{
+	public String getClassName() {
 		return "Error";
 	}
 
-	public String toString()
-	{
+	public String toString() {
 		return js_toString(this);
 	}
 
-	protected void initPrototypeId(int id)
-	{
+	protected void initPrototypeId(int id) {
 		String s;
 		int arity;
-		switch (id)
-		{
-			case Id_constructor:
-				arity = 1;
-				s = "constructor";
-				break;
-			case Id_toString:
-				arity = 0;
-				s = "toString";
-				break;
-			case Id_toSource:
-				arity = 0;
-				s = "toSource";
-				break;
-			default:
-				throw new IllegalArgumentException(String.valueOf(id));
+		switch (id) {
+		case Id_constructor:
+			arity = 1;
+			s = "constructor";
+			break;
+		case Id_toString:
+			arity = 0;
+			s = "toString";
+			break;
+		case Id_toSource:
+			arity = 0;
+			s = "toSource";
+			break;
+		default:
+			throw new IllegalArgumentException(String.valueOf(id));
 		}
 		initPrototypeMethod(ERROR_TAG, id, s, arity);
 	}
 
-	public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope, Scriptable thisObj, Object[] args)
-	{
-		if (!f.hasTag(ERROR_TAG)) { return super.execIdCall(f, cx, scope, thisObj, args); }
+	public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+			Scriptable thisObj, Object[] args) {
+		if (!f.hasTag(ERROR_TAG)) {
+			return super.execIdCall(f, cx, scope, thisObj, args);
+		}
 		int id = f.methodId();
-		switch (id)
-		{
-			case Id_constructor:
-				return make(cx, scope, f, args);
+		switch (id) {
+		case Id_constructor:
+			return make(cx, scope, f, args);
 
-			case Id_toString:
-				return js_toString(thisObj);
+		case Id_toString:
+			return js_toString(thisObj);
 
-			case Id_toSource:
-				return js_toSource(cx, scope, thisObj);
+		case Id_toSource:
+			return js_toSource(cx, scope, thisObj);
 		}
 		throw new IllegalArgumentException(String.valueOf(id));
 	}
 
-	private static String js_toString(Scriptable thisObj)
-	{
-		return getString(thisObj, "name") + ": " + getString(thisObj, "message");
+	private static String js_toString(Scriptable thisObj) {
+		return getString(thisObj, "name") + ": "
+				+ getString(thisObj, "message");
 	}
 
-	private static String js_toSource(Context cx, Scriptable scope, Scriptable thisObj)
-	{
+	private static String js_toSource(Context cx, Scriptable scope,
+			Scriptable thisObj) {
 		// Emulation of SpiderMonkey behavior
 		Object name = ScriptableObject.getProperty(thisObj, "name");
 		Object message = ScriptableObject.getProperty(thisObj, "message");
@@ -162,32 +156,26 @@ public final class NativeError extends IdScriptableObject
 
 		StringBuffer sb = new StringBuffer();
 		sb.append("(new ");
-		if (name == NOT_FOUND)
-		{
+		if (name == NOT_FOUND) {
 			name = Undefined.instance;
 		}
 		sb.append(ScriptRuntime.toString(name));
 		sb.append("(");
-		if (message != NOT_FOUND || fileName != NOT_FOUND || lineNumber != NOT_FOUND)
-		{
-			if (message == NOT_FOUND)
-			{
+		if (message != NOT_FOUND || fileName != NOT_FOUND
+				|| lineNumber != NOT_FOUND) {
+			if (message == NOT_FOUND) {
 				message = "";
 			}
 			sb.append(ScriptRuntime.uneval(cx, scope, message));
-			if (fileName != NOT_FOUND || lineNumber != NOT_FOUND)
-			{
+			if (fileName != NOT_FOUND || lineNumber != NOT_FOUND) {
 				sb.append(", ");
-				if (fileName == NOT_FOUND)
-				{
+				if (fileName == NOT_FOUND) {
 					fileName = "";
 				}
 				sb.append(ScriptRuntime.uneval(cx, scope, fileName));
-				if (lineNumber != NOT_FOUND)
-				{
+				if (lineNumber != NOT_FOUND) {
 					int line = ScriptRuntime.toInt32(lineNumber);
-					if (line != 0)
-					{
+					if (line != 0) {
 						sb.append(", ");
 						sb.append(ScriptRuntime.toString(line));
 					}
@@ -198,41 +186,32 @@ public final class NativeError extends IdScriptableObject
 		return sb.toString();
 	}
 
-	private static String getString(Scriptable obj, String id)
-	{
+	private static String getString(Scriptable obj, String id) {
 		Object value = ScriptableObject.getProperty(obj, id);
 		if (value == NOT_FOUND)
 			return "";
 		return ScriptRuntime.toString(value);
 	}
 
-	protected int findPrototypeId(String s)
-	{
+	protected int findPrototypeId(String s) {
 		int id;
 		// #string_id_map#
 		// #generated# Last update: 2007-05-09 08:15:45 EDT
-		L0:
-		{
+		L0: {
 			id = 0;
 			String X = null;
 			int c;
 			int s_length = s.length();
-			if (s_length == 8)
-			{
+			if (s_length == 8) {
 				c = s.charAt(3);
-				if (c == 'o')
-				{
+				if (c == 'o') {
 					X = "toSource";
 					id = Id_toSource;
-				}
-				else if (c == 't')
-				{
+				} else if (c == 't') {
 					X = "toString";
 					id = Id_toString;
 				}
-			}
-			else if (s_length == 11)
-			{
+			} else if (s_length == 11) {
 				X = "constructor";
 				id = Id_constructor;
 			}
@@ -244,9 +223,10 @@ public final class NativeError extends IdScriptableObject
 		return id;
 	}
 
-	private static final int Id_constructor = 1, Id_toString = 2, Id_toSource = 3,
+	private static final int Id_constructor = 1, Id_toString = 2,
+			Id_toSource = 3,
 
-	MAX_PROTOTYPE_ID = 3;
+			MAX_PROTOTYPE_ID = 3;
 
 	// #/string_id_map#
 }

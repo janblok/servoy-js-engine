@@ -52,174 +52,163 @@ package org.mozilla.javascript;
  * @author Norris Boyd
  */
 
-class NativeScript extends BaseFunction
-{
+class NativeScript extends BaseFunction {
 	static final long serialVersionUID = -6795101161980121700L;
 
 	private static final Object SCRIPT_TAG = new Object();
 
-	static void init(Scriptable scope, boolean sealed)
-	{
+	static void init(Scriptable scope, boolean sealed) {
 		NativeScript obj = new NativeScript(null);
 		obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);
 	}
 
-	private NativeScript(Script script)
-	{
+	private NativeScript(Script script) {
 		this.script = script;
 	}
 
 	/**
 	 * Returns the name of this JavaScript class, "Script".
 	 */
-	public String getClassName()
-	{
+	public String getClassName() {
 		return "Script";
 	}
 
-	public Object call(Context cx, Scriptable scope, Scriptable thisObj, Object[] args)
-	{
-		if (script != null) { return script.exec(cx, scope); }
+	public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+			Object[] args) {
+		if (script != null) {
+			return script.exec(cx, scope);
+		}
 		return Undefined.instance;
 	}
 
-	public Scriptable construct(Context cx, Scriptable scope, Object[] args)
-	{
+	public Scriptable construct(Context cx, Scriptable scope, Object[] args) {
 		throw Context.reportRuntimeError0("msg.script.is.not.constructor");
 	}
 
-	public int getLength()
-	{
+	public int getLength() {
 		return 0;
 	}
 
-	public int getArity()
-	{
+	public int getArity() {
 		return 0;
 	}
 
-	String decompile(int indent, int flags)
-	{
-		if (script instanceof NativeFunction) { return ((NativeFunction) script).decompile(indent, flags); }
+	String decompile(int indent, int flags) {
+		if (script instanceof NativeFunction) {
+			return ((NativeFunction) script).decompile(indent, flags);
+		}
 		return super.decompile(indent, flags);
 	}
 
-	protected void initPrototypeId(int id)
-	{
+	protected void initPrototypeId(int id) {
 		String s;
 		int arity;
-		switch (id)
-		{
-			case Id_constructor:
-				arity = 1;
-				s = "constructor";
-				break;
-			case Id_toString:
-				arity = 0;
-				s = "toString";
-				break;
-			case Id_exec:
-				arity = 0;
-				s = "exec";
-				break;
-			case Id_compile:
-				arity = 1;
-				s = "compile";
-				break;
-			default:
-				throw new IllegalArgumentException(String.valueOf(id));
+		switch (id) {
+		case Id_constructor:
+			arity = 1;
+			s = "constructor";
+			break;
+		case Id_toString:
+			arity = 0;
+			s = "toString";
+			break;
+		case Id_exec:
+			arity = 0;
+			s = "exec";
+			break;
+		case Id_compile:
+			arity = 1;
+			s = "compile";
+			break;
+		default:
+			throw new IllegalArgumentException(String.valueOf(id));
 		}
 		initPrototypeMethod(SCRIPT_TAG, id, s, arity);
 	}
 
-	public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope, Scriptable thisObj, Object[] args)
-	{
-		if (!f.hasTag(SCRIPT_TAG)) { return super.execIdCall(f, cx, scope, thisObj, args); }
+	public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+			Scriptable thisObj, Object[] args) {
+		if (!f.hasTag(SCRIPT_TAG)) {
+			return super.execIdCall(f, cx, scope, thisObj, args);
+		}
 		int id = f.methodId();
-		switch (id)
-		{
-			case Id_constructor:
-			{
-				String source = (args.length == 0) ? "" : ScriptRuntime.toString(args[0]);
-				Script script = compile(cx, source);
-				NativeScript nscript = new NativeScript(script);
-				ScriptRuntime.setObjectProtoAndParent(nscript, scope);
-				return nscript;
-			}
+		switch (id) {
+		case Id_constructor: {
+			String source = (args.length == 0) ? "" : ScriptRuntime
+					.toString(args[0]);
+			Script script = compile(cx, source);
+			NativeScript nscript = new NativeScript(script);
+			ScriptRuntime.setObjectProtoAndParent(nscript, scope);
+			return nscript;
+		}
 
-			case Id_toString:
-			{
-				NativeScript real = realThis(thisObj, f);
-				Script realScript = real.script;
-				if (realScript == null) { return ""; }
-				return cx.decompileScript(realScript, 0);
+		case Id_toString: {
+			NativeScript real = realThis(thisObj, f);
+			Script realScript = real.script;
+			if (realScript == null) {
+				return "";
 			}
+			return cx.decompileScript(realScript, 0);
+		}
 
-			case Id_exec:
-			{
-				throw Context.reportRuntimeError1("msg.cant.call.indirect", "exec");
-			}
+		case Id_exec: {
+			throw Context.reportRuntimeError1("msg.cant.call.indirect", "exec");
+		}
 
-			case Id_compile:
-			{
-				NativeScript real = realThis(thisObj, f);
-				String source = ScriptRuntime.toString(args, 0);
-				real.script = compile(cx, source);
-				return real;
-			}
+		case Id_compile: {
+			NativeScript real = realThis(thisObj, f);
+			String source = ScriptRuntime.toString(args, 0);
+			real.script = compile(cx, source);
+			return real;
+		}
 		}
 		throw new IllegalArgumentException(String.valueOf(id));
 	}
 
-	private static NativeScript realThis(Scriptable thisObj, IdFunctionObject f)
-	{
+	private static NativeScript realThis(Scriptable thisObj, IdFunctionObject f) {
 		if (!(thisObj instanceof NativeScript))
 			throw incompatibleCallError(f);
 		return (NativeScript) thisObj;
 	}
 
-	private static Script compile(Context cx, String source)
-	{
+	private static Script compile(Context cx, String source) {
 		int[] linep = { 0 };
 		String filename = Context.getSourcePositionFromStack(linep);
-		if (filename == null)
-		{
+		if (filename == null) {
 			filename = "<Script object>";
 			linep[0] = 1;
 		}
 		ErrorReporter reporter;
 		reporter = DefaultErrorReporter.forEval(cx.getErrorReporter());
-		return cx.compileString(source, null, reporter, filename, linep[0], null);
+		return cx.compileString(source, null, reporter, filename, linep[0],
+				null);
 	}
 
 	// #string_id_map#
 
-	protected int findPrototypeId(String s)
-	{
+	protected int findPrototypeId(String s) {
 		int id;
 		// #generated# Last update: 2007-05-09 08:16:01 EDT
-		L0:
-		{
+		L0: {
 			id = 0;
 			String X = null;
-			L: switch (s.length())
-			{
-				case 4:
-					X = "exec";
-					id = Id_exec;
-					break L;
-				case 7:
-					X = "compile";
-					id = Id_compile;
-					break L;
-				case 8:
-					X = "toString";
-					id = Id_toString;
-					break L;
-				case 11:
-					X = "constructor";
-					id = Id_constructor;
-					break L;
+			L: switch (s.length()) {
+			case 4:
+				X = "exec";
+				id = Id_exec;
+				break L;
+			case 7:
+				X = "compile";
+				id = Id_compile;
+				break L;
+			case 8:
+				X = "toString";
+				id = Id_toString;
+				break L;
+			case 11:
+				X = "constructor";
+				id = Id_constructor;
+				break L;
 			}
 			if (X != null && X != s && !X.equals(s))
 				id = 0;
@@ -229,7 +218,8 @@ class NativeScript extends BaseFunction
 		return id;
 	}
 
-	private static final int Id_constructor = 1, Id_toString = 2, Id_compile = 3, Id_exec = 4, MAX_PROTOTYPE_ID = 4;
+	private static final int Id_constructor = 1, Id_toString = 2,
+			Id_compile = 3, Id_exec = 4, MAX_PROTOTYPE_ID = 4;
 
 	// #/string_id_map#
 

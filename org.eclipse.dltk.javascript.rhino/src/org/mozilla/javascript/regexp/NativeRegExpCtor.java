@@ -52,35 +52,33 @@ import org.mozilla.javascript.*;
  * @author Brendan Eich
  * @author Norris Boyd
  */
-class NativeRegExpCtor extends BaseFunction
-{
+class NativeRegExpCtor extends BaseFunction {
 	static final long serialVersionUID = -5733330028285400526L;
 
-	NativeRegExpCtor()
-	{
+	NativeRegExpCtor() {
 	}
 
-	public String getFunctionName()
-	{
+	public String getFunctionName() {
 		return "RegExp";
 	}
 
-	public Object call(Context cx, Scriptable scope, Scriptable thisObj, Object[] args)
-	{
-		if (args.length > 0 && args[0] instanceof NativeRegExp && (args.length == 1 || args[1] == Undefined.instance)) { return args[0]; }
+	public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+			Object[] args) {
+		if (args.length > 0 && args[0] instanceof NativeRegExp
+				&& (args.length == 1 || args[1] == Undefined.instance)) {
+			return args[0];
+		}
 		return construct(cx, scope, args);
 	}
 
-	public Scriptable construct(Context cx, Scriptable scope, Object[] args)
-	{
+	public Scriptable construct(Context cx, Scriptable scope, Object[] args) {
 		NativeRegExp re = new NativeRegExp();
 		re.compile(cx, scope, args);
 		ScriptRuntime.setObjectProtoAndParent(re, scope);
 		return re;
 	}
 
-	private static RegExpImpl getImpl()
-	{
+	private static RegExpImpl getImpl() {
 		Context cx = Context.getCurrentContext();
 		return (RegExpImpl) ScriptRuntime.getRegExpProxy(cx);
 	}
@@ -113,162 +111,137 @@ class NativeRegExpCtor extends BaseFunction
 
 			MAX_INSTANCE_ID = DOLLAR_ID_BASE + 9;
 
-	protected int getMaxInstanceId()
-	{
+	protected int getMaxInstanceId() {
 		return super.getMaxInstanceId() + MAX_INSTANCE_ID;
 	}
 
-	protected int findInstanceIdInfo(String s)
-	{
+	protected int findInstanceIdInfo(String s) {
 		int id;
 		// #generated# Last update: 2001-05-24 16:09:31 GMT+02:00
-		L0:
-		{
+		L0: {
 			id = 0;
 			String X = null;
 			int c;
-			L: switch (s.length())
-			{
-				case 2:
-					switch (s.charAt(1))
-					{
-						case '&':
-							if (s.charAt(0) == '$')
-							{
-								id = Id_AMPERSAND;
-								break L0;
-							}
-							break L;
-						case '\'':
-							if (s.charAt(0) == '$')
-							{
-								id = Id_QUOTE;
-								break L0;
-							}
-							break L;
-						case '*':
-							if (s.charAt(0) == '$')
-							{
-								id = Id_STAR;
-								break L0;
-							}
-							break L;
-						case '+':
-							if (s.charAt(0) == '$')
-							{
-								id = Id_PLUS;
-								break L0;
-							}
-							break L;
-						case '1':
-							if (s.charAt(0) == '$')
-							{
-								id = Id_DOLLAR_1;
-								break L0;
-							}
-							break L;
-						case '2':
-							if (s.charAt(0) == '$')
-							{
-								id = Id_DOLLAR_2;
-								break L0;
-							}
-							break L;
-						case '3':
-							if (s.charAt(0) == '$')
-							{
-								id = Id_DOLLAR_3;
-								break L0;
-							}
-							break L;
-						case '4':
-							if (s.charAt(0) == '$')
-							{
-								id = Id_DOLLAR_4;
-								break L0;
-							}
-							break L;
-						case '5':
-							if (s.charAt(0) == '$')
-							{
-								id = Id_DOLLAR_5;
-								break L0;
-							}
-							break L;
-						case '6':
-							if (s.charAt(0) == '$')
-							{
-								id = Id_DOLLAR_6;
-								break L0;
-							}
-							break L;
-						case '7':
-							if (s.charAt(0) == '$')
-							{
-								id = Id_DOLLAR_7;
-								break L0;
-							}
-							break L;
-						case '8':
-							if (s.charAt(0) == '$')
-							{
-								id = Id_DOLLAR_8;
-								break L0;
-							}
-							break L;
-						case '9':
-							if (s.charAt(0) == '$')
-							{
-								id = Id_DOLLAR_9;
-								break L0;
-							}
-							break L;
-						case '_':
-							if (s.charAt(0) == '$')
-							{
-								id = Id_UNDERSCORE;
-								break L0;
-							}
-							break L;
-						case '`':
-							if (s.charAt(0) == '$')
-							{
-								id = Id_BACK_QUOTE;
-								break L0;
-							}
-							break L;
+			L: switch (s.length()) {
+			case 2:
+				switch (s.charAt(1)) {
+				case '&':
+					if (s.charAt(0) == '$') {
+						id = Id_AMPERSAND;
+						break L0;
 					}
 					break L;
-				case 5:
-					X = "input";
-					id = Id_input;
-					break L;
-				case 9:
-					c = s.charAt(4);
-					if (c == 'M')
-					{
-						X = "lastMatch";
-						id = Id_lastMatch;
-					}
-					else if (c == 'P')
-					{
-						X = "lastParen";
-						id = Id_lastParen;
-					}
-					else if (c == 'i')
-					{
-						X = "multiline";
-						id = Id_multiline;
+				case '\'':
+					if (s.charAt(0) == '$') {
+						id = Id_QUOTE;
+						break L0;
 					}
 					break L;
-				case 11:
-					X = "leftContext";
-					id = Id_leftContext;
+				case '*':
+					if (s.charAt(0) == '$') {
+						id = Id_STAR;
+						break L0;
+					}
 					break L;
-				case 12:
-					X = "rightContext";
-					id = Id_rightContext;
+				case '+':
+					if (s.charAt(0) == '$') {
+						id = Id_PLUS;
+						break L0;
+					}
 					break L;
+				case '1':
+					if (s.charAt(0) == '$') {
+						id = Id_DOLLAR_1;
+						break L0;
+					}
+					break L;
+				case '2':
+					if (s.charAt(0) == '$') {
+						id = Id_DOLLAR_2;
+						break L0;
+					}
+					break L;
+				case '3':
+					if (s.charAt(0) == '$') {
+						id = Id_DOLLAR_3;
+						break L0;
+					}
+					break L;
+				case '4':
+					if (s.charAt(0) == '$') {
+						id = Id_DOLLAR_4;
+						break L0;
+					}
+					break L;
+				case '5':
+					if (s.charAt(0) == '$') {
+						id = Id_DOLLAR_5;
+						break L0;
+					}
+					break L;
+				case '6':
+					if (s.charAt(0) == '$') {
+						id = Id_DOLLAR_6;
+						break L0;
+					}
+					break L;
+				case '7':
+					if (s.charAt(0) == '$') {
+						id = Id_DOLLAR_7;
+						break L0;
+					}
+					break L;
+				case '8':
+					if (s.charAt(0) == '$') {
+						id = Id_DOLLAR_8;
+						break L0;
+					}
+					break L;
+				case '9':
+					if (s.charAt(0) == '$') {
+						id = Id_DOLLAR_9;
+						break L0;
+					}
+					break L;
+				case '_':
+					if (s.charAt(0) == '$') {
+						id = Id_UNDERSCORE;
+						break L0;
+					}
+					break L;
+				case '`':
+					if (s.charAt(0) == '$') {
+						id = Id_BACK_QUOTE;
+						break L0;
+					}
+					break L;
+				}
+				break L;
+			case 5:
+				X = "input";
+				id = Id_input;
+				break L;
+			case 9:
+				c = s.charAt(4);
+				if (c == 'M') {
+					X = "lastMatch";
+					id = Id_lastMatch;
+				} else if (c == 'P') {
+					X = "lastParen";
+					id = Id_lastParen;
+				} else if (c == 'i') {
+					X = "multiline";
+					id = Id_multiline;
+				}
+				break L;
+			case 11:
+				X = "leftContext";
+				id = Id_leftContext;
+				break L;
+			case 12:
+				X = "rightContext";
+				id = Id_rightContext;
+				break L;
 			}
 			if (X != null && X != s && !X.equals(s))
 				id = 0;
@@ -279,17 +252,16 @@ class NativeRegExpCtor extends BaseFunction
 			return super.findInstanceIdInfo(s);
 
 		int attr;
-		switch (id)
-		{
-			case Id_multiline:
-			case Id_STAR:
-			case Id_input:
-			case Id_UNDERSCORE:
-				attr = PERMANENT;
-				break;
-			default:
-				attr = PERMANENT | READONLY;
-				break;
+		switch (id) {
+		case Id_multiline:
+		case Id_STAR:
+		case Id_input:
+		case Id_UNDERSCORE:
+			attr = PERMANENT;
+			break;
+		default:
+			attr = PERMANENT | READONLY;
+			break;
 		}
 
 		return instanceIdInfo(attr, super.getMaxInstanceId() + id);
@@ -297,42 +269,39 @@ class NativeRegExpCtor extends BaseFunction
 
 	// #/string_id_map#
 
-	protected String getInstanceIdName(int id)
-	{
+	protected String getInstanceIdName(int id) {
 		int shifted = id - super.getMaxInstanceId();
-		if (1 <= shifted && shifted <= MAX_INSTANCE_ID)
-		{
-			switch (shifted)
-			{
-				case Id_multiline:
-					return "multiline";
-				case Id_STAR:
-					return "$*";
+		if (1 <= shifted && shifted <= MAX_INSTANCE_ID) {
+			switch (shifted) {
+			case Id_multiline:
+				return "multiline";
+			case Id_STAR:
+				return "$*";
 
-				case Id_input:
-					return "input";
-				case Id_UNDERSCORE:
-					return "$_";
+			case Id_input:
+				return "input";
+			case Id_UNDERSCORE:
+				return "$_";
 
-				case Id_lastMatch:
-					return "lastMatch";
-				case Id_AMPERSAND:
-					return "$&";
+			case Id_lastMatch:
+				return "lastMatch";
+			case Id_AMPERSAND:
+				return "$&";
 
-				case Id_lastParen:
-					return "lastParen";
-				case Id_PLUS:
-					return "$+";
+			case Id_lastParen:
+				return "lastParen";
+			case Id_PLUS:
+				return "$+";
 
-				case Id_leftContext:
-					return "leftContext";
-				case Id_BACK_QUOTE:
-					return "$`";
+			case Id_leftContext:
+				return "leftContext";
+			case Id_BACK_QUOTE:
+				return "$`";
 
-				case Id_rightContext:
-					return "rightContext";
-				case Id_QUOTE:
-					return "$'";
+			case Id_rightContext:
+				return "rightContext";
+			case Id_QUOTE:
+				return "$'";
 			}
 			// Must be one of $1..$9, convert to 0..8
 			int substring_number = shifted - DOLLAR_ID_BASE - 1;
@@ -342,71 +311,65 @@ class NativeRegExpCtor extends BaseFunction
 		return super.getInstanceIdName(id);
 	}
 
-	protected Object getInstanceIdValue(int id)
-	{
+	protected Object getInstanceIdValue(int id) {
 		int shifted = id - super.getMaxInstanceId();
-		if (1 <= shifted && shifted <= MAX_INSTANCE_ID)
-		{
+		if (1 <= shifted && shifted <= MAX_INSTANCE_ID) {
 			RegExpImpl impl = getImpl();
 			Object stringResult;
-			switch (shifted)
-			{
-				case Id_multiline:
-				case Id_STAR:
-					return ScriptRuntime.wrapBoolean(impl.multiline);
+			switch (shifted) {
+			case Id_multiline:
+			case Id_STAR:
+				return ScriptRuntime.wrapBoolean(impl.multiline);
 
-				case Id_input:
-				case Id_UNDERSCORE:
-					stringResult = impl.input;
-					break;
+			case Id_input:
+			case Id_UNDERSCORE:
+				stringResult = impl.input;
+				break;
 
-				case Id_lastMatch:
-				case Id_AMPERSAND:
-					stringResult = impl.lastMatch;
-					break;
+			case Id_lastMatch:
+			case Id_AMPERSAND:
+				stringResult = impl.lastMatch;
+				break;
 
-				case Id_lastParen:
-				case Id_PLUS:
-					stringResult = impl.lastParen;
-					break;
+			case Id_lastParen:
+			case Id_PLUS:
+				stringResult = impl.lastParen;
+				break;
 
-				case Id_leftContext:
-				case Id_BACK_QUOTE:
-					stringResult = impl.leftContext;
-					break;
+			case Id_leftContext:
+			case Id_BACK_QUOTE:
+				stringResult = impl.leftContext;
+				break;
 
-				case Id_rightContext:
-				case Id_QUOTE:
-					stringResult = impl.rightContext;
-					break;
+			case Id_rightContext:
+			case Id_QUOTE:
+				stringResult = impl.rightContext;
+				break;
 
-				default:
-				{
-					// Must be one of $1..$9, convert to 0..8
-					int substring_number = shifted - DOLLAR_ID_BASE - 1;
-					stringResult = impl.getParenSubString(substring_number);
-					break;
-				}
+			default: {
+				// Must be one of $1..$9, convert to 0..8
+				int substring_number = shifted - DOLLAR_ID_BASE - 1;
+				stringResult = impl.getParenSubString(substring_number);
+				break;
+			}
 			}
 			return (stringResult == null) ? "" : stringResult.toString();
 		}
 		return super.getInstanceIdValue(id);
 	}
 
-	protected void setInstanceIdValue(int id, Object value)
-	{
+	protected void setInstanceIdValue(int id, Object value) {
 		int shifted = id - super.getMaxInstanceId();
-		switch (shifted)
-		{
-			case Id_multiline:
-			case Id_STAR:
-				getImpl().multiline = ScriptRuntime.toBoolean(value);
-				return;
+		switch (shifted) {
+		case Id_multiline:
+		case Id_STAR:
+			getImpl().multiline = ScriptRuntime.toBoolean(value);
+			return;
 
-			case Id_input:
-			case Id_UNDERSCORE:
-				getImpl().input = ScriptRuntime.toString(value);
-				return;
+		case Id_input:
+		case Id_UNDERSCORE:
+			getImpl().input = ScriptRuntime.toString(value);
+			return;
 		}
 		super.setInstanceIdValue(id, value);
 	}

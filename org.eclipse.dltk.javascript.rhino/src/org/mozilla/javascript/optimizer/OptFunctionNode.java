@@ -40,101 +40,82 @@ package org.mozilla.javascript.optimizer;
 
 import org.mozilla.javascript.*;
 
-final class OptFunctionNode
-{
-	OptFunctionNode(FunctionNode fnode)
-	{
+final class OptFunctionNode {
+	OptFunctionNode(FunctionNode fnode) {
 		this.fnode = fnode;
 		fnode.setCompilerData(this);
 	}
 
-	static OptFunctionNode get(ScriptOrFnNode scriptOrFn, int i)
-	{
+	static OptFunctionNode get(ScriptOrFnNode scriptOrFn, int i) {
 		FunctionNode fnode = scriptOrFn.getFunctionNode(i);
 		return (OptFunctionNode) fnode.getCompilerData();
 	}
 
-	static OptFunctionNode get(ScriptOrFnNode scriptOrFn)
-	{
+	static OptFunctionNode get(ScriptOrFnNode scriptOrFn) {
 		return (OptFunctionNode) scriptOrFn.getCompilerData();
 	}
 
-	boolean isTargetOfDirectCall()
-	{
+	boolean isTargetOfDirectCall() {
 		return directTargetIndex >= 0;
 	}
 
-	int getDirectTargetIndex()
-	{
+	int getDirectTargetIndex() {
 		return directTargetIndex;
 	}
 
-	void setDirectTargetIndex(int directTargetIndex)
-	{
+	void setDirectTargetIndex(int directTargetIndex) {
 		// One time action
 		if (directTargetIndex < 0 || this.directTargetIndex >= 0)
 			Kit.codeBug();
 		this.directTargetIndex = directTargetIndex;
 	}
 
-	void setParameterNumberContext(boolean b)
-	{
+	void setParameterNumberContext(boolean b) {
 		itsParameterNumberContext = b;
 	}
 
-	boolean getParameterNumberContext()
-	{
+	boolean getParameterNumberContext() {
 		return itsParameterNumberContext;
 	}
 
-	int getVarCount()
-	{
+	int getVarCount() {
 		return fnode.getParamAndVarCount();
 	}
 
-	boolean isParameter(int varIndex)
-	{
+	boolean isParameter(int varIndex) {
 		return varIndex < fnode.getParamCount();
 	}
 
-	boolean isNumberVar(int varIndex)
-	{
+	boolean isNumberVar(int varIndex) {
 		varIndex -= fnode.getParamCount();
-		if (varIndex >= 0 && numberVarFlags != null) { return numberVarFlags[varIndex]; }
+		if (varIndex >= 0 && numberVarFlags != null) {
+			return numberVarFlags[varIndex];
+		}
 		return false;
 	}
 
-	void setIsNumberVar(int varIndex)
-	{
+	void setIsNumberVar(int varIndex) {
 		varIndex -= fnode.getParamCount();
 		// Can only be used with non-parameters
 		if (varIndex < 0)
 			Kit.codeBug();
-		if (numberVarFlags == null)
-		{
+		if (numberVarFlags == null) {
 			int size = fnode.getParamAndVarCount() - fnode.getParamCount();
 			numberVarFlags = new boolean[size];
 		}
 		numberVarFlags[varIndex] = true;
 	}
 
-	int getVarIndex(Node n)
-	{
+	int getVarIndex(Node n) {
 		int index = n.getIntProp(Node.VARIABLE_PROP, -1);
-		if (index == -1)
-		{
+		if (index == -1) {
 			String name;
 			int type = n.getType();
-			if (type == Token.GETVAR)
-			{
+			if (type == Token.GETVAR) {
 				name = n.getString();
-			}
-			else if (type == Token.SETVAR || type == Token.SETCONSTVAR)
-			{
+			} else if (type == Token.SETVAR || type == Token.SETCONSTVAR) {
 				name = n.getFirstChild().getString();
-			}
-			else
-			{
+			} else {
 				throw Kit.codeBug();
 			}
 			index = fnode.getParamOrVarIndex(name);

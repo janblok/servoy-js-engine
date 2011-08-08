@@ -50,16 +50,14 @@ import java.io.PrintWriter;
  * 
  * @author Mike McCabe
  */
-public class JavaScriptException extends RhinoException
-{
+public class JavaScriptException extends RhinoException {
 	static final long serialVersionUID = -7666130513694669293L;
 
 	/**
 	 * @deprecated Use {@link WrappedException#WrappedException(Throwable)} to
 	 *             report exceptions in Java code.
 	 */
-	public JavaScriptException(Object value)
-	{
+	public JavaScriptException(Object value) {
 		this(value, "", 0);
 	}
 
@@ -67,33 +65,23 @@ public class JavaScriptException extends RhinoException
 	 * Create a JavaScript exception wrapping the given JavaScript value
 	 * 
 	 * @param value
-	 *           the JavaScript value thrown.
+	 *            the JavaScript value thrown.
 	 */
-	public JavaScriptException(Object value, String sourceName, int lineNumber)
-	{
+	public JavaScriptException(Object value, String sourceName, int lineNumber) {
 		recordErrorOrigin(sourceName, lineNumber, null, 0);
 		this.value = value;
 	}
 
-	public String details()
-	{
-		try
-		{
+	public String details() {
+		try {
 			return ScriptRuntime.toString(value);
-		}
-		catch (RuntimeException rte)
-		{
+		} catch (RuntimeException rte) {
 			// ScriptRuntime.toString may throw a RuntimeException
-			if (value == null)
-			{
+			if (value == null) {
 				return "null";
-			}
-			else if (value instanceof Scriptable)
-			{
+			} else if (value instanceof Scriptable) {
 				return ScriptRuntime.defaultObjectToString((Scriptable) value);
-			}
-			else
-			{
+			} else {
 				return value.toString();
 			}
 		}
@@ -102,65 +90,53 @@ public class JavaScriptException extends RhinoException
 	/**
 	 * @return the value wrapped by this exception
 	 */
-	public Object getValue()
-	{
+	public Object getValue() {
 		return value;
 	}
 
 	/**
 	 * @deprecated Use {@link RhinoException#sourceName()} from the super class.
 	 */
-	public String getSourceName()
-	{
+	public String getSourceName() {
 		return sourceName();
 	}
 
 	/**
 	 * @deprecated Use {@link RhinoException#lineNumber()} from the super class.
 	 */
-	public int getLineNumber()
-	{
+	public int getLineNumber() {
 		return lineNumber();
 	}
 
-	public void printStackTrace()
-	{
+	public void printStackTrace() {
 		super.printStackTrace();
 		Object v = value;
-		if (v instanceof Wrapper)
-		{
+		if (v instanceof Wrapper) {
 			v = ((Wrapper) v).unwrap();
 		}
-		if (v instanceof Throwable)
-		{
+		if (v instanceof Throwable) {
 			((Throwable) v).printStackTrace();
 		}
 	}
 
-	public void printStackTrace(PrintStream s)
-	{
+	public void printStackTrace(PrintStream s) {
 		super.printStackTrace(s);
 		Object v = value;
-		if (v instanceof Wrapper)
-		{
+		if (v instanceof Wrapper) {
 			v = ((Wrapper) v).unwrap();
 		}
-		if (v instanceof Throwable)
-		{
+		if (v instanceof Throwable) {
 			((Throwable) v).printStackTrace(s);
 		}
 	}
 
-	public void printStackTrace(PrintWriter s)
-	{
+	public void printStackTrace(PrintWriter s) {
 		super.printStackTrace(s);
 		Object v = value;
-		if (v instanceof Wrapper)
-		{
+		if (v instanceof Wrapper) {
 			v = ((Wrapper) v).unwrap();
 		}
-		if (v instanceof Throwable)
-		{
+		if (v instanceof Throwable) {
 			((Throwable) v).printStackTrace(s);
 		}
 	}

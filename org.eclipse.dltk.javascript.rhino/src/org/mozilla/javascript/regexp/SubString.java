@@ -37,22 +37,18 @@
 
 package org.mozilla.javascript.regexp;
 
-class SubString
-{
+class SubString {
 
-	public SubString()
-	{
+	public SubString() {
 	}
 
-	public SubString(String str)
-	{
+	public SubString(String str) {
 		index = 0;
 		charArray = str.toCharArray();
 		length = str.length();
 	}
 
-	public SubString(char[] source, int start, int len)
-	{
+	public SubString(char[] source, int start, int len) {
 		// there must be a better way of doing this??
 		index = 0;
 		length = len;
@@ -61,8 +57,7 @@ class SubString
 			charArray[j] = source[start + j];
 	}
 
-	public String toString()
-	{
+	public String toString() {
 		return charArray == null ? "" : new String(charArray, index, length);
 	}
 

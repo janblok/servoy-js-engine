@@ -46,8 +46,7 @@ import java.lang.reflect.*;
  * <p>
  * This improves startup time and average memory usage.
  */
-public final class LazilyLoadedCtor implements java.io.Serializable
-{
+public final class LazilyLoadedCtor implements java.io.Serializable {
 	private static final long serialVersionUID = 1L;
 
 	private static final int STATE_BEFORE_INIT = 0;
@@ -68,8 +67,8 @@ public final class LazilyLoadedCtor implements java.io.Serializable
 
 	private int state;
 
-	public LazilyLoadedCtor(ScriptableObject scope, String propertyName, String className, boolean sealed)
-	{
+	public LazilyLoadedCtor(ScriptableObject scope, String propertyName,
+			String className, boolean sealed) {
 
 		this.scope = scope;
 		this.propertyName = propertyName;
@@ -77,27 +76,23 @@ public final class LazilyLoadedCtor implements java.io.Serializable
 		this.sealed = sealed;
 		this.state = STATE_BEFORE_INIT;
 
-		scope.addLazilyInitializedValue(propertyName, 0, this, ScriptableObject.DONTENUM);
+		scope.addLazilyInitializedValue(propertyName, 0, this,
+				ScriptableObject.DONTENUM);
 	}
 
-	void init()
-	{
-		synchronized (this)
-		{
+	void init() {
+		synchronized (this) {
 			if (state == STATE_INITIALIZING)
-				throw new IllegalStateException("Recursive initialization for " + propertyName);
-			if (state == STATE_BEFORE_INIT)
-			{
+				throw new IllegalStateException("Recursive initialization for "
+						+ propertyName);
+			if (state == STATE_BEFORE_INIT) {
 				state = STATE_INITIALIZING;
 				// Set value now to have something to set in finaly block if
 				// buildValue throws.
 				Object value = Scriptable.NOT_FOUND;
-				try
-				{
+				try {
 					value = buildValue();
-				}
-				finally
-				{
+				} finally {
 					initializedValue = value;
 					state = STATE_WITH_VALUE;
 				}
@@ -105,46 +100,34 @@ public final class LazilyLoadedCtor implements java.io.Serializable
 		}
 	}
 
-	Object getValue()
-	{
+	Object getValue() {
 		if (state != STATE_WITH_VALUE)
 			throw new IllegalStateException(propertyName);
 		return initializedValue;
 	}
 
-	private Object buildValue()
-	{
+	private Object buildValue() {
 		Class cl = Kit.classOrNull(className);
-		if (cl != null)
-		{
-			try
-			{
-				Object value = ScriptableObject.buildClassCtor(scope, cl, sealed, false);
-				if (value == null)
-				{
+		if (cl != null) {
+			try {
+				Object value = ScriptableObject.buildClassCtor(scope, cl,
+						sealed, false);
+				if (value == null) {
 					// cl has own static initializer which is expected
 					// to set the property on its own.
 					value = scope.get(propertyName, scope);
 					if (value != Scriptable.NOT_FOUND)
 						return value;
 				}
-			}
-			catch (InvocationTargetException ex)
-			{
+			} catch (InvocationTargetException ex) {
 				Throwable target = ex.getTargetException();
-				if (target instanceof RuntimeException) { throw (RuntimeException) target; }
-			}
-			catch (RhinoException ex)
-			{
-			}
-			catch (InstantiationException ex)
-			{
-			}
-			catch (IllegalAccessException ex)
-			{
-			}
-			catch (SecurityException ex)
-			{
+				if (target instanceof RuntimeException) {
+					throw (RuntimeException) target;
+				}
+			} catch (RhinoException ex) {
+			} catch (InstantiationException ex) {
+			} catch (IllegalAccessException ex) {
+			} catch (SecurityException ex) {
 			}
 		}
 		return Scriptable.NOT_FOUND;

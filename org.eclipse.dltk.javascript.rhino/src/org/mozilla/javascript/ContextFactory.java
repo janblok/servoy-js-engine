@@ -60,24 +60,20 @@ package org.mozilla.javascript;
  * <pre>
  * import org.mozilla.javascript.*;
  * 
- * class MyFactory extends ContextFactory
- * {
+ * class MyFactory extends ContextFactory {
  * 
  * 	// Custom {@link Context} to store execution time.
- * 	private static class MyContext extends Context
- * 	{
+ * 	private static class MyContext extends Context {
  * 		long startTime;
  * 	}
  * 
- * 	static
- * 	{
+ * 	static {
  * 		// Initialize GlobalFactory with custom factory
  * 		ContextFactory.initGlobal(new MyFactory());
  * 	}
  * 
  * 	// Override {@link #makeContext()}
- * 	protected Context makeContext()
- * 	{
+ * 	protected Context makeContext() {
  * 		MyContext cx = new MyContext();
  * 		// Use pure interpreter mode to allow for
  * 		// {@link #observeInstructionCount(Context, int)} to work
@@ -109,12 +105,10 @@ package org.mozilla.javascript;
  *     }
  * 
  * 	// Override {@link #observeInstructionCount(Context, int)}
- * 	protected void observeInstructionCount(Context cx, int instructionCount)
- * 	{
+ * 	protected void observeInstructionCount(Context cx, int instructionCount) {
  * 		MyContext mcx = (MyContext) cx;
  * 		long currentTime = System.currentTimeMillis();
- * 		if (currentTime - mcx.startTime &gt; 10 * 1000)
- * 		{
+ * 		if (currentTime - mcx.startTime &gt; 10 * 1000) {
  * 			// More then 10 seconds from Context creation time:
  * 			// it is time to stop the script.
  * 			// Throw Error instance to ensure that script will never
@@ -123,9 +117,10 @@ package org.mozilla.javascript;
  * 		}
  * 	}
  * 
- * 	// Override {@link #doTopCall(Callable, Context, Scriptable scope, Scriptable thisObj, Object[] args)}
- * 	protected Object doTopCall(Callable callable, Context cx, Scriptable scope, Scriptable thisObj, Object[] args)
- * 	{
+ * 	// Override {@link #doTopCall(Callable, Context, Scriptable scope,
+ * 	// Scriptable thisObj, Object[] args)}
+ * 	protected Object doTopCall(Callable callable, Context cx, Scriptable scope,
+ * 			Scriptable thisObj, Object[] args) {
  * 		MyContext mcx = (MyContext) cx;
  * 		mcx.startTime = System.currentTimeMillis();
  * 
@@ -136,8 +131,7 @@ package org.mozilla.javascript;
  * </pre>
  */
 
-public class ContextFactory
-{
+public class ContextFactory {
 	private static volatile boolean hasCustomGlobal;
 
 	private static ContextFactory global = new ContextFactory();
@@ -155,8 +149,7 @@ public class ContextFactory
 	/**
 	 * Listener of {@link Context} creation and release events.
 	 */
-	public interface Listener
-	{
+	public interface Listener {
 		/**
 		 * Notify about newly created {@link Context} object.
 		 */
@@ -175,8 +168,7 @@ public class ContextFactory
 	 * @see #hasExplicitGlobal()
 	 * @see #initGlobal(ContextFactory)
 	 */
-	public static ContextFactory getGlobal()
-	{
+	public static ContextFactory getGlobal() {
 		return global;
 	}
 
@@ -188,8 +180,7 @@ public class ContextFactory
 	 * @see #getGlobal()
 	 * @see #initGlobal(ContextFactory)
 	 */
-	public static boolean hasExplicitGlobal()
-	{
+	public static boolean hasExplicitGlobal() {
 		return hasCustomGlobal;
 	}
 
@@ -199,10 +190,13 @@ public class ContextFactory
 	 * @see #getGlobal()
 	 * @see #hasExplicitGlobal()
 	 */
-	public static void initGlobal(ContextFactory factory)
-	{
-		if (factory == null) { throw new IllegalArgumentException(); }
-		if (hasCustomGlobal) { throw new IllegalStateException(); }
+	public static void initGlobal(ContextFactory factory) {
+		if (factory == null) {
+			throw new IllegalArgumentException();
+		}
+		if (hasCustomGlobal) {
+			throw new IllegalStateException();
+		}
 		hasCustomGlobal = true;
 		global = factory;
 	}
@@ -215,8 +209,7 @@ public class ContextFactory
 	 * {@link Context#seal(Object)} on the result to prevent {@link Context}
 	 * changes by hostile scripts or applets.
 	 */
-	protected Context makeContext()
-	{
+	protected Context makeContext() {
 		return new Context();
 	}
 
@@ -225,90 +218,85 @@ public class ContextFactory
 	 * be used to customize {@link Context} without introducing additional
 	 * subclasses.
 	 */
-	protected boolean hasFeature(Context cx, int featureIndex)
-	{
+	protected boolean hasFeature(Context cx, int featureIndex) {
 		int version;
-		switch (featureIndex)
-		{
-			case Context.FEATURE_NON_ECMA_GET_YEAR:
-				/*
-				 * During the great date rewrite of 1.3, we tried to track the
-				 * evolving ECMA standard, which then had a definition of getYear
-				 * which always subtracted 1900. Which we implemented, not realizing
-				 * that it was incompatible with the old behavior... now, rather
-				 * than thrash the behavior yet again, we've decided to leave it
-				 * with the - 1900 behavior and point people to the getFullYear
-				 * method. But we try to protect existing scripts that have
-				 * specified a version...
-				 */
-				version = cx.getLanguageVersion();
-				return (version == Context.VERSION_1_0 || version == Context.VERSION_1_1 || version == Context.VERSION_1_2);
+		switch (featureIndex) {
+		case Context.FEATURE_NON_ECMA_GET_YEAR:
+			/*
+			 * During the great date rewrite of 1.3, we tried to track the
+			 * evolving ECMA standard, which then had a definition of getYear
+			 * which always subtracted 1900. Which we implemented, not realizing
+			 * that it was incompatible with the old behavior... now, rather
+			 * than thrash the behavior yet again, we've decided to leave it
+			 * with the - 1900 behavior and point people to the getFullYear
+			 * method. But we try to protect existing scripts that have
+			 * specified a version...
+			 */
+			version = cx.getLanguageVersion();
+			return (version == Context.VERSION_1_0
+					|| version == Context.VERSION_1_1 || version == Context.VERSION_1_2);
 
-			case Context.FEATURE_MEMBER_EXPR_AS_FUNCTION_NAME:
-				return false;
+		case Context.FEATURE_MEMBER_EXPR_AS_FUNCTION_NAME:
+			return false;
 
-			case Context.FEATURE_RESERVED_KEYWORD_AS_IDENTIFIER:
-				return false;
+		case Context.FEATURE_RESERVED_KEYWORD_AS_IDENTIFIER:
+			return false;
 
-			case Context.FEATURE_TO_STRING_AS_SOURCE:
-				version = cx.getLanguageVersion();
-				return version == Context.VERSION_1_2;
+		case Context.FEATURE_TO_STRING_AS_SOURCE:
+			version = cx.getLanguageVersion();
+			return version == Context.VERSION_1_2;
 
-			case Context.FEATURE_PARENT_PROTO_PROPERTIES:
-				return true;
+		case Context.FEATURE_PARENT_PROTO_PROPERTIES:
+			return true;
 
-			case Context.FEATURE_E4X:
-				version = cx.getLanguageVersion();
-				return (version == Context.VERSION_DEFAULT || version >= Context.VERSION_1_6);
+		case Context.FEATURE_E4X:
+			version = cx.getLanguageVersion();
+			return (version == Context.VERSION_DEFAULT || version >= Context.VERSION_1_6);
 
-			case Context.FEATURE_DYNAMIC_SCOPE:
-				return false;
+		case Context.FEATURE_DYNAMIC_SCOPE:
+			return false;
 
-			case Context.FEATURE_STRICT_VARS:
-				return false;
+		case Context.FEATURE_STRICT_VARS:
+			return false;
 
-			case Context.FEATURE_STRICT_EVAL:
-				return false;
+		case Context.FEATURE_STRICT_EVAL:
+			return false;
 
-			case Context.FEATURE_LOCATION_INFORMATION_IN_ERROR:
-				return false;
+		case Context.FEATURE_LOCATION_INFORMATION_IN_ERROR:
+			return false;
 
-			case Context.FEATURE_STRICT_MODE:
-				return false;
+		case Context.FEATURE_STRICT_MODE:
+			return false;
 
-			case Context.FEATURE_WARNING_AS_ERROR:
-				return false;
+		case Context.FEATURE_WARNING_AS_ERROR:
+			return false;
 		}
 		// It is a bug to call the method with unknown featureIndex
 		throw new IllegalArgumentException(String.valueOf(featureIndex));
 	}
 
-	private boolean isDom3Present()
-	{
+	private boolean isDom3Present() {
 		Class nodeClass = Kit.classOrNull("org.w3c.dom.Node");
 		if (nodeClass == null)
 			return false;
-		// Check to see whether DOM3 is present; use a new method defined in DOM3
+		// Check to see whether DOM3 is present; use a new method defined in
+		// DOM3
 		// that is vital to our implementation
-		try
-		{
+		try {
 			nodeClass.getMethod("getUserData", new Class[] { String.class });
 			return true;
-		}
-		catch (NoSuchMethodException e)
-		{
+		} catch (NoSuchMethodException e) {
 			return false;
 		}
 	}
 
 	/**
-	 * Provides a default
-	 * {@link org.mozilla.javascript.xml.XMLLib.Factory XMLLib.Factory} to be
-	 * used by the <code>Context</code> instances produced by this factory. See
-	 * {@link Context#getE4xImplementationFactory} for details.
+	 * Provides a default {@link org.mozilla.javascript.xml.XMLLib.Factory
+	 * XMLLib.Factory} to be used by the <code>Context</code> instances produced
+	 * by this factory. See {@link Context#getE4xImplementationFactory} for
+	 * details.
 	 */
-	protected org.mozilla.javascript.xml.XMLLib.Factory getE4xImplementationFactory()
-	{
+	protected org.mozilla.javascript.xml.XMLLib.Factory getE4xImplementationFactory() {
 		// Must provide default implementation, rather than abstract method,
 		// so that past implementors of ContextFactory do not fail at runtime
 		// upon invocation of this method.
@@ -319,30 +307,26 @@ public class ContextFactory
 		// TODO More thinking about what to do in the failure scenario
 
 		// For now, if XMLBeans is in the classpath, it will be the default.
-		if (Kit.classOrNull("org.apache.xmlbeans.XmlCursor") != null)
-		{
-			return org.mozilla.javascript.xml.XMLLib.Factory.create("org.mozilla.javascript.xml.impl.xmlbeans.XMLLibImpl");
-		}
-		else if (isDom3Present())
-		{
-			return org.mozilla.javascript.xml.XMLLib.Factory.create("org.mozilla.javascript.xmlimpl.XMLLibImpl");
-		}
-		else
-		{
+		if (Kit.classOrNull("org.apache.xmlbeans.XmlCursor") != null) {
+			return org.mozilla.javascript.xml.XMLLib.Factory
+					.create("org.mozilla.javascript.xml.impl.xmlbeans.XMLLibImpl");
+		} else if (isDom3Present()) {
+			return org.mozilla.javascript.xml.XMLLib.Factory
+					.create("org.mozilla.javascript.xmlimpl.XMLLibImpl");
+		} else {
 			// Uh-oh -- results if FEATURE_E4X is true are unknown.
 			return null;
 		}
 	}
 
 	/**
-	 * Create class loader for generated classes. This method creates an instance
-	 * of the default implementation of {@link GeneratedClassLoader}. Rhino uses
-	 * this interface to load generated JVM classes when no
+	 * Create class loader for generated classes. This method creates an
+	 * instance of the default implementation of {@link GeneratedClassLoader}.
+	 * Rhino uses this interface to load generated JVM classes when no
 	 * {@link SecurityController} is installed. Application can override the
 	 * method to provide custom class loading.
 	 */
-	protected GeneratedClassLoader createClassLoader(ClassLoader parent)
-	{
+	protected GeneratedClassLoader createClassLoader(ClassLoader parent) {
 		return new DefiningClassLoader(parent);
 	}
 
@@ -352,8 +336,7 @@ public class ContextFactory
 	 * {@link #initApplicationClassLoader(ClassLoader)} the method returns null
 	 * to indicate that Thread.getContextClassLoader() should be used.
 	 */
-	public final ClassLoader getApplicationClassLoader()
-	{
+	public final ClassLoader getApplicationClassLoader() {
 		return applicationClassLoader;
 	}
 
@@ -362,15 +345,16 @@ public class ContextFactory
 	 * 
 	 * @see #getApplicationClassLoader()
 	 */
-	public final void initApplicationClassLoader(ClassLoader loader)
-	{
+	public final void initApplicationClassLoader(ClassLoader loader) {
 		if (loader == null)
 			throw new IllegalArgumentException("loader is null");
 		if (!Kit.testIfCanLoadRhinoClasses(loader))
-			throw new IllegalArgumentException("Loader can not resolve Rhino classes");
+			throw new IllegalArgumentException(
+					"Loader can not resolve Rhino classes");
 
 		if (this.applicationClassLoader != null)
-			throw new IllegalStateException("applicationClassLoader can only be set once");
+			throw new IllegalStateException(
+					"applicationClassLoader can only be set once");
 		checkNotSealed();
 
 		this.applicationClassLoader = loader;
@@ -382,8 +366,8 @@ public class ContextFactory
 	 * scriptable code, it calls this method to perform the real call. In this
 	 * way execution of any script happens inside this function.
 	 */
-	protected Object doTopCall(Callable callable, Context cx, Scriptable scope, Scriptable thisObj, Object[] args)
-	{
+	protected Object doTopCall(Callable callable, Context cx, Scriptable scope,
+			Scriptable thisObj, Object[] args) {
 		return callable.call(cx, scope, thisObj, args);
 	}
 
@@ -393,15 +377,12 @@ public class ContextFactory
 	 * be used to customize {@link Context} without introducing additional
 	 * subclasses.
 	 */
-	protected void observeInstructionCount(Context cx, int instructionCount)
-	{
+	protected void observeInstructionCount(Context cx, int instructionCount) {
 	}
 
-	protected void onContextCreated(Context cx)
-	{
+	protected void onContextCreated(Context cx) {
 		Object listeners = this.listeners;
-		for (int i = 0;; ++i)
-		{
+		for (int i = 0;; ++i) {
 			Listener l = (Listener) Kit.getListener(listeners, i);
 			if (l == null)
 				break;
@@ -409,11 +390,9 @@ public class ContextFactory
 		}
 	}
 
-	protected void onContextReleased(Context cx)
-	{
+	protected void onContextReleased(Context cx) {
 		Object listeners = this.listeners;
-		for (int i = 0;; ++i)
-		{
+		for (int i = 0;; ++i) {
 			Listener l = (Listener) Kit.getListener(listeners, i);
 			if (l == null)
 				break;
@@ -421,22 +400,22 @@ public class ContextFactory
 		}
 	}
 
-	public final void addListener(Listener listener)
-	{
+	public final void addListener(Listener listener) {
 		checkNotSealed();
-		synchronized (listenersLock)
-		{
-			if (disabledListening) { throw new IllegalStateException(); }
+		synchronized (listenersLock) {
+			if (disabledListening) {
+				throw new IllegalStateException();
+			}
 			listeners = Kit.addListener(listeners, listener);
 		}
 	}
 
-	public final void removeListener(Listener listener)
-	{
+	public final void removeListener(Listener listener) {
 		checkNotSealed();
-		synchronized (listenersLock)
-		{
-			if (disabledListening) { throw new IllegalStateException(); }
+		synchronized (listenersLock) {
+			if (disabledListening) {
+				throw new IllegalStateException();
+			}
 			listeners = Kit.removeListener(listeners, listener);
 		}
 	}
@@ -445,11 +424,9 @@ public class ContextFactory
 	 * The method is used only to imlement
 	 * Context.disableStaticContextListening()
 	 */
-	final void disableContextListening()
-	{
+	final void disableContextListening() {
 		checkNotSealed();
-		synchronized (listenersLock)
-		{
+		synchronized (listenersLock) {
 			disabledListening = true;
 			listeners = null;
 		}
@@ -460,25 +437,22 @@ public class ContextFactory
 	 * 
 	 * @see #seal()
 	 */
-	public final boolean isSealed()
-	{
+	public final boolean isSealed() {
 		return sealed;
 	}
 
 	/**
-	 * Seal this ContextFactory so any attempt to modify it like to add or remove
-	 * its listeners will throw an exception.
+	 * Seal this ContextFactory so any attempt to modify it like to add or
+	 * remove its listeners will throw an exception.
 	 * 
 	 * @see #isSealed()
 	 */
-	public final void seal()
-	{
+	public final void seal() {
 		checkNotSealed();
 		sealed = true;
 	}
 
-	protected final void checkNotSealed()
-	{
+	protected final void checkNotSealed() {
 		if (sealed)
 			throw new IllegalStateException();
 	}
@@ -494,8 +468,7 @@ public class ContextFactory
 	 * @see Context#call(ContextFactory factory, Callable callable, Scriptable
 	 *      scope, Scriptable thisObj, Object[] args)
 	 */
-	public final Object call(ContextAction action)
-	{
+	public final Object call(ContextAction action) {
 		return Context.call(this, action);
 	}
 
@@ -506,8 +479,7 @@ public class ContextFactory
 	 * 
 	 * @return a Context associated with the current thread
 	 */
-	public final Context enter()
-	{
+	public final Context enter() {
 		return enter(null);
 	}
 
@@ -518,8 +490,7 @@ public class ContextFactory
 	 * 
 	 * @return a Context associated with the current thread
 	 */
-	public final Context enter(Context cx)
-	{
+	public final Context enter(Context cx) {
 		return Context.enter(cx, this);
 	}
 
@@ -528,8 +499,7 @@ public class ContextFactory
 	 * {@link #enter(Context)} methods on this object, you should use this exit
 	 * method instead of the static one in {@link Context}.
 	 */
-	public final void exit()
-	{
+	public final void exit() {
 		Context.exit(this);
 	}
 }

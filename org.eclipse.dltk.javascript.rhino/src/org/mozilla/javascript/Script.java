@@ -48,8 +48,7 @@ package org.mozilla.javascript;
  * @author Norris Boyd
  */
 
-public interface Script
-{
+public interface Script {
 
 	/**
 	 * Execute the script.
@@ -63,9 +62,9 @@ public interface Script
 	 * <p>
 	 * 
 	 * @param cx
-	 *           the Context associated with the current thread
+	 *            the Context associated with the current thread
 	 * @param scope
-	 *           the scope to execute relative to
+	 *            the scope to execute relative to
 	 * @return the result of executing the script
 	 * @see org.mozilla.javascript.Context#initStandardObjects
 	 */

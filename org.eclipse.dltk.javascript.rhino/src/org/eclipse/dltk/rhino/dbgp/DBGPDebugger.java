@@ -28,19 +28,17 @@ import org.mozilla.javascript.debug.Debugger;
 import org.mozilla.javascript.debug.IDebuggerWithWatchPoints;
 import org.mozilla.javascript.xml.XMLObject;
 
-public class DBGPDebugger extends Thread implements Debugger, IDebuggerWithWatchPoints
-{
+public class DBGPDebugger extends Thread implements Debugger,
+		IDebuggerWithWatchPoints {
 
 	/**
 	 * @author jcompagner
 	 */
-	public interface ITerminationListener
-	{
+	public interface ITerminationListener {
 		public void debuggerTerminated();
 	}
 
-	static abstract class Command
-	{
+	static abstract class Command {
 		abstract void parseAndExecute(String command, HashMap options);
 	}
 
@@ -62,8 +60,8 @@ public class DBGPDebugger extends Thread implements Debugger, IDebuggerWithWatch
 
 	private DBGPStackManager stackmanager;
 
-	public DBGPDebugger(Socket socket, String file, String string, Context ct) throws IOException
-	{
+	public DBGPDebugger(Socket socket, String file, String string, Context ct)
+			throws IOException {
 		super("Debug command reader");
 		this.socket = socket;
 		this.breakPointManager = new BreakPointManager();
@@ -71,10 +69,13 @@ public class DBGPDebugger extends Thread implements Debugger, IDebuggerWithWatch
 		setStackManager(stackmanager);
 		stackmanager.suspend();
 		out = new PrintStream(socket.getOutputStream());
-		String response = "<init appid=\"APPID\"\r\n" + "      idekey=\"" + string + "\"\r\n" + "      session=\""
-				+ string + "\"\r\n" + "      thread=\"THREAD_ID\"\r\n" + "      parent=\"PARENT_APPID\"\r\n"
-				+ "      language=\"javascript\"\r\n" + "      protocol_version=\"1.0\"\r\n" + "      fileuri=\"file://"
-				+ file + "\"\r\n" + "/>";
+		String response = "<init appid=\"APPID\"\r\n" + "      idekey=\""
+				+ string + "\"\r\n" + "      session=\"" + string + "\"\r\n"
+				+ "      thread=\"THREAD_ID\"\r\n"
+				+ "      parent=\"PARENT_APPID\"\r\n"
+				+ "      language=\"javascript\"\r\n"
+				+ "      protocol_version=\"1.0\"\r\n"
+				+ "      fileuri=\"file://" + file + "\"\r\n" + "/>";
 		printResponse(response);
 		strategies.put("feature_get", new FeatureGetCommand(this));
 		strategies.put("feature_set", new FeatureSetCommand(this));
@@ -101,103 +102,82 @@ public class DBGPDebugger extends Thread implements Debugger, IDebuggerWithWatch
 		out.flush();
 	}
 
-	public void setContext(Context cx)
-	{
+	public void setContext(Context cx) {
 		setStackManager(DBGPStackManager.getManager(cx, this));
 	}
 
 	/**
 	 * @return
 	 */
-	public final BreakPointManager getBreakPointManager()
-	{
+	public final BreakPointManager getBreakPointManager() {
 		return breakPointManager;
 	}
 
-	public DBGPStackManager getStackManager()
-	{
+	public DBGPStackManager getStackManager() {
 		return stackmanager;
 	}
 
-	public void setStackManager(DBGPStackManager manager)
-	{
+	public void setStackManager(DBGPStackManager manager) {
 		this.stackmanager = manager;
 	}
 
-	synchronized void printResponse(String response)
-	{
-		if (out == null || socket == null)
-		{
-			System.err.println("wanted to print response to the eclipse debugger, but already closed:" + response );
+	synchronized void printResponse(String response) {
+		if (out == null || socket == null) {
+			System.err
+					.println("wanted to print response to the eclipse debugger, but already closed:"
+							+ response);
 			return;
 		}
-		
-		try
-		{
+
+		try {
 			byte[] bytes = response.getBytes("UTF-8");
 			out.print(bytes.length);
 			out.write(0);
-			out.write(bytes,0,bytes.length);
+			out.write(bytes, 0, bytes.length);
 			out.write(0);
 			out.flush();
-			if (out.checkError())
-			{
-				try
-				{
-					if (socket != null) 
-					{
+			if (out.checkError()) {
+				try {
+					if (socket != null) {
 						socket.close();
 						socket = null;
 						out = null;
 					}
-				}
-				catch (IOException ex)
-				{
+				} catch (IOException ex) {
 					ex.printStackTrace();
 				}
 			}
-		}
-		catch (UnsupportedEncodingException ex)
-		{
+		} catch (UnsupportedEncodingException ex) {
 			ex.printStackTrace();
 		}
 	}
-	
-	public boolean isConnected()
-	{
+
+	public boolean isConnected() {
 		outputStdOut("");
-		if (socket == null || socket.isClosed() || out == null)
-		{
+		if (socket == null || socket.isClosed() || out == null) {
 			return false;
 		}
 		return true;
 	}
 
-	public void addTerminationListener(ITerminationListener listener)
-	{
-		if (terminationListeners == null)
-		{
+	public void addTerminationListener(ITerminationListener listener) {
+		if (terminationListeners == null) {
 			terminationListeners = new ArrayList();
 		}
 		terminationListeners.add(listener);
 	}
-	
 
 	/**
 	 * @param remoteDebugScriptEngine
 	 */
-	public void removeTerminationListener(ITerminationListener listener)
-	{
-		if (terminationListeners != null)
-		{
+	public void removeTerminationListener(ITerminationListener listener) {
+		if (terminationListeners != null) {
 			terminationListeners.remove(listener);
 		}
 	}
 
-
-	protected void printProperty(String id, String fullName, Object value, StringBuffer properties, int level,
-			boolean addChilds)
-	{
+	protected void printProperty(String id, String fullName, Object value,
+			StringBuffer properties, int level, boolean addChilds) {
 		boolean hasChilds = false;
 
 		int numC = 0;
@@ -205,26 +185,21 @@ public class DBGPDebugger extends Thread implements Debugger, IDebuggerWithWatch
 		String name_of_object_class = "";
 		String data_type = getDataType(value);
 
-		if (value instanceof Scriptable)
-		{
+		if (value instanceof Scriptable) {
 			hasChilds = true;
 			StringBuffer stringBuffer = new StringBuffer();
 			Scriptable p = (Scriptable) value;
 			value = stringBuffer;
 			String nv = p.getClassName();
 			name_of_object_class = nv;
-			if (p instanceof NativeJavaObject)
-			{
+			if (p instanceof NativeJavaObject) {
 
 				NativeJavaObject obj = (NativeJavaObject) p;
 
 				Object unwrap = obj.unwrap();
-				if (unwrap instanceof Class)
-				{
+				if (unwrap instanceof Class) {
 					nv = ((Class) unwrap).getName();
-				}
-				else if (unwrap.getClass().isArray())
-				{
+				} else if (unwrap.getClass().isArray()) {
 					nv = "Array";
 					// String string = unwrap.getClass().getName();
 					// int len = Array.getLength(unwrap);
@@ -235,87 +210,65 @@ public class DBGPDebugger extends Thread implements Debugger, IDebuggerWithWatch
 					// nv = string + "[" + len + "]";
 					// if (q1 != -1)
 					// nv += string.substring(q1);
-				}
-				else
-				{
-					if (unwrap instanceof String)
-					{
+				} else {
+					if (unwrap instanceof String) {
 						nv = "JavaString " + '"' + unwrap.toString() + '"';
-					}
-					else
-					{
+					} else {
 						String string = unwrap.toString();
 
 						nv = string;
-						// nv = unwrap.getClass().getName() + "(" + string + ")";
+						// nv = unwrap.getClass().getName() + "(" + string +
+						// ")";
 					}
 				}
 
-			}
-			else if (p instanceof Wrapper)
-			{
+			} else if (p instanceof Wrapper) {
 				Wrapper wrapper = (Wrapper) p;
 				Object wrapped = wrapper.unwrap();
 
-				if (wrapped == null)
-				{
+				if (wrapped == null) {
 					nv = "Undefined";
-				}
-				else if (!wrapped.getClass().isArray())
-				{
+				} else if (!wrapped.getClass().isArray()) {
 					// if it is an array let the normal array handling do the
 					// job
 					// now just do toString();
 					nv = wrapped.toString();
 				}
-			}
-			else if (p instanceof XMLObject)
-			{
-				nv = ((XMLObject)p).toString();
+			} else if (p instanceof XMLObject) {
+				nv = ((XMLObject) p).toString();
 				data_type = "XML";
 			}
 
 			stringBuffer.append(Base64Helper.encodeString(nv));
-			if (addChilds)
-			{
+			if (addChilds) {
 				HashSet duplicates = new HashSet();
 				Scriptable prototype = p;
-				while (prototype != null)
-				{
-					numC += createChilds(fullName, level, stringBuffer, prototype, duplicates);
+				while (prototype != null) {
+					numC += createChilds(fullName, level, stringBuffer,
+							prototype, duplicates);
 					prototype = prototype.getPrototype();
 				}
-			}
-			else
-			{
+			} else {
 				HashSet duplicates = new HashSet();
 				Scriptable prototype = p;
-				while (prototype != null)
-				{
+				while (prototype != null) {
 					Object[] ids = null;
-					if (prototype instanceof LazyInitScope)
-					{
+					if (prototype instanceof LazyInitScope) {
 						ids = ((LazyInitScope) prototype).getInitializedIds();
-					}
-					else
-					{
+					} else {
 						ids = prototype.getIds();
 					}
-					for (int a = 0; a < ids.length; a++)
-					{
+					for (int a = 0; a < ids.length; a++) {
 						if (!duplicates.add(ids[a]))
 							continue;
 						Object pvalue = null;
-						try
-						{
-							if (ids[a] instanceof Integer)
-							{
-								pvalue = p.get(((Integer) ids[a]).intValue(), p);
-							}
-							else pvalue = p.get(ids[a].toString(), p);
-						}
-						catch (Exception e)
-						{
+						try {
+							if (ids[a] instanceof Integer) {
+								pvalue = p
+										.get(((Integer) ids[a]).intValue(), p);
+							} else
+								pvalue = p.get(ids[a].toString(), p);
+						} catch (Exception e) {
 							// dont let the debugger crash.
 							e.printStackTrace();
 						}
@@ -333,19 +286,14 @@ public class DBGPDebugger extends Thread implements Debugger, IDebuggerWithWatch
 				}
 			}
 			vlEncoded = stringBuffer.toString();
-		}
-		else
-		{
-			if (!(value instanceof Undefined))
-			{
-				if (value == UniqueTag.NOT_FOUND)
-				{
+		} else {
+			if (!(value instanceof Undefined)) {
+				if (value == UniqueTag.NOT_FOUND) {
 					vlEncoded = "";
-				}
-				else vlEncoded = Base64Helper.encodeString(value != null ? value.toString() : "null");
-			}
-			else
-			{
+				} else
+					vlEncoded = Base64Helper.encodeString(value != null ? value
+							.toString() : "null");
+			} else {
 				vlEncoded = Base64Helper.encodeString("Undefined");
 			}
 			if (value != null)
@@ -354,19 +302,22 @@ public class DBGPDebugger extends Thread implements Debugger, IDebuggerWithWatch
 		id = escapeHTML(id);
 		fullName = escapeHTML(fullName);
 
-		properties.append("<property\r\n" + "    name=\"" + id + "\"\r\n" + "    fullname=\"" + fullName + "\"\r\n"
-				+ "    type=\"" + data_type + "\"\r\n" + "    classname=\"" + name_of_object_class + "\"\r\n"
-				+ "    constant=\"0\"\r\n" + "    children=\"" + (hasChilds ? 1 : 0) + "\"\r\n"
-				+ "    encoding=\"base64\"\r\n" + "    numchildren=\"" + numC + "\">\r\n" + vlEncoded + "</property>\r\n");
+		properties.append("<property\r\n" + "    name=\"" + id + "\"\r\n"
+				+ "    fullname=\"" + fullName + "\"\r\n" + "    type=\""
+				+ data_type + "\"\r\n" + "    classname=\""
+				+ name_of_object_class + "\"\r\n" + "    constant=\"0\"\r\n"
+				+ "    children=\"" + (hasChilds ? 1 : 0) + "\"\r\n"
+				+ "    encoding=\"base64\"\r\n" + "    numchildren=\"" + numC
+				+ "\">\r\n" + vlEncoded + "</property>\r\n");
 	}
-	
+
 	private static String escapeHTML(String content) {
 		content = replace(content, '&', "&amp;"); //$NON-NLS-1$
 		content = replace(content, '"', "&quot;"); //$NON-NLS-1$
 		content = replace(content, '<', "&lt;"); //$NON-NLS-1$
 		return replace(content, '>', "&gt;"); //$NON-NLS-1$
 	}
-	
+
 	private static String replace(String text, char c, String s) {
 
 		int previous = 0;
@@ -394,119 +345,89 @@ public class DBGPDebugger extends Thread implements Debugger, IDebuggerWithWatch
 	 * @param p
 	 * @param ids
 	 */
-	private int createChilds(String fullName, int level, StringBuffer stringBuffer, Scriptable p, HashSet duplicates)
-	{
+	private int createChilds(String fullName, int level,
+			StringBuffer stringBuffer, Scriptable p, HashSet duplicates) {
 		Object[] ids = null;
-		if (p instanceof LazyInitScope)
-		{
+		if (p instanceof LazyInitScope) {
 			ids = ((LazyInitScope) p).getInitializedIds();
-		}
-		else if(p instanceof ScriptableObject && !(p instanceof XMLObject) &&  !(p instanceof NativeArray)) {
-			
-			ids = ((ScriptableObject)p).getAllIds();
-		}
-		else
-		{
+		} else if (p instanceof ScriptableObject && !(p instanceof XMLObject)
+				&& !(p instanceof NativeArray)) {
+
+			ids = ((ScriptableObject) p).getAllIds();
+		} else {
 			ids = p.getIds();
 		}
 		int counter = 0;
-		for (int a = 0; a < ids.length; a++)
-		{
+		for (int a = 0; a < ids.length; a++) {
 			if (!duplicates.add(ids[a]))
 				continue;
 			Object pvalue = null;
-			try
-			{
-				if (ids[a] instanceof Integer)
-				{
+			try {
+				if (ids[a] instanceof Integer) {
 					pvalue = p.get(((Integer) ids[a]).intValue(), p);
-				}
-				else pvalue = p.get(ids[a].toString(), p);
-			}
-			catch (Throwable e)
-			{
+				} else
+					pvalue = p.get(ids[a].toString(), p);
+			} catch (Throwable e) {
 				// dont let the debugger crash.
 				e.printStackTrace();
 			}
-			if (!(pvalue instanceof Function)) // HACK because ShowFunctionsAction
+			if (!(pvalue instanceof Function)) // HACK because
+												// ShowFunctionsAction
 			// doesnt work because of the lazy
 			// behavior of plugins in Eclipse
 			{
 				counter++;
-				if (ids[a] instanceof Integer)
-				{
-					printProperty(ids[a].toString(), fullName + "[" + ids[a] +"]", pvalue, stringBuffer, level + 1, false);
-				}
-				else
-				{
-					printProperty(ids[a].toString(), fullName + "." + ids[a], pvalue, stringBuffer, level + 1, false);
+				if (ids[a] instanceof Integer) {
+					printProperty(ids[a].toString(), fullName + "[" + ids[a]
+							+ "]", pvalue, stringBuffer, level + 1, false);
+				} else {
+					printProperty(ids[a].toString(), fullName + "." + ids[a],
+							pvalue, stringBuffer, level + 1, false);
 				}
 			}
-			if (counter > 5000) break;
+			if (counter > 5000)
+				break;
 		}
 		return counter;
 	}
 
-	private String getDataType(Object value)
-	{
+	private String getDataType(Object value) {
 		String data_type = "Object";
-		if (value instanceof Function)
-		{
+		if (value instanceof Function) {
 			data_type = "function";
-		}
-		else if (value instanceof NativeJavaArray)
-		{
+		} else if (value instanceof NativeJavaArray) {
 			data_type = "javaarray";
-		}
-		else if (value instanceof NativeArray)
-		{
+		} else if (value instanceof NativeArray) {
 			data_type = "array";
-		}
-		else if (value instanceof NativeJavaObject)
-		{
+		} else if (value instanceof NativeJavaObject) {
 			data_type = "javaobject";
-		}
-		else if (value instanceof NativeJavaClass)
-		{
+		} else if (value instanceof NativeJavaClass) {
 			data_type = "javaclass";
-		}
-		else if (value instanceof String)
-		{
+		} else if (value instanceof String) {
 			data_type = "string";
-		}
-		else if (value instanceof Number)
-		{
+		} else if (value instanceof Number) {
 			data_type = "number";
-		}
-		else if (value instanceof Boolean)
-		{
+		} else if (value instanceof Boolean) {
 			data_type = "boolean";
-		}
-		else if (value instanceof Date)
-		{
+		} else if (value instanceof Date) {
 			data_type = "date";
-		}
-		else if (value instanceof Undefined || value == null)
-		{
+		} else if (value instanceof Undefined || value == null) {
 			data_type = "undefined";
+		} else if (value instanceof Wrapper) {
+			return getDataType(((Wrapper) value).unwrap());
 		}
-		else if (value instanceof Wrapper) { return getDataType(((Wrapper) value).unwrap()); }
 		return data_type;
 	}
 
-	public void run()
-	{
-		try
-		{
+	public void run() {
+		try {
 			DataInputStream ds = new DataInputStream(socket.getInputStream());
 			StringBuffer buf = new StringBuffer();
-			while (ds.available() >= 0)
-			{
+			while (ds.available() >= 0) {
 				int c = ds.read();
 				if (c < 0)
 					break;
-				if (c < 32)
-				{
+				if (c < 32) {
 					String s = buf.toString();
 					int indexOf = s.indexOf(' ');
 					if (indexOf != -1)
@@ -514,8 +435,7 @@ public class DBGPDebugger extends Thread implements Debugger, IDebuggerWithWatch
 					{
 						String commandId = buf.substring(0, indexOf);
 						Command object = (Command) strategies.get(commandId);
-						if (object == null)
-						{
+						if (object == null) {
 							System.err.println(commandId);
 							continue;
 						}
@@ -523,154 +443,131 @@ public class DBGPDebugger extends Thread implements Debugger, IDebuggerWithWatch
 
 						String result = buf.substring(indexOf);
 						int index = result.indexOf(" -");
-						while (index != -1 && index != result.length())
-						{
-							int space = result.indexOf(' ',index+2);
-							int nextIndex = result.indexOf(" -",space+1);
-							if (nextIndex == -1) nextIndex = result.length();
-							String key = result.substring(index+1, space);
-							String value = result.substring(space+1,nextIndex);
-							
+						while (index != -1 && index != result.length()) {
+							int space = result.indexOf(' ', index + 2);
+							int nextIndex = result.indexOf(" -", space + 1);
+							if (nextIndex == -1)
+								nextIndex = result.length();
+							String key = result.substring(index + 1, space);
+							String value = result.substring(space + 1,
+									nextIndex);
+
 							options.put(key, value);
 							index = nextIndex;
-							
+
 						}
-						if (!isInited && object instanceof RunCommand)
-						{
-							synchronized (this)
-							{
+						if (!isInited && object instanceof RunCommand) {
+							synchronized (this) {
 								isInited = true;
 								notifyAll();
 							}
 						}
-						try
-						{
+						try {
 							Context.enter();
 							object.parseAndExecute(result, options);
-						}
-						catch (Throwable t)
-						{
+						} catch (Throwable t) {
 							t.printStackTrace();
-						}
-						finally
-						{
+						} finally {
 							Context.exit();
 						}
 					}
 					buf = new StringBuffer();
-				}
-				else
-				{
+				} else {
 					buf.append((char) c);
 				}
 
 			}
-		}
-		catch (Exception e)
-		{
+		} catch (Exception e) {
 			// e.printStackTrace(); // ignore just a disconnect exception
-			try
-			{
+			try {
 				if (socket != null)
 					socket.close();
-			}
-			catch (IOException ex)
-			{
+			} catch (IOException ex) {
 			}
 			close();
 		}
 
 	}
 
-	public DebugFrame getFrame(Context cx, DebuggableScript fnOrScript)
-	{
+	public DebugFrame getFrame(Context cx, DebuggableScript fnOrScript) {
 		return new DBGPDebugFrame(cx, fnOrScript, this);
 	}
 
-	public void handleCompilationDone(Context cx, DebuggableScript fnOrScript, String source)
-	{
+	public void handleCompilationDone(Context cx, DebuggableScript fnOrScript,
+			String source) {
 	}
 
-	public boolean sendBreak(String reason)
-	{
-		printResponse("<response command=\"run\"\r\n" + "status=\"break\"" + " reason=\"ok\"" + " transaction_id=\""
-				+ runTransctionId + "\">\r\n" + Base64Helper.encodeString(reason) + "</response>\r\n" + "");
+	public boolean sendBreak(String reason) {
+		printResponse("<response command=\"run\"\r\n" + "status=\"break\""
+				+ " reason=\"ok\"" + " transaction_id=\"" + runTransctionId
+				+ "\">\r\n" + Base64Helper.encodeString(reason)
+				+ "</response>\r\n" + "");
 		return socket != null && out != null;
 	}
 
-	public void outputStdOut(String value)
-	{
-		printResponse("<stream type=\"stdout\">\r\n" + Base64Helper.encodeString(value) + "</stream>\r\n" + "");
+	public void outputStdOut(String value) {
+		printResponse("<stream type=\"stdout\">\r\n"
+				+ Base64Helper.encodeString(value) + "</stream>\r\n" + "");
 	}
 
-	public void outputStdErr(String value)
-	{
-		printResponse("<stream type=\"stderr\">\r\n" + Base64Helper.encodeString(value) + "</stream>\r\n" + "");
+	public void outputStdErr(String value) {
+		printResponse("<stream type=\"stderr\">\r\n"
+				+ Base64Helper.encodeString(value) + "</stream>\r\n" + "");
 	}
 
-	public void notifyEnd()
-	{
-		printResponse("<response command=\"run\"\r\n" + "status=\"stopped\"" + " reason=\"ok\"" + " transaction_id=\""
-				+ runTransctionId + "\">\r\n" + "</response>\r\n" + "");
+	public void notifyEnd() {
+		printResponse("<response command=\"run\"\r\n" + "status=\"stopped\""
+				+ " reason=\"ok\"" + " transaction_id=\"" + runTransctionId
+				+ "\">\r\n" + "</response>\r\n" + "");
 		close();
 		System.exit(0);
 	}
 
-	public void close()
-	{
+	public void close() {
 		isInited = false;
 		runTransctionId = null;
 		getBreakPointManager().removeBreakPoints();
 		// shouldnt all the stackmanagers be resumed?
 		DBGPStackManager.stopAll();
-		if (socket != null)
-		{
-			try
-			{
+		if (socket != null) {
+			try {
 				socket.close();
 				socket = null;
 				out = null;
-			}
-			catch (IOException ex)
-			{
+			} catch (IOException ex) {
 				ex.printStackTrace();
 			}
 		}
-		if (terminationListeners != null)
-		{
-			for (int i = 0; i < terminationListeners.size(); i++)
-			{
-				ITerminationListener listener = (ITerminationListener) terminationListeners.get(i);
+		if (terminationListeners != null) {
+			for (int i = 0; i < terminationListeners.size(); i++) {
+				ITerminationListener listener = (ITerminationListener) terminationListeners
+						.get(i);
 				listener.debuggerTerminated();
 			}
 		}
 	}
-	
-	public void setTransactionId(String id)
-	{
+
+	public void setTransactionId(String id) {
 		runTransctionId = id;
 	}
 
-	public void access(String property, Scriptable object)
-	{
-		ArrayList list = (ArrayList) getBreakPointManager().getWatchPoints(property);
-		if (list != null)
-		{
+	public void access(String property, Scriptable object) {
+		ArrayList list = (ArrayList) getBreakPointManager().getWatchPoints(
+				property);
+		if (list != null) {
 			int size = list.size();
 
-			for (int a = 0; a < size; a++)
-			{
+			for (int a = 0; a < size; a++) {
 				BreakPoint watchPoint = (BreakPoint) list.get(a);
-				if (watchPoint != null)
-				{
+				if (watchPoint != null) {
 					if (watchPoint.enabled)
-						if (watchPoint.isAccess)
-						{
+						if (watchPoint.isAccess) {
 							String wkey = watchPoint.file + watchPoint.line;
 							String s = (String) cache.get(object);
-							if ((s != null) && (s.equals(wkey)))
-							{
-								getStackManager().sendSuspend("Break on access watchpoint: " + property);
+							if ((s != null) && (s.equals(wkey))) {
+								getStackManager().sendSuspend(
+										"Break on access watchpoint: "
+												+ property);
 							}
 						}
 				}
@@ -680,36 +577,33 @@ public class DBGPDebugger extends Thread implements Debugger, IDebuggerWithWatch
 
 	WeakHashMap cache = new WeakHashMap();
 
-	public void modification(String property, Scriptable object)
-	{
+	public void modification(String property, Scriptable object) {
 
-		ArrayList list = (ArrayList) getBreakPointManager().getWatchPoints(property);
-		if (list != null && getStackManager().getStackDepth() > 0)
-		{
+		ArrayList list = (ArrayList) getBreakPointManager().getWatchPoints(
+				property);
+		if (list != null && getStackManager().getStackDepth() > 0) {
 			int size = list.size();
-			for (int a = 0; a < size; a++)
-			{
+			for (int a = 0; a < size; a++) {
 
 				BreakPoint watchPoint = (BreakPoint) list.get(a);
-				if (watchPoint != null)
-				{
-					if (watchPoint.enabled)
-					{
-						String sn = getStackManager().getStackFrame(0).getSourceName();
-						int ln = getStackManager().getStackFrame(0).getLineNumber();
+				if (watchPoint != null) {
+					if (watchPoint.enabled) {
+						String sn = getStackManager().getStackFrame(0)
+								.getSourceName();
+						int ln = getStackManager().getStackFrame(0)
+								.getLineNumber();
 						String key = sn + ln;
 						String wkey = watchPoint.file + watchPoint.line;
-						if (key.equals(wkey))
-						{
+						if (key.equals(wkey)) {
 							cache.put(object, wkey);
 						}
-						if (watchPoint.isModification)
-						{
+						if (watchPoint.isModification) {
 							Object object2 = cache.get(object);
 							if (object2 != null)
-								if (object2.equals(wkey))
-								{
-									getStackManager().sendSuspend("Break on modification watchpoint: " + property);
+								if (object2.equals(wkey)) {
+									getStackManager().sendSuspend(
+											"Break on modification watchpoint: "
+													+ property);
 								}
 						}
 					}
@@ -718,8 +612,7 @@ public class DBGPDebugger extends Thread implements Debugger, IDebuggerWithWatch
 		}
 	}
 
-	public void setProperty(String name, String value)
-	{
+	public void setProperty(String name, String value) {
 
 	}
 }

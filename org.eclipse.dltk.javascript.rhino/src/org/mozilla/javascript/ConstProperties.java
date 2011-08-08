@@ -39,8 +39,7 @@
 // API class
 package org.mozilla.javascript;
 
-public interface ConstProperties
-{
+public interface ConstProperties {
 	/**
 	 * Sets a named const property in this object.
 	 * <p>
@@ -57,9 +56,9 @@ public interface ConstProperties
 	 * <p>
 	 * Note that if a property <i>a</i> is defined in the prototype <i>p</i> of
 	 * an object <i>o</i>, then evaluating <code>o.a = 23</code> will cause
-	 * <code>set</code> to be called on the prototype <i>p</i> with <i>o</i>
-	 * as the <i>start</i> parameter. To preserve JavaScript semantics, it is
-	 * the Scriptable object's responsibility to modify <i>o</i>.
+	 * <code>set</code> to be called on the prototype <i>p</i> with <i>o</i> as
+	 * the <i>start</i> parameter. To preserve JavaScript semantics, it is the
+	 * Scriptable object's responsibility to modify <i>o</i>.
 	 * <p>
 	 * This design allows properties to be defined in prototypes and implemented
 	 * in terms of getters and setters of Java values without consuming slots in
@@ -86,11 +85,11 @@ public interface ConstProperties
 	 * chain, which is different from the ECMA [[Put]] operation.
 	 * 
 	 * @param name
-	 *           the name of the property
+	 *            the name of the property
 	 * @param start
-	 *           the object whose property is being set
+	 *            the object whose property is being set
 	 * @param value
-	 *           value to set the property to
+	 *            value to set the property to
 	 * @see org.mozilla.javascript.Scriptable#has
 	 * @see org.mozilla.javascript.Scriptable#get
 	 * @see org.mozilla.javascript.ScriptableObject#putProperty
@@ -104,9 +103,9 @@ public interface ConstProperties
 	 * start parameter is the same as for putConst.
 	 * 
 	 * @param name
-	 *           The name of the property.
+	 *            The name of the property.
 	 * @param start
-	 *           The object whose property is being reserved.
+	 *            The object whose property is being reserved.
 	 */
 	public void defineConst(String name, Scriptable start);
 
@@ -114,7 +113,8 @@ public interface ConstProperties
 	 * Returns true if the named property is defined as a const on this object.
 	 * 
 	 * @param name
-	 * @return true if the named property is defined as a const, false otherwise.
+	 * @return true if the named property is defined as a const, false
+	 *         otherwise.
 	 */
 	public boolean isConst(String name);
 }

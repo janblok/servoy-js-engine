@@ -43,8 +43,7 @@ package org.mozilla.javascript;
  * @deprecated Embeddings that wish to customize newly created {@link Context}
  *             instances should implement {@link ContextFactory.Listener}.
  */
-public interface ContextListener extends ContextFactory.Listener
-{
+public interface ContextListener extends ContextFactory.Listener {
 
 	/**
 	 * @deprecated Rhino runtime never calls the method.

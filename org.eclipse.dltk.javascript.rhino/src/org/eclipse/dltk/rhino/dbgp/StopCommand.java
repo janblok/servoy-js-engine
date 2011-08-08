@@ -24,6 +24,6 @@ final class StopCommand extends DBGPDebugger.Command {
 				+ " transaction_id=\"" + options.get("-i") + "\">\r\n"
 				+ "</response>\r\n" + "");
 		this.debugger.close();
-//		System.exit(0);
+		// System.exit(0);
 	}
 }

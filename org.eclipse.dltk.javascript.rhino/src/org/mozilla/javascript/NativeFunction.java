@@ -49,47 +49,43 @@ import org.mozilla.javascript.debug.DebuggableScript;
  * 
  * @author Norris Boyd
  */
-public abstract class NativeFunction extends BaseFunction
-{
+public abstract class NativeFunction extends BaseFunction {
 
-	public final void initScriptFunction(Context cx, Scriptable scope)
-	{
+	public final void initScriptFunction(Context cx, Scriptable scope) {
 		ScriptRuntime.setFunctionProtoAndParent(this, scope);
 	}
 
 	/**
 	 * @param indent
-	 *           How much to indent the decompiled result
+	 *            How much to indent the decompiled result
 	 * @param flags
-	 *           Flags specifying format of decompilation output
+	 *            Flags specifying format of decompilation output
 	 */
-	final String decompile(int indent, int flags)
-	{
+	final String decompile(int indent, int flags) {
 		String encodedSource = getEncodedSource();
-		if (encodedSource == null)
-		{
+		if (encodedSource == null) {
 			return super.decompile(indent, flags);
-		}
-		else
-		{
+		} else {
 			UintMap properties = new UintMap(1);
 			properties.put(Decompiler.INITIAL_INDENT_PROP, indent);
 			return Decompiler.decompile(encodedSource, flags, properties);
 		}
 	}
 
-	public int getLength()
-	{
+	public int getLength() {
 		int paramCount = getParamCount();
-		if (getLanguageVersion() != Context.VERSION_1_2) { return paramCount; }
+		if (getLanguageVersion() != Context.VERSION_1_2) {
+			return paramCount;
+		}
 		Context cx = Context.getContext();
 		NativeCall activation = ScriptRuntime.findFunctionActivation(cx, this);
-		if (activation == null) { return paramCount; }
+		if (activation == null) {
+			return paramCount;
+		}
 		return activation.originalArgs.length;
 	}
 
-	public int getArity()
-	{
+	public int getArity() {
 		return getParamCount();
 	}
 
@@ -98,21 +94,18 @@ public abstract class NativeFunction extends BaseFunction
 	 *             backwards compatibility keep an old method name used by Batik
 	 *             and possibly others.
 	 */
-	public String jsGet_name()
-	{
+	public String jsGet_name() {
 		return getFunctionName();
 	}
 
 	/**
 	 * Get encoded source string.
 	 */
-	public String getEncodedSource()
-	{
+	public String getEncodedSource() {
 		return null;
 	}
 
-	public DebuggableScript getDebuggableView()
-	{
+	public DebuggableScript getDebuggableView() {
 		return null;
 	}
 
@@ -138,8 +131,8 @@ public abstract class NativeFunction extends BaseFunction
 
 	/**
 	 * Get parameter or variable const-ness. If
-	 * <tt>index < {@link #getParamCount()}</tt>, then return the const-ness
-	 * of the corresponding parameter. Otherwise return whether the variable is
+	 * <tt>index < {@link #getParamCount()}</tt>, then return the const-ness of
+	 * the corresponding parameter. Otherwise return whether the variable is
 	 * const.
 	 */
 	protected abstract boolean getParamOrVarConst(int index);

@@ -44,10 +44,8 @@ import java.io.Serializable;
  * Generic notion of reference object that know how to query/modify the target
  * objects based on some property/index.
  */
-public abstract class Ref implements Serializable
-{
-	public boolean has(Context cx)
-	{
+public abstract class Ref implements Serializable {
+	public boolean has(Context cx) {
 		return true;
 	}
 
@@ -55,8 +53,7 @@ public abstract class Ref implements Serializable
 
 	public abstract Object set(Context cx, Object value);
 
-	public boolean delete(Context cx)
-	{
+	public boolean delete(Context cx) {
 		return false;
 	}
 

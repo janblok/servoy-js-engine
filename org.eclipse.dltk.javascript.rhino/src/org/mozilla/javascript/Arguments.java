@@ -45,12 +45,10 @@ package org.mozilla.javascript;
  * @see org.mozilla.javascript.NativeCall
  * @author Norris Boyd
  */
-final class Arguments extends IdScriptableObject
-{
+final class Arguments extends IdScriptableObject {
 	static final long serialVersionUID = 4275508002492040609L;
 
-	public Arguments(NativeCall activation)
-	{
+	public Arguments(NativeCall activation) {
 		this.activation = activation;
 
 		Scriptable parent = activation.getParentScope();
@@ -64,39 +62,32 @@ final class Arguments extends IdScriptableObject
 		calleeObj = f;
 
 		int version = f.getLanguageVersion();
-		if (version <= Context.VERSION_1_3 && version != Context.VERSION_DEFAULT)
-		{
+		if (version <= Context.VERSION_1_3
+				&& version != Context.VERSION_DEFAULT) {
 			callerObj = null;
-		}
-		else
-		{
+		} else {
 			callerObj = NOT_FOUND;
 		}
 	}
 
-	public String getClassName()
-	{
+	public String getClassName() {
 		return "Arguments";
 	}
 
-	public boolean has(int index, Scriptable start)
-	{
-		if (0 <= index && index < args.length)
-		{
-			if (args[index] != NOT_FOUND) { return true; }
+	public boolean has(int index, Scriptable start) {
+		if (0 <= index && index < args.length) {
+			if (args[index] != NOT_FOUND) {
+				return true;
+			}
 		}
 		return super.has(index, start);
 	}
 
-	public Object get(int index, Scriptable start)
-	{
-		if (0 <= index && index < args.length)
-		{
+	public Object get(int index, Scriptable start) {
+		if (0 <= index && index < args.length) {
 			Object value = args[index];
-			if (value != NOT_FOUND)
-			{
-				if (sharedWithActivation(index))
-				{
+			if (value != NOT_FOUND) {
+				if (sharedWithActivation(index)) {
 					NativeFunction f = activation.function;
 					String argName = f.getParamOrVarName(index);
 					value = activation.get(argName, activation);
@@ -109,20 +100,18 @@ final class Arguments extends IdScriptableObject
 		return super.get(index, start);
 	}
 
-	private boolean sharedWithActivation(int index)
-	{
+	private boolean sharedWithActivation(int index) {
 		NativeFunction f = activation.function;
 		int definedCount = f.getParamCount();
-		if (index < definedCount)
-		{
+		if (index < definedCount) {
 			// Check if argument is not hidden by later argument with the same
 			// name as hidden arguments are not shared with activation
-			if (index < definedCount - 1)
-			{
+			if (index < definedCount - 1) {
 				String argName = f.getParamOrVarName(index);
-				for (int i = index + 1; i < definedCount; i++)
-				{
-					if (argName.equals(f.getParamOrVarName(i))) { return false; }
+				for (int i = index + 1; i < definedCount; i++) {
+					if (argName.equals(f.getParamOrVarName(i))) {
+						return false;
+					}
 				}
 			}
 			return true;
@@ -130,25 +119,18 @@ final class Arguments extends IdScriptableObject
 		return false;
 	}
 
-	public void put(int index, Scriptable start, Object value)
-	{
-		if (0 <= index && index < args.length)
-		{
-			if (args[index] != NOT_FOUND)
-			{
-				if (sharedWithActivation(index))
-				{
+	public void put(int index, Scriptable start, Object value) {
+		if (0 <= index && index < args.length) {
+			if (args[index] != NOT_FOUND) {
+				if (sharedWithActivation(index)) {
 					String argName;
 					argName = activation.function.getParamOrVarName(index);
 					activation.put(argName, activation, value);
 					return;
 				}
-				synchronized (this)
-				{
-					if (args[index] != NOT_FOUND)
-					{
-						if (args == activation.originalArgs)
-						{
+				synchronized (this) {
+					if (args[index] != NOT_FOUND) {
+						if (args == activation.originalArgs) {
 							args = (Object[]) args.clone();
 						}
 						args[index] = value;
@@ -160,16 +142,11 @@ final class Arguments extends IdScriptableObject
 		super.put(index, start, value);
 	}
 
-	public void delete(int index)
-	{
-		if (0 <= index && index < args.length)
-		{
-			synchronized (this)
-			{
-				if (args[index] != NOT_FOUND)
-				{
-					if (args == activation.originalArgs)
-					{
+	public void delete(int index) {
+		if (0 <= index && index < args.length) {
+			synchronized (this) {
+				if (args[index] != NOT_FOUND) {
+					if (args == activation.originalArgs) {
 						args = (Object[]) args.clone();
 					}
 					args[index] = NOT_FOUND;
@@ -186,35 +163,26 @@ final class Arguments extends IdScriptableObject
 
 	MAX_INSTANCE_ID = 3;
 
-	protected int getMaxInstanceId()
-	{
+	protected int getMaxInstanceId() {
 		return MAX_INSTANCE_ID;
 	}
 
-	protected int findInstanceIdInfo(String s)
-	{
+	protected int findInstanceIdInfo(String s) {
 		int id;
 		// #generated# Last update: 2007-05-09 08:15:04 EDT
-		L0:
-		{
+		L0: {
 			id = 0;
 			String X = null;
 			int c;
-			if (s.length() == 6)
-			{
+			if (s.length() == 6) {
 				c = s.charAt(5);
-				if (c == 'e')
-				{
+				if (c == 'e') {
 					X = "callee";
 					id = Id_callee;
-				}
-				else if (c == 'h')
-				{
+				} else if (c == 'h') {
 					X = "length";
 					id = Id_length;
-				}
-				else if (c == 'r')
-				{
+				} else if (c == 'r') {
 					X = "caller";
 					id = Id_caller;
 				}
@@ -229,118 +197,96 @@ final class Arguments extends IdScriptableObject
 			return super.findInstanceIdInfo(s);
 
 		int attr;
-		switch (id)
-		{
-			case Id_callee:
-			case Id_caller:
-			case Id_length:
-				attr = DONTENUM;
-				break;
-			default:
-				throw new IllegalStateException();
+		switch (id) {
+		case Id_callee:
+		case Id_caller:
+		case Id_length:
+			attr = DONTENUM;
+			break;
+		default:
+			throw new IllegalStateException();
 		}
 		return instanceIdInfo(attr, id);
 	}
 
 	// #/string_id_map#
 
-	protected String getInstanceIdName(int id)
-	{
-		switch (id)
-		{
-			case Id_callee:
-				return "callee";
-			case Id_length:
-				return "length";
-			case Id_caller:
-				return "caller";
+	protected String getInstanceIdName(int id) {
+		switch (id) {
+		case Id_callee:
+			return "callee";
+		case Id_length:
+			return "length";
+		case Id_caller:
+			return "caller";
 		}
 		return null;
 	}
 
-	protected Object getInstanceIdValue(int id)
-	{
-		switch (id)
-		{
-			case Id_callee:
-				return calleeObj;
-			case Id_length:
-				return lengthObj;
-			case Id_caller:
-			{
-				Object value = callerObj;
-				if (value == UniqueTag.NULL_VALUE)
-				{
-					value = null;
+	protected Object getInstanceIdValue(int id) {
+		switch (id) {
+		case Id_callee:
+			return calleeObj;
+		case Id_length:
+			return lengthObj;
+		case Id_caller: {
+			Object value = callerObj;
+			if (value == UniqueTag.NULL_VALUE) {
+				value = null;
+			} else if (value == null) {
+				NativeCall caller = activation.parentActivationCall;
+				if (caller != null) {
+					value = caller.get("arguments", caller);
 				}
-				else if (value == null)
-				{
-					NativeCall caller = activation.parentActivationCall;
-					if (caller != null)
-					{
-						value = caller.get("arguments", caller);
-					}
-				}
-				return value;
 			}
+			return value;
+		}
 		}
 		return super.getInstanceIdValue(id);
 	}
 
-	protected void setInstanceIdValue(int id, Object value)
-	{
-		switch (id)
-		{
-			case Id_callee:
-				calleeObj = value;
-				return;
-			case Id_length:
-				lengthObj = value;
-				return;
-			case Id_caller:
-				callerObj = (value != null) ? value : UniqueTag.NULL_VALUE;
-				return;
+	protected void setInstanceIdValue(int id, Object value) {
+		switch (id) {
+		case Id_callee:
+			calleeObj = value;
+			return;
+		case Id_length:
+			lengthObj = value;
+			return;
+		case Id_caller:
+			callerObj = (value != null) ? value : UniqueTag.NULL_VALUE;
+			return;
 		}
 		super.setInstanceIdValue(id, value);
 	}
 
-	Object[] getIds(boolean getAll)
-	{
+	Object[] getIds(boolean getAll) {
 		Object[] ids = super.getIds(getAll);
-		if (getAll && args.length != 0)
-		{
+		if (getAll && args.length != 0) {
 			boolean[] present = null;
 			int extraCount = args.length;
-			for (int i = 0; i != ids.length; ++i)
-			{
+			for (int i = 0; i != ids.length; ++i) {
 				Object id = ids[i];
-				if (id instanceof Integer)
-				{
+				if (id instanceof Integer) {
 					int index = ((Integer) id).intValue();
-					if (0 <= index && index < args.length)
-					{
-						if (present == null)
-						{
+					if (0 <= index && index < args.length) {
+						if (present == null) {
 							present = new boolean[args.length];
 						}
-						if (!present[index])
-						{
+						if (!present[index]) {
 							present[index] = true;
 							extraCount--;
 						}
 					}
 				}
 			}
-			if (extraCount != 0)
-			{
+			if (extraCount != 0) {
 				Object[] tmp = new Object[extraCount + ids.length];
 				System.arraycopy(ids, 0, tmp, extraCount, ids.length);
 				ids = tmp;
 				int offset = 0;
-				for (int i = 0; i != args.length; ++i)
-				{
-					if (present == null || !present[i])
-					{
+				for (int i = 0; i != args.length; ++i) {
+					if (present == null || !present[i]) {
 						ids[offset] = new Integer(i);
 						++offset;
 					}

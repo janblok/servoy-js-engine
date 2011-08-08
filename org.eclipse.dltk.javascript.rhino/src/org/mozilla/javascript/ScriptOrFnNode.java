@@ -39,34 +39,28 @@
 
 package org.mozilla.javascript;
 
-public class ScriptOrFnNode extends Node
-{
+public class ScriptOrFnNode extends Node {
 
-	public ScriptOrFnNode(int nodeType)
-	{
+	public ScriptOrFnNode(int nodeType) {
 		super(nodeType);
 	}
 
-	public final String getSourceName()
-	{
+	public final String getSourceName() {
 		return sourceName;
 	}
 
-	public final void setSourceName(String sourceName)
-	{
+	public final void setSourceName(String sourceName) {
 		this.sourceName = sourceName;
 	}
 
-	public final int getEncodedSourceStart()
-	{
+	public final int getEncodedSourceStart() {
 		return encodedSourceStart;
 	}
 
-	public final int getEncodedSourceEnd()
-	{
+	public final int getEncodedSourceEnd() {
 		return encodedSourceEnd;
 	}
-	
+
 	private int sourceEnd;
 	private int sourceStart;
 
@@ -84,90 +78,78 @@ public class ScriptOrFnNode extends Node
 		return sourceEnd;
 	}
 
-
-	public final void setEncodedSourceBounds(int start, int end)
-	{
+	public final void setEncodedSourceBounds(int start, int end) {
 		this.encodedSourceStart = start;
 		this.encodedSourceEnd = end;
 	}
 
-	public final void setSourceBounds(int start, int end)
-	{
+	public final void setSourceBounds(int start, int end) {
 		this.sourceStart = start;
 		this.sourceEnd = end;
 	}
 
-	public final int getBaseLineno()
-	{
+	public final int getBaseLineno() {
 		return baseLineno;
 	}
 
-	public final void setBaseLineno(int lineno)
-	{
+	public final void setBaseLineno(int lineno) {
 		// One time action
 		if (lineno < 0 || baseLineno >= 0)
 			Kit.codeBug();
 		baseLineno = lineno;
 	}
 
-	public final int getEndLineno()
-	{
+	public final int getEndLineno() {
 		return endLineno;
 	}
 
-	public final void setEndLineno(int lineno)
-	{
+	public final void setEndLineno(int lineno) {
 		// One time action
 		if (lineno < 0 || endLineno >= 0)
 			Kit.codeBug();
 		endLineno = lineno;
 	}
 
-	public final int getFunctionCount()
-	{
-		if (functions == null) { return 0; }
+	public final int getFunctionCount() {
+		if (functions == null) {
+			return 0;
+		}
 		return functions.size();
 	}
 
-	public final FunctionNode getFunctionNode(int i)
-	{
+	public final FunctionNode getFunctionNode(int i) {
 		return (FunctionNode) functions.get(i);
 	}
 
-	public final int addFunction(FunctionNode fnNode)
-	{
+	public final int addFunction(FunctionNode fnNode) {
 		if (fnNode == null)
 			Kit.codeBug();
-		if (functions == null)
-		{
+		if (functions == null) {
 			functions = new ObjArray();
 		}
 		functions.add(fnNode);
 		return functions.size() - 1;
 	}
 
-	public final int getRegexpCount()
-	{
-		if (regexps == null) { return 0; }
+	public final int getRegexpCount() {
+		if (regexps == null) {
+			return 0;
+		}
 		return regexps.size() / 2;
 	}
 
-	public final String getRegexpString(int index)
-	{
+	public final String getRegexpString(int index) {
 		return (String) regexps.get(index * 2);
 	}
 
-	public final String getRegexpFlags(int index)
-	{
+	public final String getRegexpFlags(int index) {
 		return (String) regexps.get(index * 2 + 1);
 	}
 
-	public final int addRegexp(String string, String flags)
-	{
+	public final int addRegexp(String string, String flags) {
 		if (string == null)
 			Kit.codeBug();
-		if (regexps == null)
-		{
+		if (regexps == null) {
 			regexps = new ObjArray();
 		}
 		regexps.add(string);
@@ -175,42 +157,37 @@ public class ScriptOrFnNode extends Node
 		return regexps.size() / 2 - 1;
 	}
 
-	public final boolean hasParamOrVar(String name)
-	{
+	public final boolean hasParamOrVar(String name) {
 		return itsVariableNames.has(name);
 	}
 
-	public final int getParamOrVarIndex(String name)
-	{
+	public final int getParamOrVarIndex(String name) {
 		return itsVariableNames.get(name, -1);
 	}
 
-	public final String getParamOrVarName(int index)
-	{
+	public final String getParamOrVarName(int index) {
 		return (String) itsVariables.get(index);
 	}
 
-	public final int getParamCount()
-	{
+	public final int getParamCount() {
 		return varStart;
 	}
 
-	public final int getParamAndVarCount()
-	{
+	public final int getParamAndVarCount() {
 		return itsVariables.size();
 	}
 
-	public final String[] getParamAndVarNames()
-	{
+	public final String[] getParamAndVarNames() {
 		int N = itsVariables.size();
-		if (N == 0) { return ScriptRuntime.emptyStrings; }
+		if (N == 0) {
+			return ScriptRuntime.emptyStrings;
+		}
 		String[] array = new String[N];
 		itsVariables.toArray(array);
 		return array;
 	}
 
-	public final boolean[] getParamAndVarConst()
-	{
+	public final boolean[] getParamAndVarConst() {
 		int N = itsVariables.size();
 		boolean[] array = new boolean[N];
 		for (int i = 0; i < N; i++)
@@ -219,8 +196,7 @@ public class ScriptOrFnNode extends Node
 		return array;
 	}
 
-	public final void addParam(String name)
-	{
+	public final void addParam(String name) {
 		// Check addparam is not called after addLocal
 		if (varStart != itsVariables.size())
 			Kit.codeBug();
@@ -246,25 +222,23 @@ public class ScriptOrFnNode extends Node
 	 * overrides a formal parameter (false if this dups a parameter).
 	 * 
 	 * @param name
-	 *           variable name
+	 *            variable name
 	 * @return 1 if the name is not any form of duplicate, 0 if it duplicates a
 	 *         non-parameter, -1 if it duplicates a parameter and -2 if it
 	 *         duplicates a const.
 	 */
-	public final int addVar(String name)
-	{
+	public final int addVar(String name) {
 		int vIndex = itsVariableNames.get(name, -1);
-		if (vIndex != -1)
-		{
+		if (vIndex != -1) {
 			// There's already a variable or parameter with this name.
-			if (vIndex >= varStart)
-			{
+			if (vIndex >= varStart) {
 				Object v = itsConst.get(vIndex);
 				if (v != null)
 					return DUPLICATE_CONST;
-				else return DUPLICATE_VAR;
-			}
-			else return DUPLICATE_PARAMETER;
+				else
+					return DUPLICATE_VAR;
+			} else
+				return DUPLICATE_PARAMETER;
 		}
 		int index = itsVariables.size();
 		itsVariables.add(name);
@@ -273,11 +247,9 @@ public class ScriptOrFnNode extends Node
 		return NO_DUPLICATE;
 	}
 
-	public final boolean addConst(String name)
-	{
+	public final boolean addConst(String name) {
 		int vIndex = itsVariableNames.get(name, -1);
-		if (vIndex != -1)
-		{
+		if (vIndex != -1) {
 			// There's already a variable or parameter with this name.
 			return false;
 		}
@@ -288,32 +260,26 @@ public class ScriptOrFnNode extends Node
 		return true;
 	}
 
-	public final void removeParamOrVar(String name)
-	{
+	public final void removeParamOrVar(String name) {
 		int i = itsVariableNames.get(name, -1);
-		if (i != -1)
-		{
+		if (i != -1) {
 			itsVariables.remove(i);
 			itsVariableNames.remove(name);
 			ObjToIntMap.Iterator iter = itsVariableNames.newIterator();
-			for (iter.start(); !iter.done(); iter.next())
-			{
+			for (iter.start(); !iter.done(); iter.next()) {
 				int v = iter.getValue();
-				if (v > i)
-				{
+				if (v > i) {
 					iter.setValue(v - 1);
 				}
 			}
 		}
 	}
 
-	public final Object getCompilerData()
-	{
+	public final Object getCompilerData() {
 		return compilerData;
 	}
 
-	public final void setCompilerData(Object data)
-	{
+	public final void setCompilerData(Object data) {
 		if (data == null)
 			throw new IllegalArgumentException();
 		// Can only call once

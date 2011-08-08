@@ -11,42 +11,39 @@ public class BreakPointManager {
 	private HashMap returnNames = new HashMap();
 	private HashMap watchpoints = new HashMap();
 	private HashMap callNames = new HashMap();
-	
+
 	private boolean suspendOnExit;
 
 	private boolean suspendOnEntry;
-	
+
 	private boolean suspendOnException;
-	
+
 	/**
 	 * @return the suspendOnEntry
 	 */
-	public synchronized boolean getSuspendOnEntry()
-	{
+	public synchronized boolean getSuspendOnEntry() {
 		return suspendOnEntry;
 	}
-	
+
 	/**
 	 * @return the suspendOnExit
 	 */
-	public synchronized boolean getSuspendOnExit()
-	{
+	public synchronized boolean getSuspendOnExit() {
 		return suspendOnExit;
 	}
-	
+
 	/**
 	 * @return the suspendOnException
 	 */
-	public synchronized boolean getSuspendOnException()
-	{
+	public synchronized boolean getSuspendOnException() {
 		return suspendOnException;
 	}
-	
+
 	/**
-	 * @param suspendOnException the suspendOnException to set
+	 * @param suspendOnException
+	 *            the suspendOnException to set
 	 */
-	public synchronized void setSuspendOnException(boolean suspendOnException)
-	{
+	public synchronized void setSuspendOnException(boolean suspendOnException) {
 		this.suspendOnException = suspendOnException;
 	}
 
@@ -57,7 +54,6 @@ public class BreakPointManager {
 	public synchronized void setSuspendOnEntry(boolean parseBoolean) {
 		this.suspendOnEntry = parseBoolean;
 	}
-
 
 	public synchronized void removeBreakPoint(String id) {
 		BreakPoint object = (BreakPoint) ids.get(id);
@@ -141,8 +137,9 @@ public class BreakPointManager {
 		return point;
 	}
 
-	public synchronized void updateBreakpoint(String id, String newState, String newLine,
-			String hitValue, String hitCondition, String condexpression) {
+	public synchronized void updateBreakpoint(String id, String newState,
+			String newLine, String hitValue, String hitCondition,
+			String condexpression) {
 		BreakPoint p = (BreakPoint) ids.get(id);
 		if (p != null) {
 			if (newState != null) {
@@ -176,22 +173,21 @@ public class BreakPointManager {
 			}
 			if (!p.isWatch) {
 				p.expression = condexpression;
-			}
-			else
-			{
-				p.isModification = condexpression.charAt(condexpression.length() - 1) == '1';
+			} else {
+				p.isModification = condexpression.charAt(condexpression
+						.length() - 1) == '1';
 				p.isAccess = condexpression.charAt(condexpression.length() - 2) == '1';
-				p.expression = condexpression.substring(0, condexpression.length() - 2);
+				p.expression = condexpression.substring(0,
+						condexpression.length() - 2);
 			}
 
 		}
 	}
 
-
 	public synchronized BreakPoint hitEnter(String sn) {
-		return(BreakPoint) callNames.get(sn);
+		return (BreakPoint) callNames.get(sn);
 	}
-	
+
 	public synchronized BreakPoint hitExit(String sn) {
 		return (BreakPoint) returnNames.get(sn);
 	}
@@ -207,8 +203,7 @@ public class BreakPointManager {
 	/**
 	 * 
 	 */
-	public synchronized void removeBreakPoints()
-	{
+	public synchronized void removeBreakPoints() {
 		fileMap = new HashMap();
 		ids = new HashMap();
 		returnNames = new HashMap();

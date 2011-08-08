@@ -46,63 +46,65 @@ package org.mozilla.javascript;
  * @author Norris Boyd
  */
 
-public interface ErrorReporter
-{
+public interface ErrorReporter {
 
 	/**
 	 * Report a warning. The implementing class may choose to ignore the warning
 	 * if it desires.
 	 * 
 	 * @param message
-	 *           a String describing the warning
+	 *            a String describing the warning
 	 * @param sourceName
-	 *           a String describing the JavaScript source where the warning
-	 *           occured; typically a filename or URL
+	 *            a String describing the JavaScript source where the warning
+	 *            occured; typically a filename or URL
 	 * @param line
-	 *           the line number associated with the warning
+	 *            the line number associated with the warning
 	 * @param lineSource
-	 *           the text of the line (may be null)
+	 *            the text of the line (may be null)
 	 * @param lineOffset
-	 *           the offset into lineSource where problem was detected
+	 *            the offset into lineSource where problem was detected
 	 */
-	void warning(String message, String sourceName, int line, String lineSource, int lineOffset);
+	void warning(String message, String sourceName, int line,
+			String lineSource, int lineOffset);
 
 	/**
 	 * Report an error. The implementing class is free to throw an exception if
 	 * it desires. If execution has not yet begun, the JavaScript engine is free
-	 * to find additional errors rather than terminating the translation. It will
-	 * not execute a script that had errors, however.
+	 * to find additional errors rather than terminating the translation. It
+	 * will not execute a script that had errors, however.
 	 * 
 	 * @param message
-	 *           a String describing the error
+	 *            a String describing the error
 	 * @param sourceName
-	 *           a String describing the JavaScript source where the error
-	 *           occured; typically a filename or URL
+	 *            a String describing the JavaScript source where the error
+	 *            occured; typically a filename or URL
 	 * @param line
-	 *           the line number associated with the error
+	 *            the line number associated with the error
 	 * @param lineSource
-	 *           the text of the line (may be null)
+	 *            the text of the line (may be null)
 	 * @param lineOffset
-	 *           the offset into lineSource where problem was detected
+	 *            the offset into lineSource where problem was detected
 	 */
-	void error(String message, String sourceName, int line, String lineSource, int lineOffset);
+	void error(String message, String sourceName, int line, String lineSource,
+			int lineOffset);
 
 	/**
 	 * Creates an EvaluatorException that may be thrown. runtimeErrors, unlike
 	 * errors, will always terminate the current script.
 	 * 
 	 * @param message
-	 *           a String describing the error
+	 *            a String describing the error
 	 * @param sourceName
-	 *           a String describing the JavaScript source where the error
-	 *           occured; typically a filename or URL
+	 *            a String describing the JavaScript source where the error
+	 *            occured; typically a filename or URL
 	 * @param line
-	 *           the line number associated with the error
+	 *            the line number associated with the error
 	 * @param lineSource
-	 *           the text of the line (may be null)
+	 *            the text of the line (may be null)
 	 * @param lineOffset
-	 *           the offset into lineSource where problem was detected
+	 *            the offset into lineSource where problem was detected
 	 * @return an EvaluatorException that will be thrown.
 	 */
-	EvaluatorException runtimeError(String message, String sourceName, int line, String lineSource, int lineOffset);
+	EvaluatorException runtimeError(String message, String sourceName,
+			int line, String lineSource, int lineOffset);
 }

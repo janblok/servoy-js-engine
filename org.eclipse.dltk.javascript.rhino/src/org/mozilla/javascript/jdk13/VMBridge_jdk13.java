@@ -47,12 +47,10 @@ import java.lang.reflect.Proxy;
 
 import org.mozilla.javascript.*;
 
-public class VMBridge_jdk13 extends VMBridge
-{
+public class VMBridge_jdk13 extends VMBridge {
 	private ThreadLocal contextLocal = new ThreadLocal();
 
-	protected Object getThreadContextHelper()
-	{
+	protected Object getThreadContextHelper() {
 		// To make subsequent batch calls to getContext/setContext faster
 		// associate permanently one element array with contextLocal
 		// so getContext/setContext would need just to read/write the first
@@ -63,102 +61,85 @@ public class VMBridge_jdk13 extends VMBridge
 		// https://bugzilla.mozilla.org/show_bug.cgi?id=281067#c5
 
 		Object[] storage = (Object[]) contextLocal.get();
-		if (storage == null)
-		{
+		if (storage == null) {
 			storage = new Object[1];
 			contextLocal.set(storage);
 		}
 		return storage;
 	}
 
-	protected Context getContext(Object contextHelper)
-	{
+	protected Context getContext(Object contextHelper) {
 		Object[] storage = (Object[]) contextHelper;
 		return (Context) storage[0];
 	}
 
-	protected void setContext(Object contextHelper, Context cx)
-	{
+	protected void setContext(Object contextHelper, Context cx) {
 		Object[] storage = (Object[]) contextHelper;
 		storage[0] = cx;
 	}
 
-	protected ClassLoader getCurrentThreadClassLoader()
-	{
+	protected ClassLoader getCurrentThreadClassLoader() {
 		return Thread.currentThread().getContextClassLoader();
 	}
 
-	protected boolean tryToMakeAccessible(Object accessibleObject)
-	{
-		if (!(accessibleObject instanceof AccessibleObject)) { return false; }
-		AccessibleObject accessible = (AccessibleObject) accessibleObject;
-		if (accessible.isAccessible()) { return true; }
-		try
-		{
-			accessible.setAccessible(true);
+	protected boolean tryToMakeAccessible(Object accessibleObject) {
+		if (!(accessibleObject instanceof AccessibleObject)) {
+			return false;
 		}
-		catch (Exception ex)
-		{
+		AccessibleObject accessible = (AccessibleObject) accessibleObject;
+		if (accessible.isAccessible()) {
+			return true;
+		}
+		try {
+			accessible.setAccessible(true);
+		} catch (Exception ex) {
 		}
 
 		return accessible.isAccessible();
 	}
 
-	protected Object getInterfaceProxyHelper(ContextFactory cf, Class[] interfaces)
-	{
+	protected Object getInterfaceProxyHelper(ContextFactory cf,
+			Class[] interfaces) {
 		// XXX: How to handle interfaces array withclasses from different
 		// class loaders? Using cf.getApplicationClassLoader() ?
 		ClassLoader loader = interfaces[0].getClassLoader();
 		Class cl = Proxy.getProxyClass(loader, interfaces);
 		Constructor c;
-		try
-		{
+		try {
 			c = cl.getConstructor(new Class[] { InvocationHandler.class });
-		}
-		catch (NoSuchMethodException ex)
-		{
+		} catch (NoSuchMethodException ex) {
 			// Should not happen
 			throw Kit.initCause(new IllegalStateException(), ex);
 		}
 		return c;
 	}
 
-	protected Object newInterfaceProxy(Object proxyHelper, final ContextFactory cf, final InterfaceAdapter adapter,
-			final Object target, final Scriptable topScope)
-	{
+	protected Object newInterfaceProxy(Object proxyHelper,
+			final ContextFactory cf, final InterfaceAdapter adapter,
+			final Object target, final Scriptable topScope) {
 		Constructor c = (Constructor) proxyHelper;
 
-		InvocationHandler handler = new InvocationHandler()
-		{
-			public Object invoke(Object proxy, Method method, Object[] args)
-			{
+		InvocationHandler handler = new InvocationHandler() {
+			public Object invoke(Object proxy, Method method, Object[] args) {
 				return adapter.invoke(cf, target, topScope, method, args);
 			}
 		};
 		Object proxy;
-		try
-		{
+		try {
 			proxy = c.newInstance(new Object[] { handler });
-		}
-		catch (InvocationTargetException ex)
-		{
+		} catch (InvocationTargetException ex) {
 			throw Context.throwAsScriptRuntimeEx(ex);
-		}
-		catch (IllegalAccessException ex)
-		{
+		} catch (IllegalAccessException ex) {
 			// Shouls not happen
 			throw Kit.initCause(new IllegalStateException(), ex);
-		}
-		catch (InstantiationException ex)
-		{
+		} catch (InstantiationException ex) {
 			// Shouls not happen
 			throw Kit.initCause(new IllegalStateException(), ex);
 		}
 		return proxy;
 	}
 
-	protected boolean isVarArgs(Member member)
-	{
+	protected boolean isVarArgs(Member member) {
 		return false;
 	}
 }

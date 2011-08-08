@@ -40,91 +40,82 @@ package org.mozilla.javascript.continuations;
 
 import org.mozilla.javascript.*;
 
-public final class Continuation extends IdScriptableObject implements Function
-{
+public final class Continuation extends IdScriptableObject implements Function {
 	static final long serialVersionUID = 1794167133757605367L;
 
 	private static final Object FTAG = new Object();
 
 	private Object implementation;
 
-	public static void init(Scriptable scope, boolean sealed)
-	{
+	public static void init(Scriptable scope, boolean sealed) {
 		Continuation obj = new Continuation();
 		obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);
 	}
 
-	public Object getImplementation()
-	{
+	public Object getImplementation() {
 		return implementation;
 	}
 
-	public void initImplementation(Object implementation)
-	{
+	public void initImplementation(Object implementation) {
 		this.implementation = implementation;
 	}
 
-	public String getClassName()
-	{
+	public String getClassName() {
 		return "Continuation";
 	}
 
-	public Scriptable construct(Context cx, Scriptable scope, Object[] args)
-	{
+	public Scriptable construct(Context cx, Scriptable scope, Object[] args) {
 		throw Context.reportRuntimeError("Direct call is not supported");
 	}
 
-	public Object call(Context cx, Scriptable scope, Scriptable thisObj, Object[] args)
-	{
+	public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+			Object[] args) {
 		return Interpreter.restartContinuation(this, cx, scope, args);
 	}
 
-	public static boolean isContinuationConstructor(IdFunctionObject f)
-	{
-		if (f.hasTag(FTAG) && f.methodId() == Id_constructor) { return true; }
+	public static boolean isContinuationConstructor(IdFunctionObject f) {
+		if (f.hasTag(FTAG) && f.methodId() == Id_constructor) {
+			return true;
+		}
 		return false;
 	}
 
-	protected void initPrototypeId(int id)
-	{
+	protected void initPrototypeId(int id) {
 		String s;
 		int arity;
-		switch (id)
-		{
-			case Id_constructor:
-				arity = 0;
-				s = "constructor";
-				break;
-			default:
-				throw new IllegalArgumentException(String.valueOf(id));
+		switch (id) {
+		case Id_constructor:
+			arity = 0;
+			s = "constructor";
+			break;
+		default:
+			throw new IllegalArgumentException(String.valueOf(id));
 		}
 		initPrototypeMethod(FTAG, id, s, arity);
 	}
 
-	public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope, Scriptable thisObj, Object[] args)
-	{
-		if (!f.hasTag(FTAG)) { return super.execIdCall(f, cx, scope, thisObj, args); }
+	public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
+			Scriptable thisObj, Object[] args) {
+		if (!f.hasTag(FTAG)) {
+			return super.execIdCall(f, cx, scope, thisObj, args);
+		}
 		int id = f.methodId();
-		switch (id)
-		{
-			case Id_constructor:
-				throw Context.reportRuntimeError("Direct call is not supported");
+		switch (id) {
+		case Id_constructor:
+			throw Context.reportRuntimeError("Direct call is not supported");
 		}
 		throw new IllegalArgumentException(String.valueOf(id));
 	}
 
 	// #string_id_map#
 
-	protected int findPrototypeId(String s)
-	{
+	protected int findPrototypeId(String s) {
 		int id;
 		// #generated# Last update: 2007-05-09 08:16:40 EDT
-		L0:
-		{
+		L0: {
 			id = 0;
 			String X = null;
-			if (s.length() == 11)
-			{
+			if (s.length() == 11) {
 				X = "constructor";
 				id = Id_constructor;
 			}

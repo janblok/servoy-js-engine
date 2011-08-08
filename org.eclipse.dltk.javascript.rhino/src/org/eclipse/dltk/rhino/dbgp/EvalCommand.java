@@ -23,7 +23,8 @@ final class EvalCommand extends DBGPDebugger.Command {
 		if (value.length() == 0)
 			value = "this";
 		StringBuffer valueBuffer = new StringBuffer();
-		if (this.debugger.getStackManager().getStackDepth() == 0 || value == null) {
+		if (this.debugger.getStackManager().getStackDepth() == 0
+				|| value == null) {
 			this.debugger.printProperty(value, value, "", valueBuffer, 0, true);
 			this.debugger.printResponse("<response command=\"eval\"\r\n"
 					+ " transaction_id=\"" + options.get("-i")
@@ -32,21 +33,16 @@ final class EvalCommand extends DBGPDebugger.Command {
 			return;
 		}
 		Object evaluated = "<error evaluating>";
-		try
-		{
-			if (value.equals("!stop_current_script!"))
-			{
+		try {
+			if (value.equals("!stop_current_script!")) {
 				this.debugger.getStackManager().resumeWithStop();
 				evaluated = "!stopped!";
-			}
-			else
-			{
-				DBGPDebugFrame fr = this.debugger.getStackManager().getStackFrame(0);
+			} else {
+				DBGPDebugFrame fr = this.debugger.getStackManager()
+						.getStackFrame(0);
 				evaluated = fr.eval(value);
 			}
-		}
-		catch(Exception e) 
-		{
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		String shName = value;

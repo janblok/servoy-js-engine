@@ -44,8 +44,7 @@ import java.io.Serializable;
 
 import org.mozilla.javascript.debug.DebuggableScript;
 
-final class InterpreterData implements Serializable, DebuggableScript
-{
+final class InterpreterData implements Serializable, DebuggableScript {
 	static final long serialVersionUID = 5067677351589230234L;
 
 	static final int INITIAL_MAX_ICODE_LENGTH = 1024;
@@ -54,8 +53,7 @@ final class InterpreterData implements Serializable, DebuggableScript
 
 	static final int INITIAL_NUMBERTABLE_SIZE = 64;
 
-	InterpreterData(int languageVersion, String sourceFile, String encodedSource)
-	{
+	InterpreterData(int languageVersion, String sourceFile, String encodedSource) {
 		this.languageVersion = languageVersion;
 		this.itsSourceFile = sourceFile;
 		this.encodedSource = encodedSource;
@@ -63,8 +61,7 @@ final class InterpreterData implements Serializable, DebuggableScript
 		init();
 	}
 
-	InterpreterData(InterpreterData parent)
-	{
+	InterpreterData(InterpreterData parent) {
 		this.parentData = parent;
 		this.languageVersion = parent.languageVersion;
 		this.itsSourceFile = parent.itsSourceFile;
@@ -73,8 +70,7 @@ final class InterpreterData implements Serializable, DebuggableScript
 		init();
 	}
 
-	private void init()
-	{
+	private void init() {
 		itsICode = new byte[INITIAL_MAX_ICODE_LENGTH];
 		itsStringTable = new String[INITIAL_STRINGTABLE_SIZE];
 	}
@@ -138,68 +134,55 @@ final class InterpreterData implements Serializable, DebuggableScript
 
 	boolean evalScriptFlag; // true if script corresponds to eval() code
 
-	public boolean isTopLevel()
-	{
+	public boolean isTopLevel() {
 		return topLevel;
 	}
 
-	public boolean isFunction()
-	{
+	public boolean isFunction() {
 		return itsFunctionType != 0;
 	}
 
-	public String getFunctionName()
-	{
+	public String getFunctionName() {
 		return itsName;
 	}
 
-	public int getParamCount()
-	{
+	public int getParamCount() {
 		return argCount;
 	}
 
-	public int getParamAndVarCount()
-	{
+	public int getParamAndVarCount() {
 		return argNames.length;
 	}
 
-	public String getParamOrVarName(int index)
-	{
+	public String getParamOrVarName(int index) {
 		return argNames[index];
 	}
 
-	public boolean getParamOrVarConst(int index)
-	{
+	public boolean getParamOrVarConst(int index) {
 		return argIsConst[index];
 	}
 
-	public String getSourceName()
-	{
+	public String getSourceName() {
 		return itsSourceFile;
 	}
 
-	public boolean isGeneratedScript()
-	{
+	public boolean isGeneratedScript() {
 		return ScriptRuntime.isGeneratedScript(itsSourceFile);
 	}
 
-	public int[] getLineNumbers()
-	{
+	public int[] getLineNumbers() {
 		return Interpreter.getLineNumbers(this);
 	}
 
-	public int getFunctionCount()
-	{
+	public int getFunctionCount() {
 		return (itsNestedFunctions == null) ? 0 : itsNestedFunctions.length;
 	}
 
-	public DebuggableScript getFunction(int index)
-	{
+	public DebuggableScript getFunction(int index) {
 		return itsNestedFunctions[index];
 	}
 
-	public DebuggableScript getParent()
-	{
+	public DebuggableScript getParent() {
 		return parentData;
 	}
 

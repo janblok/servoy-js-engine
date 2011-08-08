@@ -37,82 +37,70 @@
 
 package org.mozilla.javascript.optimizer;
 
-class DataFlowBitSet
-{
+class DataFlowBitSet {
 
 	private int itsBits[];
 
 	private int itsSize;
 
-	DataFlowBitSet(int size)
-	{
+	DataFlowBitSet(int size) {
 		itsSize = size;
 		itsBits = new int[(size + 31) >> 5];
 	}
 
-	void set(int n)
-	{
+	void set(int n) {
 		if (!(0 <= n && n < itsSize))
 			badIndex(n);
 		itsBits[n >> 5] |= 1 << (n & 31);
 	}
 
-	boolean test(int n)
-	{
+	boolean test(int n) {
 		if (!(0 <= n && n < itsSize))
 			badIndex(n);
 		return ((itsBits[n >> 5] & (1 << (n & 31))) != 0);
 	}
 
-	void not()
-	{
+	void not() {
 		int bitsLength = itsBits.length;
 		for (int i = 0; i < bitsLength; i++)
 			itsBits[i] = ~itsBits[i];
 	}
 
-	void clear(int n)
-	{
+	void clear(int n) {
 		if (!(0 <= n && n < itsSize))
 			badIndex(n);
 		itsBits[n >> 5] &= ~(1 << (n & 31));
 	}
 
-	void clear()
-	{
+	void clear() {
 		int bitsLength = itsBits.length;
 		for (int i = 0; i < bitsLength; i++)
 			itsBits[i] = 0;
 	}
 
-	void or(DataFlowBitSet b)
-	{
+	void or(DataFlowBitSet b) {
 		int bitsLength = itsBits.length;
 		for (int i = 0; i < bitsLength; i++)
 			itsBits[i] |= b.itsBits[i];
 	}
 
-	public String toString()
-	{
+	public String toString() {
 		StringBuffer sb = new StringBuffer();
 		sb.append("DataFlowBitSet, size = ");
 		sb.append(itsSize);
 		sb.append('\n');
 		int bitsLength = itsBits.length;
-		for (int i = 0; i < bitsLength; i++)
-		{
+		for (int i = 0; i < bitsLength; i++) {
 			sb.append(Integer.toHexString(itsBits[i]));
 			sb.append(' ');
 		}
 		return sb.toString();
 	}
 
-	boolean df(DataFlowBitSet in, DataFlowBitSet gen, DataFlowBitSet notKill)
-	{
+	boolean df(DataFlowBitSet in, DataFlowBitSet gen, DataFlowBitSet notKill) {
 		int bitsLength = itsBits.length;
 		boolean changed = false;
-		for (int i = 0; i < bitsLength; i++)
-		{
+		for (int i = 0; i < bitsLength; i++) {
 			int oldBits = itsBits[i];
 			itsBits[i] = (in.itsBits[i] | gen.itsBits[i]) & notKill.itsBits[i];
 			changed |= (oldBits != itsBits[i]);
@@ -120,12 +108,10 @@ class DataFlowBitSet
 		return changed;
 	}
 
-	boolean df2(DataFlowBitSet in, DataFlowBitSet gen, DataFlowBitSet notKill)
-	{
+	boolean df2(DataFlowBitSet in, DataFlowBitSet gen, DataFlowBitSet notKill) {
 		int bitsLength = itsBits.length;
 		boolean changed = false;
-		for (int i = 0; i < bitsLength; i++)
-		{
+		for (int i = 0; i < bitsLength; i++) {
 			int oldBits = itsBits[i];
 			itsBits[i] = (in.itsBits[i] & notKill.itsBits[i]) | gen.itsBits[i];
 			changed |= (oldBits != itsBits[i]);
@@ -133,8 +119,7 @@ class DataFlowBitSet
 		return changed;
 	}
 
-	private void badIndex(int n)
-	{
+	private void badIndex(int n) {
 		throw new RuntimeException("DataFlowBitSet bad index " + n);
 	}
 }

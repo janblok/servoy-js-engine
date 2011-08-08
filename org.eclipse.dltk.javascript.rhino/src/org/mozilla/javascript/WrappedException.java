@@ -44,15 +44,13 @@ package org.mozilla.javascript;
  * 
  * @author Norris Boyd
  */
-public class WrappedException extends EvaluatorException
-{
+public class WrappedException extends EvaluatorException {
 	static final long serialVersionUID = -1551979216966520648L;
 
 	/**
 	 * @see Context#throwAsScriptRuntimeEx(Throwable e)
 	 */
-	public WrappedException(Throwable exception)
-	{
+	public WrappedException(Throwable exception) {
 		super("Wrapped " + exception.toString());
 		this.exception = exception;
 		Kit.initCause(this, exception);
@@ -60,12 +58,10 @@ public class WrappedException extends EvaluatorException
 		int[] linep = { 0 };
 		String sourceName = Context.getSourcePositionFromStack(linep);
 		int lineNumber = linep[0];
-		if (sourceName != null)
-		{
+		if (sourceName != null) {
 			initSourceName(sourceName);
 		}
-		if (lineNumber != 0)
-		{
+		if (lineNumber != 0) {
 			initLineNumber(lineNumber);
 		}
 	}
@@ -76,16 +72,14 @@ public class WrappedException extends EvaluatorException
 	 * @return the exception that was presented as a argument to the constructor
 	 *         when this object was created
 	 */
-	public Throwable getWrappedException()
-	{
+	public Throwable getWrappedException() {
 		return exception;
 	}
 
 	/**
 	 * @deprecated Use {@link #getWrappedException()} instead.
 	 */
-	public Object unwrap()
-	{
+	public Object unwrap() {
 		return getWrappedException();
 	}
 

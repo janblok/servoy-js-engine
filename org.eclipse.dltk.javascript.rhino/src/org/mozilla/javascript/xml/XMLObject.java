@@ -47,14 +47,11 @@ import org.mozilla.javascript.*;
  * This Interface describes what all XML objects (XML, XMLList) should have in
  * common.
  */
-public abstract class XMLObject extends IdScriptableObject
-{
-	public XMLObject()
-	{
+public abstract class XMLObject extends IdScriptableObject {
+	public XMLObject() {
 	}
 
-	public XMLObject(Scriptable scope, Scriptable prototype)
-	{
+	public XMLObject(Scriptable scope, Scriptable prototype) {
 		super(scope, prototype);
 	}
 
@@ -92,7 +89,8 @@ public abstract class XMLObject extends IdScriptableObject
 	/**
 	 * Generic reference to implement x::ns, x.@ns::y, x..@ns::y etc.
 	 */
-	public abstract Ref memberRef(Context cx, Object namespace, Object elem, int memberTypeFlags);
+	public abstract Ref memberRef(Context cx, Object namespace, Object elem,
+			int memberTypeFlags);
 
 	/**
 	 * Wrap this object into NativeWith to implement the with statement.
@@ -105,23 +103,22 @@ public abstract class XMLObject extends IdScriptableObject
 	public abstract NativeWith enterDotQuery(Scriptable scope);
 
 	/**
-	 * Custom <tt>+</tt> operator. Should return {@link Scriptable#NOT_FOUND}
-	 * if this object does not have custom addition operator for the given value,
+	 * Custom <tt>+</tt> operator. Should return {@link Scriptable#NOT_FOUND} if
+	 * this object does not have custom addition operator for the given value,
 	 * or the result of the addition operation.
 	 * <p>
 	 * The default implementation returns {@link Scriptable#NOT_FOUND} to
 	 * indicate no custom addition operation.
 	 * 
 	 * @param cx
-	 *           the Context object associated with the current thread.
+	 *            the Context object associated with the current thread.
 	 * @param thisIsLeft
-	 *           if true, the object should calculate this + value if false, the
-	 *           object should calculate value + this.
+	 *            if true, the object should calculate this + value if false,
+	 *            the object should calculate value + this.
 	 * @param value
-	 *           the second argument for addition operation.
+	 *            the second argument for addition operation.
 	 */
-	public Object addValues(Context cx, boolean thisIsLeft, Object value)
-	{
+	public Object addValues(Context cx, boolean thisIsLeft, Object value) {
 		return Scriptable.NOT_FOUND;
 	}
 

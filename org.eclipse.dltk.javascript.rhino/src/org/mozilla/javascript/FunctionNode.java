@@ -39,27 +39,22 @@
 
 package org.mozilla.javascript;
 
-public class FunctionNode extends ScriptOrFnNode
-{
+public class FunctionNode extends ScriptOrFnNode {
 
-	public FunctionNode(String name)
-	{
+	public FunctionNode(String name) {
 		super(Token.FUNCTION);
 		functionName = name;
 	}
 
-	public String getFunctionName()
-	{
+	public String getFunctionName() {
 		return functionName;
 	}
 
-	public boolean requiresActivation()
-	{
+	public boolean requiresActivation() {
 		return itsNeedsActivation;
 	}
 
-	public boolean getIgnoreDynamicScope()
-	{
+	public boolean getIgnoreDynamicScope() {
 		return itsIgnoreDynamicScope;
 	}
 
@@ -79,8 +74,7 @@ public class FunctionNode extends ScriptOrFnNode
 
 	public static final int FUNCTION_EXPRESSION_STATEMENT = 3;
 
-	public int getFunctionType()
-	{
+	public int getFunctionType() {
 		return itsFunctionType;
 	}
 

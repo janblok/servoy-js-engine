@@ -49,8 +49,7 @@ import java.io.Serializable;
  * ObjectInputStream would not restore them correctly as it lacks support for
  * readResolve method
  */
-public final class UniqueTag implements Serializable
-{
+public final class UniqueTag implements Serializable {
 	static final long serialVersionUID = -4320556826714577259L;
 
 	private static final int ID_NOT_FOUND = 1;
@@ -77,42 +76,37 @@ public final class UniqueTag implements Serializable
 
 	private final int tagId;
 
-	private UniqueTag(int tagId)
-	{
+	private UniqueTag(int tagId) {
 		this.tagId = tagId;
 	}
 
-	public Object readResolve()
-	{
-		switch (tagId)
-		{
-			case ID_NOT_FOUND:
-				return NOT_FOUND;
-			case ID_NULL_VALUE:
-				return NULL_VALUE;
-			case ID_DOUBLE_MARK:
-				return DOUBLE_MARK;
+	public Object readResolve() {
+		switch (tagId) {
+		case ID_NOT_FOUND:
+			return NOT_FOUND;
+		case ID_NULL_VALUE:
+			return NULL_VALUE;
+		case ID_DOUBLE_MARK:
+			return DOUBLE_MARK;
 		}
 		throw new IllegalStateException(String.valueOf(tagId));
 	}
 
 	// Overridden for better debug printouts
-	public String toString()
-	{
+	public String toString() {
 		String name;
-		switch (tagId)
-		{
-			case ID_NOT_FOUND:
-				name = "NOT_FOUND";
-				break;
-			case ID_NULL_VALUE:
-				name = "NULL_VALUE";
-				break;
-			case ID_DOUBLE_MARK:
-				name = "DOUBLE_MARK";
-				break;
-			default:
-				throw Kit.codeBug();
+		switch (tagId) {
+		case ID_NOT_FOUND:
+			name = "NOT_FOUND";
+			break;
+		case ID_NULL_VALUE:
+			name = "NULL_VALUE";
+			break;
+		case ID_DOUBLE_MARK:
+			name = "DOUBLE_MARK";
+			break;
+		default:
+			throw Kit.codeBug();
 		}
 		return super.toString() + ": " + name;
 	}

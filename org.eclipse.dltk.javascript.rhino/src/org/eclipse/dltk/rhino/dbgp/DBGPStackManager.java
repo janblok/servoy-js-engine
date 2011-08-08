@@ -33,11 +33,11 @@ public class DBGPStackManager {
 	}
 
 	public static DBGPStackManager removeManager(Context cx) {
-		return (DBGPStackManager)map.remove(cx);
+		return (DBGPStackManager) map.remove(cx);
 	}
 
 	private DBGPStackManager(DBGPDebugger debugger) {
-			observer = debugger;
+		observer = debugger;
 	}
 
 	public final BreakPointManager getManager() {
@@ -53,7 +53,7 @@ public class DBGPStackManager {
 			if (hit != null && checkBreakpoint(debugFrame, hit))
 				suspenOnChangeLine = true;
 		}
-		
+
 		if (!suspenOnChangeLine && getManager().getSuspendOnEntry()) {
 			if (debugFrame.getWhere().equals("module")) {
 				sendSuspend(null);
@@ -79,8 +79,7 @@ public class DBGPStackManager {
 	}
 
 	public void changeLine(DBGPDebugFrame frame, int lineNumber) {
-		if (stop)
-		{
+		if (stop) {
 			System.err.print("Current script terminated");
 			return;
 		}
@@ -92,8 +91,7 @@ public class DBGPStackManager {
 			needSuspend = true;
 		}
 		BreakPoint hit = getManager().hit(frame.getSourceName(), lineNumber);
-		if(checkBreakpoint(frame, hit))
-		{
+		if (checkBreakpoint(frame, hit)) {
 			sendSuspend("Break on line breakpoint " + lineNumber);
 		}
 	}
@@ -119,12 +117,10 @@ public class DBGPStackManager {
 	}
 
 	public void exceptionThrown(Throwable ex) {
-		
-		if (getManager().getSuspendOnException() )
-		{
+
+		if (getManager().getSuspendOnException()) {
 			String reason = null;
-			while(ex.getCause() != null)
-			{
+			while (ex.getCause() != null) {
 				ex = ex.getCause();
 			}
 			reason = "Break on Exception: " + ex.getLocalizedMessage();
@@ -136,37 +132,32 @@ public class DBGPStackManager {
 	private boolean suspended = false;
 
 	private boolean throwException;
+
 	/**
-	 * @param reason TODO
+	 * @param reason
+	 *            TODO
 	 * 
 	 */
-	public void sendSuspend(String reason)
-	{
-		if (stop) return;
+	public void sendSuspend(String reason) {
+		if (stop)
+			return;
 		throwException = false;
-		if (observer.sendBreak(reason))
-		{
-			synchronized (this)
-			{
+		if (observer.sendBreak(reason)) {
+			synchronized (this) {
 				suspended = true;
-				while (suspended)
-				{
-					try
-					{
+				while (suspended) {
+					try {
 						this.wait(5000);
-						if (!observer.isConnected())
-						{
+						if (!observer.isConnected()) {
 							suspended = false;
 							observer.close();
 						}
-						if (throwException)
-						{
+						if (throwException) {
 							throwException = false;
-							throw new RuntimeException("Script execution stopped");
+							throw new RuntimeException(
+									"Script execution stopped");
 						}
-					}
-					catch (InterruptedException e)
-					{
+					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}
 				}
@@ -184,8 +175,7 @@ public class DBGPStackManager {
 
 	public DBGPDebugFrame getStackFrame(int parseInt) {
 		int stackCounter = stack.size() - parseInt - 1;
-		if (stackCounter >= 0)
-		{
+		if (stackCounter >= 0) {
 			return (DBGPDebugFrame) stack.get(stackCounter);
 		}
 		return null;
@@ -205,9 +195,8 @@ public class DBGPStackManager {
 		}
 		endSuspend();
 	}
-	
-	public synchronized void resumeWithStop()
-	{
+
+	public synchronized void resumeWithStop() {
 		for (int a = 0; a < this.getStackDepth(); a++) {
 			this.getStackFrame(a).setSuspend(false);
 		}
@@ -218,8 +207,7 @@ public class DBGPStackManager {
 	/**
 	 * 
 	 */
-	private void endSuspend()
-	{
+	private void endSuspend() {
 		suspended = false;
 		this.needSuspend = false;
 		this.notifyAll();
@@ -227,8 +215,7 @@ public class DBGPStackManager {
 
 	public synchronized void stepOver() {
 		getStackFrame(0).setSuspend(true);
-		if (this.getStackDepth() > 1)
-		{
+		if (this.getStackDepth() > 1) {
 			getStackFrame(1).setSuspend(true);
 		}
 		endSuspend();
@@ -239,9 +226,8 @@ public class DBGPStackManager {
 		suspended = false;
 		this.notifyAll();
 	}
-	
-	public boolean isSuspended()
-	{
+
+	public boolean isSuspended() {
 		return suspended;
 	}
 
@@ -270,14 +256,12 @@ public class DBGPStackManager {
 	public BreakPoint getBreakpoint(String id) {
 		return this.getManager().getBreakpoint(id);
 	}
-	
-	public static void stopAll()
-	{
+
+	public static void stopAll() {
 		Iterator iterator = map.entrySet().iterator();
-		while (iterator.hasNext())
-		{
+		while (iterator.hasNext()) {
 			Map.Entry entry = (Entry) iterator.next();
-			((DBGPStackManager)entry.getValue()).stop();
+			((DBGPStackManager) entry.getValue()).stop();
 			iterator.remove();
 		}
 
@@ -286,8 +270,7 @@ public class DBGPStackManager {
 	/**
 	 * 
 	 */
-	public void stop()
-	{
+	public void stop() {
 		stop = true;
 		suspenOnChangeLine = false;
 		resume();

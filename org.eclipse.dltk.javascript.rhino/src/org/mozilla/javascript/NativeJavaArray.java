@@ -44,8 +44,6 @@ package org.mozilla.javascript;
 
 import java.lang.reflect.Array;
 
-
-
 /**
  * This class reflects Java arrays into the JavaScript environment.
  * 
@@ -55,61 +53,56 @@ import java.lang.reflect.Array;
  * @see NativeJavaPackage
  */
 
-public class NativeJavaArray extends NativeJavaObject
-{
+public class NativeJavaArray extends NativeJavaObject {
 	static final long serialVersionUID = -924022554283675333L;
 
-	public String getClassName()
-	{
+	public String getClassName() {
 		return "JavaArray";
 	}
 
-	public static NativeJavaArray wrap(Scriptable scope, Object array)
-	{
+	public static NativeJavaArray wrap(Scriptable scope, Object array) {
 		return new NativeJavaArray(scope, array);
 	}
 
-	public Object unwrap()
-	{
+	public Object unwrap() {
 		return array;
 	}
 
-	public NativeJavaArray(Scriptable scope, Object array)
-	{
+	public NativeJavaArray(Scriptable scope, Object array) {
 		super(scope, null, ScriptRuntime.ObjectClass);
 		Class cl = array.getClass();
-		if (!cl.isArray()) { throw new RuntimeException("Array expected"); }
+		if (!cl.isArray()) {
+			throw new RuntimeException("Array expected");
+		}
 		this.array = array;
 		this.length = Array.getLength(array);
 		this.cls = cl.getComponentType();
 	}
 
-	public boolean has(String id, Scriptable start)
-	{
+	public boolean has(String id, Scriptable start) {
 		return id.equals("length") || super.has(id, start);
 	}
 
-	public boolean has(int index, Scriptable start)
-	{
+	public boolean has(int index, Scriptable start) {
 		// TODO is this has change really needed, it doesn't has it currently
 		// but it can be set..
 		return 0 <= index /* && index < length */;
 	}
 
-	public Object get(String id, Scriptable start)
-	{
+	public Object get(String id, Scriptable start) {
 		if (id.equals("length"))
 			return new Integer(length);
 		Object result = super.get(id, start);
-		if (result == NOT_FOUND && !ScriptableObject.hasProperty(getPrototype(), id)) { throw Context
-				.reportRuntimeError2("msg.java.member.not.found", array.getClass().getName(), id); }
+		if (result == NOT_FOUND
+				&& !ScriptableObject.hasProperty(getPrototype(), id)) {
+			throw Context.reportRuntimeError2("msg.java.member.not.found",
+					array.getClass().getName(), id);
+		}
 		return result;
 	}
 
-	public Object get(int index, Scriptable start)
-	{
-		if (0 <= index && index < length)
-		{
+	public Object get(int index, Scriptable start) {
+		if (0 <= index && index < length) {
 			Context cx = Context.getContext();
 			Object obj = Array.get(array, index);
 			return cx.getWrapFactory().wrap(cx, this, obj, cls);
@@ -117,36 +110,32 @@ public class NativeJavaArray extends NativeJavaObject
 		return Undefined.instance;
 	}
 
-	public void put(String id, Scriptable start, Object value)
-	{
+	public void put(String id, Scriptable start, Object value) {
 		// Ignore assignments to "length"--it's readonly.
 		if (!id.equals("length"))
 			super.put(id, start, value);
-		else if (id.equals("length"))
-		{
+		else if (id.equals("length")) {
 			int prevLength = length;
 			length = ((Number) value).intValue();
-			if (prevLength != length)
-			{
-				Object tmp = Array.newInstance(array.getClass().getComponentType(), length);
+			if (prevLength != length) {
+				Object tmp = Array.newInstance(array.getClass()
+						.getComponentType(), length);
 				System.arraycopy(array, 0, tmp, 0, Math.min(prevLength, length));
 				array = tmp;
 			}
-		}		
+		}
 	}
 
-	public void put(int index, Scriptable start, Object value)
-	{
-		if (0 <= index /* && index < length */)
-		{
-			if (index >= length)
-			{
+	public void put(int index, Scriptable start, Object value) {
+		if (0 <= index /* && index < length */) {
+			if (index >= length) {
 				put("length", start, new Integer(index + 1));
 				int prevLength = Array.getLength(array);
-				if (index > prevLength)
-				{
-					Object tmp = Array.newInstance(array.getClass().getComponentType(), length);
-					System.arraycopy(array, 0, tmp, 0, Math.min(prevLength, length));
+				if (index > prevLength) {
+					Object tmp = Array.newInstance(array.getClass()
+							.getComponentType(), length);
+					System.arraycopy(array, 0, tmp, 0,
+							Math.min(prevLength, length));
 					array = tmp;
 				}
 			}
@@ -156,33 +145,26 @@ public class NativeJavaArray extends NativeJavaObject
 		super.put(index, start, value);
 	}
 
-	public Object getDefaultValue(Class hint)
-	{
-		if (hint == null || hint == ScriptRuntime.StringClass)
-		{
+	public Object getDefaultValue(Class hint) {
+		if (hint == null || hint == ScriptRuntime.StringClass) {
 
-			try
-			{
+			try {
 				int size = Array.getLength(array);
 
 				StringBuffer sb = new StringBuffer();
 				sb.append("["); //$NON-NLS-1$
 				size = size > 100 ? 100 : size;
-				for (int i = 0; i < size; i++)
-				{
+				for (int i = 0; i < size; i++) {
 					sb.append(Array.get(array, i));
 					sb.append(","); //$NON-NLS-1$
 				}
-				if (sb.length() > 1)
-				{
+				if (sb.length() > 1) {
 					sb.setLength(sb.length() - 1);
 				}
 				sb.append("]"); //$NON-NLS-1$
 				return sb.toString();
 
-			}
-			catch (Exception e)
-			{
+			} catch (Exception e) {
 				return array.toString();
 			}
 		}
@@ -193,8 +175,7 @@ public class NativeJavaArray extends NativeJavaObject
 		return this;
 	}
 
-	public Object[] getIds()
-	{
+	public Object[] getIds() {
 		Object[] result = new Object[length];
 		int i = length;
 		while (--i >= 0)
@@ -202,8 +183,7 @@ public class NativeJavaArray extends NativeJavaObject
 		return result;
 	}
 
-	public boolean hasInstance(Scriptable value)
-	{
+	public boolean hasInstance(Scriptable value) {
 		if (!(value instanceof Wrapper))
 			return false;
 		Object instance = ((Wrapper) value).unwrap();
@@ -212,8 +192,8 @@ public class NativeJavaArray extends NativeJavaObject
 
 	public Scriptable getPrototype() {
 		if (prototype == null) {
-			prototype = ScriptableObject.getClassPrototype(this
-					.getParentScope(), "Array");
+			prototype = ScriptableObject.getClassPrototype(
+					this.getParentScope(), "Array");
 		}
 		return prototype;
 	}

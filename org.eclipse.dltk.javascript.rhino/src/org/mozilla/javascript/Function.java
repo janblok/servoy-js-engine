@@ -47,25 +47,25 @@ package org.mozilla.javascript;
  * @author Norris Boyd
  */
 
-public interface Function extends Scriptable, Callable
-{
+public interface Function extends Scriptable, Callable {
 	/**
 	 * Call the function. Note that the array of arguments is not guaranteed to
 	 * have length greater than 0.
 	 * 
 	 * @param cx
-	 *           the current Context for this thread
+	 *            the current Context for this thread
 	 * @param scope
-	 *           the scope to execute the function relative to. This is set to
-	 *           the value returned by getParentScope() except when the function
-	 *           is called from a closure.
+	 *            the scope to execute the function relative to. This is set to
+	 *            the value returned by getParentScope() except when the
+	 *            function is called from a closure.
 	 * @param thisObj
-	 *           the JavaScript <code>this</code> object
+	 *            the JavaScript <code>this</code> object
 	 * @param args
-	 *           the array of arguments
+	 *            the array of arguments
 	 * @return the result of the call
 	 */
-	public Object call(Context cx, Scriptable scope, Scriptable thisObj, Object[] args);
+	public Object call(Context cx, Scriptable scope, Scriptable thisObj,
+			Object[] args);
 
 	/**
 	 * Call the function as a constructor. This method is invoked by the runtime
@@ -73,12 +73,12 @@ public interface Function extends Scriptable, Callable
 	 * This method is expected to create a new object and return it.
 	 * 
 	 * @param cx
-	 *           the current Context for this thread
+	 *            the current Context for this thread
 	 * @param scope
-	 *           an enclosing scope of the caller except when the function is
-	 *           called from a closure.
+	 *            an enclosing scope of the caller except when the function is
+	 *            called from a closure.
 	 * @param args
-	 *           the array of arguments
+	 *            the array of arguments
 	 * @return the allocated object
 	 */
 	public Scriptable construct(Context cx, Scriptable scope, Object[] args);

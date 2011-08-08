@@ -27,51 +27,40 @@ final class PropertyGetCommand extends DBGPDebugger.Command {
 		}
 		Object value = null;
 		int shName = longName.indexOf('.');
-		String shortName  = longName;
+		String shortName = longName;
 		if (shName != -1)
-			shortName = longName.substring(shName+1);
+			shortName = longName.substring(shName + 1);
 		StringBuffer properties = new StringBuffer();
 		DBGPDebugFrame stackFrame = this.debugger.getStackManager()
 				.getStackFrame(level);
 		if (stackFrame != null) {
 			StringBuffer sb = new StringBuffer();
 			boolean previousIsPoint = false;
-			for (int i = 0; i < longName.length(); i++)
-			{
+			for (int i = 0; i < longName.length(); i++) {
 				char ch = longName.charAt(i);
-				if (ch == '.')
-				{
+				if (ch == '.') {
 					previousIsPoint = true;
-				}
-				else if (ch == '[' && !previousIsPoint)
-				{
+				} else if (ch == '[' && !previousIsPoint) {
 					sb.append('.');
-				}
-				else
-				{
+				} else {
 					previousIsPoint = false;
 				}
 				sb.append(ch);
 			}
 			value = stackFrame.getValue(sb.toString());
-			if (value == null)
-			{
+			if (value == null) {
 				// if nothing found then try to eval the total string.
-				try
-				{
+				try {
 					value = stackFrame.eval(longName);
-				} catch(Exception e)
-				{
+				} catch (Exception e) {
 					e.printStackTrace();
 				}
 			}
 		}
-		try
-		{
-			this.debugger.printProperty(shortName, longName, value, properties, 0,
-					true);
-		} catch (Exception e)
-		{
+		try {
+			this.debugger.printProperty(shortName, longName, value, properties,
+					0, true);
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		this.debugger.printResponse("<response command=\"property_get\"\r\n"

@@ -44,8 +44,7 @@ package org.mozilla.javascript.debug;
  * This interface exposes debugging information from executable code (either
  * functions or top-level scripts).
  */
-public interface DebuggableScript
-{
+public interface DebuggableScript {
 	public boolean isTopLevel();
 
 	/**
@@ -54,14 +53,14 @@ public interface DebuggableScript
 	public boolean isFunction();
 
 	/**
-	 * Get name of the function described by this script. Return null or an empty
-	 * string if this script is not a function.
+	 * Get name of the function described by this script. Return null or an
+	 * empty string if this script is not a function.
 	 */
 	public String getFunctionName();
 
 	/**
-	 * Get number of declared parameters in the function. Return 0 if this script
-	 * is not a function.
+	 * Get number of declared parameters in the function. Return 0 if this
+	 * script is not a function.
 	 * 
 	 * @see #getParamAndVarCount()
 	 * @see #getParamOrVarName(int index)
@@ -78,12 +77,12 @@ public interface DebuggableScript
 	public int getParamAndVarCount();
 
 	/**
-	 * Get name of a declared parameter or local variable. <tt>index</tt>
-	 * should be less then {@link #getParamAndVarCount()}. If
-	 * <tt>index&nbsp;&lt;&nbsp;{@link #getParamCount()}</tt>, return the
-	 * name of the corresponding parameter, otherwise return the name of
-	 * variable. If this script is not function, return the name of the declared
-	 * global variable.
+	 * Get name of a declared parameter or local variable. <tt>index</tt> should
+	 * be less then {@link #getParamAndVarCount()}. If
+	 * <tt>index&nbsp;&lt;&nbsp;{@link #getParamCount()}</tt>, return the name
+	 * of the corresponding parameter, otherwise return the name of variable. If
+	 * this script is not function, return the name of the declared global
+	 * variable.
 	 */
 	public String getParamOrVarName(int index);
 

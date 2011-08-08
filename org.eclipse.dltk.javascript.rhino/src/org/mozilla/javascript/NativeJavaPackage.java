@@ -52,12 +52,11 @@ package org.mozilla.javascript;
  * @see NativeJavaClass
  */
 
-public class NativeJavaPackage extends ScriptableObject
-{
+public class NativeJavaPackage extends ScriptableObject {
 	static final long serialVersionUID = 7445054382212031523L;
 
-	NativeJavaPackage(boolean internalUsage, String packageName, ClassLoader classLoader)
-	{
+	NativeJavaPackage(boolean internalUsage, String packageName,
+			ClassLoader classLoader) {
 		this.packageName = packageName;
 		this.classLoader = classLoader;
 	}
@@ -66,8 +65,7 @@ public class NativeJavaPackage extends ScriptableObject
 	 * @deprecated NativeJavaPackage is an internal class, do not use it
 	 *             directly.
 	 */
-	public NativeJavaPackage(String packageName, ClassLoader classLoader)
-	{
+	public NativeJavaPackage(String packageName, ClassLoader classLoader) {
 		this(false, packageName, classLoader);
 	}
 
@@ -75,112 +73,94 @@ public class NativeJavaPackage extends ScriptableObject
 	 * @deprecated NativeJavaPackage is an internal class, do not use it
 	 *             directly.
 	 */
-	public NativeJavaPackage(String packageName)
-	{
-		this(false, packageName, Context.getCurrentContext().getApplicationClassLoader());
+	public NativeJavaPackage(String packageName) {
+		this(false, packageName, Context.getCurrentContext()
+				.getApplicationClassLoader());
 	}
 
-	public String getClassName()
-	{
+	public String getClassName() {
 		return "JavaPackage";
 	}
 
-	public boolean has(String id, Scriptable start)
-	{
+	public boolean has(String id, Scriptable start) {
 		return true;
 	}
 
-	public boolean has(int index, Scriptable start)
-	{
+	public boolean has(int index, Scriptable start) {
 		return false;
 	}
 
-	public void put(String id, Scriptable start, Object value)
-	{
+	public void put(String id, Scriptable start, Object value) {
 		// Can't add properties to Java packages. Sorry.
 	}
 
-	public void put(int index, Scriptable start, Object value)
-	{
+	public void put(int index, Scriptable start, Object value) {
 		throw Context.reportRuntimeError0("msg.pkg.int");
 	}
 
-	public Object get(String id, Scriptable start)
-	{
+	public Object get(String id, Scriptable start) {
 		return getPkgProperty(id, start, true);
 	}
 
-	public Object get(int index, Scriptable start)
-	{
+	public Object get(int index, Scriptable start) {
 		return NOT_FOUND;
 	}
 
 	// set up a name which is known to be a package so we don't
 	// need to look for a class by that name
-	void forcePackage(String name, Scriptable scope)
-	{
+	void forcePackage(String name, Scriptable scope) {
 		NativeJavaPackage pkg;
 		int end = name.indexOf('.');
-		if (end == -1)
-		{
+		if (end == -1) {
 			end = name.length();
 		}
 
 		String id = name.substring(0, end);
 		Object cached = super.get(id, this);
-		if (cached != null && cached instanceof NativeJavaPackage)
-		{
+		if (cached != null && cached instanceof NativeJavaPackage) {
 			pkg = (NativeJavaPackage) cached;
-		}
-		else
-		{
-			String newPackage = packageName.length() == 0 ? id : packageName + "." + id;
+		} else {
+			String newPackage = packageName.length() == 0 ? id : packageName
+					+ "." + id;
 			pkg = new NativeJavaPackage(true, newPackage, classLoader);
 			ScriptRuntime.setObjectProtoAndParent(pkg, scope);
 			super.put(id, this, pkg);
 		}
-		if (end < name.length())
-		{
+		if (end < name.length()) {
 			pkg.forcePackage(name.substring(end + 1), scope);
 		}
 	}
 
-	synchronized Object getPkgProperty(String name, Scriptable start, boolean createPkg)
-	{
+	synchronized Object getPkgProperty(String name, Scriptable start,
+			boolean createPkg) {
 		Object cached = super.get(name, start);
 		if (cached != NOT_FOUND)
 			return cached;
 
-		String className = (packageName.length() == 0) ? name : packageName + '.' + name;
+		String className = (packageName.length() == 0) ? name : packageName
+				+ '.' + name;
 		Context cx = Context.getContext();
 		ClassShutter shutter = cx.getClassShutter();
 		Scriptable newValue = null;
-		if (shutter == null || shutter.visibleToScripts(className))
-		{
+		if (shutter == null || shutter.visibleToScripts(className)) {
 			Class cl = null;
-			if (classLoader != null)
-			{
+			if (classLoader != null) {
 				cl = Kit.classOrNull(classLoader, className);
-			}
-			else
-			{
+			} else {
 				cl = Kit.classOrNull(className);
 			}
-			if (cl != null)
-			{
+			if (cl != null) {
 				newValue = new NativeJavaClass(getTopLevelScope(this), cl);
 				newValue.setPrototype(getPrototype());
 			}
 		}
-		if (newValue == null && createPkg)
-		{
+		if (newValue == null && createPkg) {
 			NativeJavaPackage pkg;
 			pkg = new NativeJavaPackage(true, className, classLoader);
 			ScriptRuntime.setObjectProtoAndParent(pkg, getParentScope());
 			newValue = pkg;
 		}
-		if (newValue != null)
-		{
+		if (newValue != null) {
 			// Make it available for fast lookup and sharing of
 			// lazily-reflected constructors and static members.
 			super.put(name, start, newValue);
@@ -188,29 +168,26 @@ public class NativeJavaPackage extends ScriptableObject
 		return newValue;
 	}
 
-	public Object getDefaultValue(Class ignored)
-	{
+	public Object getDefaultValue(Class ignored) {
 		return toString();
 	}
 
-	public String toString()
-	{
+	public String toString() {
 		return "[JavaPackage " + packageName + "]";
 	}
 
-	public boolean equals(Object obj)
-	{
-		if (obj instanceof NativeJavaPackage)
-		{
+	public boolean equals(Object obj) {
+		if (obj instanceof NativeJavaPackage) {
 			NativeJavaPackage njp = (NativeJavaPackage) obj;
-			return packageName.equals(njp.packageName) && classLoader == njp.classLoader;
+			return packageName.equals(njp.packageName)
+					&& classLoader == njp.classLoader;
 		}
 		return false;
 	}
 
-	public int hashCode()
-	{
-		return packageName.hashCode() ^ (classLoader == null ? 0 : classLoader.hashCode());
+	public int hashCode() {
+		return packageName.hashCode()
+				^ (classLoader == null ? 0 : classLoader.hashCode());
 	}
 
 	private String packageName;
