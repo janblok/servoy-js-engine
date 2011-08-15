@@ -39,12 +39,15 @@
  * ***** END LICENSE BLOCK ***** */
 
 // API class
+
 package org.mozilla.javascript;
 
 /**
- * Class ImporterTopLevel This class defines a ScriptableObject that can be
- * instantiated as a top-level ("global") object to provide functionality
- * similar to Java's "import" statement.
+ * Class ImporterTopLevel
+ * 
+ * This class defines a ScriptableObject that can be instantiated as a top-level
+ * ("global") object to provide functionality similar to Java's "import"
+ * statement.
  * <p>
  * This class can be used to create a top-level scope using the following code:
  * 
@@ -62,20 +65,19 @@ package org.mozilla.javascript;
  * The following code from the shell illustrates this use:
  * 
  * <pre>
- * js&gt; importClass(java.io.File)
- * js&gt; f = new File('help.txt')
+ * js> importClass(java.io.File)
+ * js> f = new File('help.txt')
  * help.txt
- * js&gt; importPackage(java.util)
- * js&gt; v = new Vector()
+ * js> importPackage(java.util)
+ * js> v = new Vector()
  * []
  * 
  * @author Norris Boyd
- * 
  */
-public class ImporterTopLevel extends IdScriptableObject {
+public class ImporterTopLevel extends TopLevel {
 	static final long serialVersionUID = -9095380847465315412L;
 
-	private static final Object IMPORTER_TAG = new Object();
+	private static final Object IMPORTER_TAG = "Importer";
 
 	public ImporterTopLevel() {
 	}
@@ -88,6 +90,7 @@ public class ImporterTopLevel extends IdScriptableObject {
 		initStandardObjects(cx, sealed);
 	}
 
+	@Override
 	public String getClassName() {
 		return (topScopeFlag) ? "global" : "JavaImporter";
 	}
@@ -115,11 +118,13 @@ public class ImporterTopLevel extends IdScriptableObject {
 		delete("constructor");
 	}
 
+	@Override
 	public boolean has(String name, Scriptable start) {
 		return super.has(name, start)
 				|| getPackageProperty(name, start) != NOT_FOUND;
 	}
 
+	@Override
 	public Object get(String name, Scriptable start) {
 		Object result = super.get(name, start);
 		if (result != NOT_FOUND)
@@ -229,6 +234,7 @@ public class ImporterTopLevel extends IdScriptableObject {
 		put(n, this, cl);
 	}
 
+	@Override
 	protected void initPrototypeId(int id) {
 		String s;
 		int arity;
@@ -251,6 +257,7 @@ public class ImporterTopLevel extends IdScriptableObject {
 		initPrototypeMethod(IMPORTER_TAG, id, s, arity);
 	}
 
+	@Override
 	public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
 			Scriptable thisObj, Object[] args) {
 		if (!f.hasTag(IMPORTER_TAG)) {
@@ -283,6 +290,7 @@ public class ImporterTopLevel extends IdScriptableObject {
 
 	// #string_id_map#
 
+	@Override
 	protected int findPrototypeId(String s) {
 		int id;
 		// #generated# Last update: 2007-05-09 08:15:24 EDT
@@ -318,6 +326,5 @@ public class ImporterTopLevel extends IdScriptableObject {
 	// #/string_id_map#
 
 	private ObjArray importedPackages = new ObjArray();
-
 	private boolean topScopeFlag;
 }

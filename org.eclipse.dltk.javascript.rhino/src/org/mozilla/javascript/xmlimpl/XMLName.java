@@ -141,12 +141,12 @@ class XMLName extends Ref {
 		return rv;
 	}
 
-	/** @deprecated */
+	/** TODO: marked deprecated by original author */
 	static XMLName formProperty(String uri, String localName) {
 		return formProperty(XmlNode.Namespace.create(uri), localName);
 	}
 
-	/** @deprecated */
+	/** TODO: marked deprecated by original implementor */
 	static XMLName create(String defaultNamespaceUri, String name) {
 		if (name == null)
 			throw new IllegalArgumentException();
@@ -228,7 +228,6 @@ class XMLName extends Ref {
 	}
 
 	private void addDescendantAttributes(XMLList list, XML target) {
-		XMLName name = this;
 		if (target.isElement()) {
 			addMatchingAttributes(list, target);
 			XML[] children = target.getChildren();
@@ -318,7 +317,7 @@ class XMLName extends Ref {
 
 				if (xmlValue instanceof XMLList) {
 					for (int i = 0; i < xmlValue.length(); i++) {
-						XML xml = (XML) ((XMLList) xmlValue).item(i);
+						XML xml = ((XMLList) xmlValue).item(i);
 
 						if (xml.isAttribute()) {
 							((XMLList) xmlValue).replace(
@@ -333,7 +332,7 @@ class XMLName extends Ref {
 						ScriptRuntime.toString(value));
 			}
 
-			XMLList matches = (XMLList) target.getPropertyList(xmlName);
+			XMLList matches = target.getPropertyList(xmlName);
 
 			if (matches.length() == 0) {
 				target.appendChild(xmlValue);
@@ -350,6 +349,7 @@ class XMLName extends Ref {
 		}
 	}
 
+	@Override
 	public boolean has(Context cx) {
 		if (xmlObject == null) {
 			return false;
@@ -357,6 +357,7 @@ class XMLName extends Ref {
 		return xmlObject.hasXMLProperty(this);
 	}
 
+	@Override
 	public Object get(Context cx) {
 		if (xmlObject == null) {
 			throw ScriptRuntime.undefReadError(Undefined.instance, toString());
@@ -364,6 +365,7 @@ class XMLName extends Ref {
 		return xmlObject.getXMLProperty(this);
 	}
 
+	@Override
 	public Object set(Context cx, Object value) {
 		if (xmlObject == null) {
 			throw ScriptRuntime.undefWriteError(Undefined.instance, toString(),
@@ -377,6 +379,7 @@ class XMLName extends Ref {
 		return value;
 	}
 
+	@Override
 	public boolean delete(Context cx) {
 		if (xmlObject == null) {
 			return true;
@@ -385,6 +388,7 @@ class XMLName extends Ref {
 		return !xmlObject.hasXMLProperty(this);
 	}
 
+	@Override
 	public String toString() {
 		// return qname.localName();
 		StringBuffer buff = new StringBuffer();
@@ -402,14 +406,6 @@ class XMLName extends Ref {
 		}
 		buff.append(':').append(localName());
 		return buff.toString();
-	}
-
-	private boolean equals(String one, String two) {
-		if (one == null && two == null)
-			return true;
-		if (one == null || two == null)
-			return false;
-		return one.equals(two);
 	}
 
 	final XmlNode.QName toQname() {
@@ -466,19 +462,19 @@ class XMLName extends Ref {
 		}
 	}
 
-	/** @deprecated */
+	/* TODO: marked deprecated by original author */
 	boolean isAttributeName() {
 		return isAttributeName;
 	}
 
 	// TODO Fix whether this is an attribute XMLName at construction?
-	/** @deprecated */
+	// Marked deprecated by original author
 	void setAttributeName() {
 		// if (isAttributeName) throw new IllegalStateException();
 		isAttributeName = true;
 	}
 
-	/** @deprecated */
+	/* TODO: was marked deprecated by original author */
 	boolean isDescendants() {
 		return isDescendants;
 	}

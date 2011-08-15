@@ -48,16 +48,15 @@ final class InterpreterData implements Serializable, DebuggableScript {
 	static final long serialVersionUID = 5067677351589230234L;
 
 	static final int INITIAL_MAX_ICODE_LENGTH = 1024;
-
 	static final int INITIAL_STRINGTABLE_SIZE = 64;
-
 	static final int INITIAL_NUMBERTABLE_SIZE = 64;
 
-	InterpreterData(int languageVersion, String sourceFile, String encodedSource) {
+	InterpreterData(int languageVersion, String sourceFile,
+			String encodedSource, boolean isStrict) {
 		this.languageVersion = languageVersion;
 		this.itsSourceFile = sourceFile;
 		this.encodedSource = encodedSource;
-
+		this.isStrict = isStrict;
 		init();
 	}
 
@@ -76,19 +75,13 @@ final class InterpreterData implements Serializable, DebuggableScript {
 	}
 
 	String itsName;
-
 	String itsSourceFile;
-
 	boolean itsNeedsActivation;
-
 	int itsFunctionType;
 
 	String[] itsStringTable;
-
 	double[] itsDoubleTable;
-
 	InterpreterData[] itsNestedFunctions;
-
 	Object[] itsRegExpLiterals;
 
 	byte[] itsICode;
@@ -96,32 +89,25 @@ final class InterpreterData implements Serializable, DebuggableScript {
 	int[] itsExceptionTable;
 
 	int itsMaxVars;
-
 	int itsMaxLocals;
-
 	int itsMaxStack;
-
 	int itsMaxFrameArray;
 
 	// see comments in NativeFuncion for definition of argNames and argCount
 	String[] argNames;
-
 	boolean[] argIsConst;
-
 	int argCount;
 
 	int itsMaxCalleeArgs;
 
 	String encodedSource;
-
 	int encodedSourceStart;
-
 	int encodedSourceEnd;
 
 	int languageVersion;
 
 	boolean useDynamicScope;
-
+	boolean isStrict;
 	boolean topLevel;
 
 	Object[] literalIds;
@@ -185,5 +171,4 @@ final class InterpreterData implements Serializable, DebuggableScript {
 	public DebuggableScript getParent() {
 		return parentData;
 	}
-
 }

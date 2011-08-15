@@ -37,6 +37,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 // API class
+
 package org.mozilla.javascript;
 
 /**
@@ -54,7 +55,7 @@ public interface GeneratedClassLoader {
 	 *            class byte code
 	 * @return new class object
 	 */
-	public Class defineClass(String name, byte[] data);
+	public Class<?> defineClass(String name, byte[] data);
 
 	/**
 	 * Link the given class.
@@ -62,7 +63,7 @@ public interface GeneratedClassLoader {
 	 * @param cl
 	 *            Class instance returned from the previous call to
 	 *            {@link #defineClass(String, byte[])}
-	 * @see java.lang.ClassLoader#resolveClass(Class)
+	 * @see java.lang.ClassLoader
 	 */
-	public void linkClass(Class cl);
+	public void linkClass(Class<?> cl);
 }

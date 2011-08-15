@@ -37,6 +37,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 // API class
+
 package org.mozilla.javascript.debug;
 
 import org.mozilla.javascript.Context;
@@ -98,4 +99,11 @@ public interface DebugFrame {
 	 */
 	public void onExit(Context cx, boolean byThrow, Object resultOrException);
 
+	/**
+	 * Called when the function or script executes a 'debugger' statement.
+	 * 
+	 * @param cx
+	 *            current Context for this thread
+	 */
+	public void onDebuggerStatement(Context cx);
 }

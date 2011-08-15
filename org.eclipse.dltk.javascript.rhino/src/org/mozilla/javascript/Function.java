@@ -37,6 +37,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 // API class
+
 package org.mozilla.javascript;
 
 /**
@@ -49,8 +50,10 @@ package org.mozilla.javascript;
 
 public interface Function extends Scriptable, Callable {
 	/**
-	 * Call the function. Note that the array of arguments is not guaranteed to
-	 * have length greater than 0.
+	 * Call the function.
+	 * 
+	 * Note that the array of arguments is not guaranteed to have length greater
+	 * than 0.
 	 * 
 	 * @param cx
 	 *            the current Context for this thread
@@ -68,9 +71,11 @@ public interface Function extends Scriptable, Callable {
 			Object[] args);
 
 	/**
-	 * Call the function as a constructor. This method is invoked by the runtime
-	 * in order to satisfy a use of the JavaScript <code>new</code> operator.
-	 * This method is expected to create a new object and return it.
+	 * Call the function as a constructor.
+	 * 
+	 * This method is invoked by the runtime in order to satisfy a use of the
+	 * JavaScript <code>new</code> operator. This method is expected to create a
+	 * new object and return it.
 	 * 
 	 * @param cx
 	 *            the current Context for this thread

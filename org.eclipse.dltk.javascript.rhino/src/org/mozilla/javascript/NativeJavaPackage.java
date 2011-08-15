@@ -40,6 +40,9 @@
 
 package org.mozilla.javascript;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * This class reflects Java packages into the JavaScript environment. We lazily
  * reflect classes and subpackages, and use a caching/sharing system to ensure
@@ -78,56 +81,55 @@ public class NativeJavaPackage extends ScriptableObject {
 				.getApplicationClassLoader());
 	}
 
+	@Override
 	public String getClassName() {
 		return "JavaPackage";
 	}
 
+	@Override
 	public boolean has(String id, Scriptable start) {
 		return true;
 	}
 
+	@Override
 	public boolean has(int index, Scriptable start) {
 		return false;
 	}
 
+	@Override
 	public void put(String id, Scriptable start, Object value) {
 		// Can't add properties to Java packages. Sorry.
 	}
 
+	@Override
 	public void put(int index, Scriptable start, Object value) {
 		throw Context.reportRuntimeError0("msg.pkg.int");
 	}
 
+	@Override
 	public Object get(String id, Scriptable start) {
 		return getPkgProperty(id, start, true);
 	}
 
+	@Override
 	public Object get(int index, Scriptable start) {
 		return NOT_FOUND;
 	}
 
 	// set up a name which is known to be a package so we don't
 	// need to look for a class by that name
-	void forcePackage(String name, Scriptable scope) {
-		NativeJavaPackage pkg;
-		int end = name.indexOf('.');
-		if (end == -1) {
-			end = name.length();
-		}
-
-		String id = name.substring(0, end);
-		Object cached = super.get(id, this);
+	NativeJavaPackage forcePackage(String name, Scriptable scope) {
+		Object cached = super.get(name, this);
 		if (cached != null && cached instanceof NativeJavaPackage) {
-			pkg = (NativeJavaPackage) cached;
+			return (NativeJavaPackage) cached;
 		} else {
-			String newPackage = packageName.length() == 0 ? id : packageName
-					+ "." + id;
-			pkg = new NativeJavaPackage(true, newPackage, classLoader);
+			String newPackage = packageName.length() == 0 ? name : packageName
+					+ "." + name;
+			NativeJavaPackage pkg = new NativeJavaPackage(true, newPackage,
+					classLoader);
 			ScriptRuntime.setObjectProtoAndParent(pkg, scope);
-			super.put(id, this, pkg);
-		}
-		if (end < name.length()) {
-			pkg.forcePackage(name.substring(end + 1), scope);
+			super.put(name, this, pkg);
+			return pkg;
 		}
 	}
 
@@ -136,6 +138,10 @@ public class NativeJavaPackage extends ScriptableObject {
 		Object cached = super.get(name, start);
 		if (cached != NOT_FOUND)
 			return cached;
+		if (negativeCache != null && negativeCache.contains(name)) {
+			// Performance optimization: see bug 421071
+			return null;
+		}
 
 		String className = (packageName.length() == 0) ? name : packageName
 				+ '.' + name;
@@ -143,22 +149,31 @@ public class NativeJavaPackage extends ScriptableObject {
 		ClassShutter shutter = cx.getClassShutter();
 		Scriptable newValue = null;
 		if (shutter == null || shutter.visibleToScripts(className)) {
-			Class cl = null;
+			Class<?> cl = null;
 			if (classLoader != null) {
 				cl = Kit.classOrNull(classLoader, className);
 			} else {
 				cl = Kit.classOrNull(className);
 			}
 			if (cl != null) {
-				newValue = new NativeJavaClass(getTopLevelScope(this), cl);
+				WrapFactory wrapFactory = cx.getWrapFactory();
+				newValue = wrapFactory.wrapJavaClass(cx,
+						getTopLevelScope(this), cl);
 				newValue.setPrototype(getPrototype());
 			}
 		}
-		if (newValue == null && createPkg) {
-			NativeJavaPackage pkg;
-			pkg = new NativeJavaPackage(true, className, classLoader);
-			ScriptRuntime.setObjectProtoAndParent(pkg, getParentScope());
-			newValue = pkg;
+		if (newValue == null) {
+			if (createPkg) {
+				NativeJavaPackage pkg;
+				pkg = new NativeJavaPackage(true, className, classLoader);
+				ScriptRuntime.setObjectProtoAndParent(pkg, getParentScope());
+				newValue = pkg;
+			} else {
+				// add to negative cache
+				if (negativeCache == null)
+					negativeCache = new HashSet<String>();
+				negativeCache.add(name);
+			}
 		}
 		if (newValue != null) {
 			// Make it available for fast lookup and sharing of
@@ -168,14 +183,17 @@ public class NativeJavaPackage extends ScriptableObject {
 		return newValue;
 	}
 
-	public Object getDefaultValue(Class ignored) {
+	@Override
+	public Object getDefaultValue(Class<?> ignored) {
 		return toString();
 	}
 
+	@Override
 	public String toString() {
 		return "[JavaPackage " + packageName + "]";
 	}
 
+	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof NativeJavaPackage) {
 			NativeJavaPackage njp = (NativeJavaPackage) obj;
@@ -185,12 +203,13 @@ public class NativeJavaPackage extends ScriptableObject {
 		return false;
 	}
 
+	@Override
 	public int hashCode() {
 		return packageName.hashCode()
 				^ (classLoader == null ? 0 : classLoader.hashCode());
 	}
 
 	private String packageName;
-
 	private ClassLoader classLoader;
+	private Set<String> negativeCache = null;
 }

@@ -38,18 +38,17 @@
 package org.mozilla.javascript.optimizer;
 
 import org.mozilla.javascript.*;
+import org.mozilla.javascript.ast.ScriptNode;
 
 class Optimizer {
 
 	static final int NoType = 0;
-
 	static final int NumberType = 1;
-
 	static final int AnyType = 3;
 
 	// It is assumed that (NumberType | AnyType) == AnyType
 
-	void optimize(ScriptOrFnNode scriptOrFn) {
+	void optimize(ScriptNode scriptOrFn) {
 		// run on one function at a time for now
 		int functionCount = scriptOrFn.getFunctionCount();
 		for (int i = 0; i != functionCount; ++i) {
@@ -81,7 +80,7 @@ class Optimizer {
 			 */
 			parameterUsedInNumberContext = false;
 			for (int i = 0; i < theStatementNodes.length; i++) {
-				rewriteForNumberVariables(theStatementNodes[i]);
+				rewriteForNumberVariables(theStatementNodes[i], NumberType);
 			}
 			theFunction.setParameterNumberContext(parameterUsedInNumberContext);
 		}
@@ -93,15 +92,21 @@ class Optimizer {
 	 * double. The value passed depends on the type of value available at the
 	 * call site. If a double is available, the object in java/lang/Void.TYPE is
 	 * passed as the object value, and if an object value is available, then 0.0
-	 * is passed as the double value. The receiving routine always tests the
-	 * object value before proceeding. If the parameter is being accessed in a
-	 * 'Number Context' then the code sequence is : if ("parameter_objectValue"
-	 * == java/lang/Void.TYPE) ...fine..., use the parameter_doubleValue else
-	 * toNumber(parameter_objectValue) and if the parameter is being referenced
-	 * in an Object context, the code is if ("parameter_objectValue" ==
-	 * java/lang/Void.TYPE) new Double(parameter_doubleValue) else ...fine...,
-	 * use the parameter_objectValue If the receiving code never uses the
-	 * doubleValue, it is converted on entry to a Double instead.
+	 * is passed as the double value.
+	 * 
+	 * The receiving routine always tests the object value before proceeding. If
+	 * the parameter is being accessed in a 'Number Context' then the code
+	 * sequence is : if ("parameter_objectValue" == java/lang/Void.TYPE)
+	 * ...fine..., use the parameter_doubleValue else
+	 * toNumber(parameter_objectValue)
+	 * 
+	 * and if the parameter is being referenced in an Object context, the code
+	 * is if ("parameter_objectValue" == java/lang/Void.TYPE) new
+	 * Double(parameter_doubleValue) else ...fine..., use the
+	 * parameter_objectValue
+	 * 
+	 * If the receiving code never uses the doubleValue, it is converted on
+	 * entry to a Double instead.
 	 */
 
 	/*
@@ -129,11 +134,11 @@ class Optimizer {
 		return false;
 	}
 
-	private int rewriteForNumberVariables(Node n) {
+	private int rewriteForNumberVariables(Node n, int desired) {
 		switch (n.getType()) {
 		case Token.EXPR_VOID: {
 			Node child = n.getFirstChild();
-			int type = rewriteForNumberVariables(child);
+			int type = rewriteForNumberVariables(child, NumberType);
 			if (type == NumberType)
 				n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);
 			return NoType;
@@ -144,7 +149,8 @@ class Optimizer {
 
 		case Token.GETVAR: {
 			int varIndex = theFunction.getVarIndex(n);
-			if (inDirectCallFunction && theFunction.isParameter(varIndex)) {
+			if (inDirectCallFunction && theFunction.isParameter(varIndex)
+					&& desired == NumberType) {
 				n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);
 				return NumberType;
 			} else if (theFunction.isNumberVar(varIndex)) {
@@ -159,21 +165,22 @@ class Optimizer {
 			Node child = n.getFirstChild();
 			// "child" will be GETVAR or GETPROP or GETELEM
 			if (child.getType() == Token.GETVAR) {
-				if (rewriteForNumberVariables(child) == NumberType) {
+				if (rewriteForNumberVariables(child, NumberType) == NumberType
+						&& !convertParameter(child)) {
 					n.putIntProp(Node.ISNUMBER_PROP, Node.BOTH);
 					markDCPNumberContext(child);
 					return NumberType;
 				}
 				return NoType;
 			} else if (child.getType() == Token.GETELEM) {
-				return rewriteForNumberVariables(child);
+				return rewriteForNumberVariables(child, NumberType);
 			}
 			return NoType;
 		}
 		case Token.SETVAR: {
 			Node lChild = n.getFirstChild();
 			Node rChild = lChild.getNext();
-			int rType = rewriteForNumberVariables(rChild);
+			int rType = rewriteForNumberVariables(rChild, NumberType);
 			int varIndex = theFunction.getVarIndex(n);
 			if (inDirectCallFunction && theFunction.isParameter(varIndex)) {
 				if (rType == NumberType) {
@@ -209,8 +216,8 @@ class Optimizer {
 		case Token.GT: {
 			Node lChild = n.getFirstChild();
 			Node rChild = lChild.getNext();
-			int lType = rewriteForNumberVariables(lChild);
-			int rType = rewriteForNumberVariables(rChild);
+			int lType = rewriteForNumberVariables(lChild, NumberType);
+			int rType = rewriteForNumberVariables(rChild, NumberType);
 			markDCPNumberContext(lChild);
 			markDCPNumberContext(rChild);
 
@@ -244,8 +251,8 @@ class Optimizer {
 		case Token.ADD: {
 			Node lChild = n.getFirstChild();
 			Node rChild = lChild.getNext();
-			int lType = rewriteForNumberVariables(lChild);
-			int rType = rewriteForNumberVariables(rChild);
+			int lType = rewriteForNumberVariables(lChild, NumberType);
+			int rType = rewriteForNumberVariables(rChild, NumberType);
 
 			if (convertParameter(lChild)) {
 				if (convertParameter(rChild)) {
@@ -289,8 +296,8 @@ class Optimizer {
 		case Token.MOD: {
 			Node lChild = n.getFirstChild();
 			Node rChild = lChild.getNext();
-			int lType = rewriteForNumberVariables(lChild);
-			int rType = rewriteForNumberVariables(rChild);
+			int lType = rewriteForNumberVariables(lChild, NumberType);
+			int rType = rewriteForNumberVariables(rChild, NumberType);
 			markDCPNumberContext(lChild);
 			markDCPNumberContext(rChild);
 			if (lType == NumberType) {
@@ -332,22 +339,23 @@ class Optimizer {
 			Node arrayBase = n.getFirstChild();
 			Node arrayIndex = arrayBase.getNext();
 			Node rValue = arrayIndex.getNext();
-			int baseType = rewriteForNumberVariables(arrayBase);
+			int baseType = rewriteForNumberVariables(arrayBase, NumberType);
 			if (baseType == NumberType) {// can never happen ???
 				if (!convertParameter(arrayBase)) {
 					n.removeChild(arrayBase);
 					n.addChildToFront(new Node(Token.TO_OBJECT, arrayBase));
 				}
 			}
-			int indexType = rewriteForNumberVariables(arrayIndex);
+			int indexType = rewriteForNumberVariables(arrayIndex, NumberType);
 			if (indexType == NumberType) {
-				// setting the ISNUMBER_PROP signals the codegen
-				// to use the OptRuntime.setObjectIndex that takes
-				// a double index
-				n.putIntProp(Node.ISNUMBER_PROP, Node.LEFT);
-				markDCPNumberContext(arrayIndex);
+				if (!convertParameter(arrayIndex)) {
+					// setting the ISNUMBER_PROP signals the codegen
+					// to use the OptRuntime.setObjectIndex that takes
+					// a double index
+					n.putIntProp(Node.ISNUMBER_PROP, Node.LEFT);
+				}
 			}
-			int rValueType = rewriteForNumberVariables(rValue);
+			int rValueType = rewriteForNumberVariables(rValue, NumberType);
 			if (rValueType == NumberType) {
 				if (!convertParameter(rValue)) {
 					n.removeChild(rValue);
@@ -359,14 +367,14 @@ class Optimizer {
 		case Token.GETELEM: {
 			Node arrayBase = n.getFirstChild();
 			Node arrayIndex = arrayBase.getNext();
-			int baseType = rewriteForNumberVariables(arrayBase);
+			int baseType = rewriteForNumberVariables(arrayBase, NumberType);
 			if (baseType == NumberType) {// can never happen ???
 				if (!convertParameter(arrayBase)) {
 					n.removeChild(arrayBase);
 					n.addChildToFront(new Node(Token.TO_OBJECT, arrayBase));
 				}
 			}
-			int indexType = rewriteForNumberVariables(arrayIndex);
+			int indexType = rewriteForNumberVariables(arrayIndex, NumberType);
 			if (indexType == NumberType) {
 				if (!convertParameter(arrayIndex)) {
 					// setting the ISNUMBER_PROP signals the codegen
@@ -379,14 +387,8 @@ class Optimizer {
 		}
 		case Token.CALL: {
 			Node child = n.getFirstChild(); // the function node
-			if (child.getType() == Token.GETELEM) {
-				// Optimization of x[0]() is not supported
-				// so bypass GETELEM optimization that
-				// rewriteForNumberVariables would trigger
-				rewriteAsObjectChildren(child, child.getFirstChild());
-			} else {
-				rewriteForNumberVariables(child);
-			}
+			// must be an object
+			rewriteAsObjectChildren(child, child.getFirstChild());
 			child = child.getNext(); // the first arg
 
 			OptFunctionNode target = (OptFunctionNode) n
@@ -397,7 +399,7 @@ class Optimizer {
 				 * will handle moving the pairs of parameters.
 				 */
 				while (child != null) {
-					int type = rewriteForNumberVariables(child);
+					int type = rewriteForNumberVariables(child, NumberType);
 					if (type == NumberType) {
 						markDCPNumberContext(child);
 					}
@@ -419,7 +421,7 @@ class Optimizer {
 		// Force optimized children to be objects
 		while (child != null) {
 			Node nextChild = child.getNext();
-			int type = rewriteForNumberVariables(child);
+			int type = rewriteForNumberVariables(child, NoType);
 			if (type == NumberType) {
 				if (!convertParameter(child)) {
 					n.removeChild(child);
@@ -449,8 +451,6 @@ class Optimizer {
 	}
 
 	private boolean inDirectCallFunction;
-
 	OptFunctionNode theFunction;
-
 	private boolean parameterUsedInNumberContext;
 }

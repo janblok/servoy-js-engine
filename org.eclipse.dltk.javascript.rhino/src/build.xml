@@ -48,18 +48,24 @@ Requires Ant version 1.2
   <target name="compile" depends="compile-most,compile-jdk15">
   </target>
 
+  <target name="shell" depends="compile">
+    <java classname="org.mozilla.javascript.tools.shell.Main"
+          classpath="${classes}"
+          fork="true">
+      <arg line="-version 170"/>
+    </java>
+  </target>
+
   <target name="compile-most">
     <javac srcdir="src"
            destdir="${classes}"
            includes="org/**/*.java"
            excludes="org/**/jdk15/*.java"
-           deprecation="off"
+           deprecation="on"
            debug="${debug}"
-	       debuglevel="${debuglevel}"
-	       target="${target-jvm}"
-	       source="${source-level}"
-       >
-    </javac>
+           includeAntRuntime="false"
+           target="${target-jvm}"
+           source="${source-level}" />
     <copy todir="${classes}">
       <fileset dir="src" includes="org/**/*.properties" />
       <filterset>
@@ -73,13 +79,11 @@ Requires Ant version 1.2
     <javac srcdir="src"
            destdir="${classes}"
            includes="org/**/jdk15/*.java"
-           deprecation="off"
+           deprecation="on"
            debug="${debug}"
-    	   debuglevel="${debuglevel}"
-       	   target="${target-jvm}"
-       	   source="${source-level}"
-       >
-    </javac>
+           includeAntRuntime="false"
+           target="${target-jvm}"
+           source="${source-level}" />
   </target>
 
   <target name="copy-source">

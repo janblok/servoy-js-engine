@@ -95,45 +95,29 @@ class DToA {
 						 */
 
 	private static final int Frac_mask = 0xfffff;
-
 	private static final int Exp_shift = 20;
-
 	private static final int Exp_msk1 = 0x100000;
 
 	private static final long Frac_maskL = 0xfffffffffffffL;
-
 	private static final int Exp_shiftL = 52;
-
 	private static final long Exp_msk1L = 0x10000000000000L;
 
 	private static final int Bias = 1023;
-
 	private static final int P = 53;
 
 	private static final int Exp_shift1 = 20;
-
 	private static final int Exp_mask = 0x7ff00000;
-
 	private static final int Exp_mask_shifted = 0x7ff;
-
 	private static final int Bndry_mask = 0xfffff;
-
 	private static final int Log2P = 1;
 
 	private static final int Sign_bit = 0x80000000;
-
 	private static final int Exp_11 = 0x3ff00000;
-
 	private static final int Ten_pmax = 22;
-
 	private static final int Quick_max = 14;
-
 	private static final int Bletch = 0x10;
-
 	private static final int Frac_mask1 = 0xfffff;
-
 	private static final int Int_max = 14;
-
 	private static final int n_bigtens = 5;
 
 	private static final double tens[] = { 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6,
@@ -433,28 +417,31 @@ class DToA {
 	}
 
 	/*
-	 * dtoa for IEEE arithmetic (dmg): convert double to ASCII string. Inspired
-	 * by "How to Print Floating-Point Numbers Accurately" by Guy L. Steele, Jr.
-	 * and Jon L. White [Proc. ACM SIGPLAN '90, pp. 92-101]. Modifications: 1.
-	 * Rather than iterating, we use a simple numeric overestimate to determine
-	 * k = floor(log10(d)). We scale relevant quantities using O(log2(k)) rather
-	 * than O(k) multiplications. 2. For some modes > 2 (corresponding to ecvt
-	 * and fcvt), we don't try to generate digits strictly left to right.
-	 * Instead, we compute with fewer bits and propagate the carry if necessary
-	 * when rounding the final digit up. This is often faster. 3. Under the
-	 * assumption that input will be rounded nearest, mode 0 renders 1e23 as
-	 * 1e23 rather than 9.999999999999999e22. That is, we allow equality in
-	 * stopping tests when the round-nearest rule will give the same
-	 * floating-point value as would satisfaction of the stopping test with
-	 * strict inequality. 4. We remove common factors of powers of 2 from
-	 * relevant quantities. 5. When converting floating-point integers less than
-	 * 1e16, we use floating-point arithmetic rather than resorting to
-	 * multiple-precision integers. 6. When asked to produce fewer than 15
-	 * digits, we first try to get by with floating-point arithmetic; we resort
-	 * to multiple-precision integer arithmetic only if we cannot guarantee that
-	 * the floating-point calculation has given the correctly rounded result.
-	 * For k requested digits and "uniformly" distributed input, the probability
-	 * is something like 10^(k-15) that we must resort to the Long calculation.
+	 * dtoa for IEEE arithmetic (dmg): convert double to ASCII string.
+	 * 
+	 * Inspired by "How to Print Floating-Point Numbers Accurately" by Guy L.
+	 * Steele, Jr. and Jon L. White [Proc. ACM SIGPLAN '90, pp. 92-101].
+	 * 
+	 * Modifications: 1. Rather than iterating, we use a simple numeric
+	 * overestimate to determine k = floor(log10(d)). We scale relevant
+	 * quantities using O(log2(k)) rather than O(k) multiplications. 2. For some
+	 * modes > 2 (corresponding to ecvt and fcvt), we don't try to generate
+	 * digits strictly left to right. Instead, we compute with fewer bits and
+	 * propagate the carry if necessary when rounding the final digit up. This
+	 * is often faster. 3. Under the assumption that input will be rounded
+	 * nearest, mode 0 renders 1e23 as 1e23 rather than 9.999999999999999e22.
+	 * That is, we allow equality in stopping tests when the round-nearest rule
+	 * will give the same floating-point value as would satisfaction of the
+	 * stopping test with strict inequality. 4. We remove common factors of
+	 * powers of 2 from relevant quantities. 5. When converting floating-point
+	 * integers less than 1e16, we use floating-point arithmetic rather than
+	 * resorting to multiple-precision integers. 6. When asked to produce fewer
+	 * than 15 digits, we first try to get by with floating-point arithmetic; we
+	 * resort to multiple-precision integer arithmetic only if we cannot
+	 * guarantee that the floating-point calculation has given the correctly
+	 * rounded result. For k requested digits and "uniformly" distributed input,
+	 * the probability is something like 10^(k-15) that we must resort to the
+	 * Long calculation.
 	 */
 
 	static int word0(double d) {
@@ -513,10 +500,11 @@ class DToA {
 		 * Arguments ndigits, decpt, sign are similar to those of ecvt and fcvt;
 		 * trailing zeros are suppressed from the returned string. If not null,
 		 * *rve is set to point to the end of the return value. If d is
-		 * +-Infinity or NaN, then *decpt is set to 9999. mode: 0 ==> shortest
-		 * string that yields d when read in and rounded to nearest. 1 ==> like
-		 * 0, but with Steele & White stopping rule; e.g. with IEEE P754
-		 * arithmetic , mode 0 gives 1e23 whereas mode 1 gives
+		 * +-Infinity or NaN, then *decpt is set to 9999.
+		 * 
+		 * mode: 0 ==> shortest string that yields d when read in and rounded to
+		 * nearest. 1 ==> like 0, but with Steele & White stopping rule; e.g.
+		 * with IEEE P754 arithmetic , mode 0 gives 1e23 whereas mode 1 gives
 		 * 9.999999999999999e22. 2 ==> max(1,ndigits) significant digits. This
 		 * gives a return value similar to that of ecvt, except that trailing
 		 * zeros are suppressed. 3 ==> through ndigits past the decimal point.
@@ -526,9 +514,12 @@ class DToA {
 		 * same return as mode 2 + (mode & 1). These modes are mainly for
 		 * debugging; often they run slower but sometimes faster than modes 2-3.
 		 * 4,5,8,9 ==> left-to-right digit generation. 6-9 ==> don't try fast
-		 * floating-point estimate (if applicable). Values of mode other than
-		 * 0-9 are treated as mode 0. Sufficient space is allocated to the
-		 * return value to hold the suppressed trailing zeros.
+		 * floating-point estimate (if applicable).
+		 * 
+		 * Values of mode other than 0-9 are treated as mode 0.
+		 * 
+		 * Sufficient space is allocated to the return value to hold the
+		 * suppressed trailing zeros.
 		 */
 
 		int b2, b5, i, ieps, ilim, ilim0, ilim1, j, j1, k, k0, m2, m5, s2, s5;
@@ -568,13 +559,17 @@ class DToA {
 			/*
 			 * log(x) ~=~ log(1.5) + (x-1.5)/1.5 log10(x) = log(x) / log(10) ~=~
 			 * log(1.5)/log(10) + (x-1.5)/(1.5*log(10)) log10(d) =
-			 * (i-Bias)*log(2)/log(10) + log10(d2) This suggests computing an
-			 * approximation k to log10(d) by k = (i - Bias)*0.301029995663981 +
-			 * ( (d2-1.5)*0.289529654602168 + 0.176091259055681 ); We want k to
-			 * be too large rather than too small. The error in the first-order
-			 * Taylor series approximation is in our favor, so we just round up
-			 * the constant enough to compensate for any error in the
-			 * multiplication of (i - Bias) by 0.301029995663981; since |i -
+			 * (i-Bias)*log(2)/log(10) + log10(d2)
+			 * 
+			 * This suggests computing an approximation k to log10(d) by
+			 * 
+			 * k = (i - Bias)*0.301029995663981 + ( (d2-1.5)*0.289529654602168 +
+			 * 0.176091259055681 );
+			 * 
+			 * We want k to be too large rather than too small. The error in the
+			 * first-order Taylor series approximation is in our favor, so we
+			 * just round up the constant enough to compensate for any error in
+			 * the multiplication of (i - Bias) by 0.301029995663981; since |i -
 			 * Bias| <= 1077, and 1077 * 0.30103 * 2^-52 ~=~ 7.2e-14, adding
 			 * 1e-13 to the constant term more than suffices. Hence we adjust
 			 * the constant term to 0.1760912590558. (We could get a more
@@ -973,10 +968,11 @@ class DToA {
 
 		/*
 		 * Arrange for convenient computation of quotients: shift left if
-		 * necessary so divisor has 4 leading 0 bits. Perhaps we should just
-		 * compute leading 28 bits of S once and for all and pass them and a
-		 * shift to quorem, so it can do shifts and ors to compute the numerator
-		 * for q.
+		 * necessary so divisor has 4 leading 0 bits.
+		 * 
+		 * Perhaps we should just compute leading 28 bits of S once and for all
+		 * and pass them and a shift to quorem, so it can do shifts and ors to
+		 * compute the numerator for q.
 		 */
 		byte[] S_bytes = S.toByteArray();
 		int S_hiWord = 0;
@@ -1230,8 +1226,7 @@ class DToA {
 		int nDigits; /* Number of significand digits returned by JS_dtoa */
 
 		// JS_ASSERT(bufferSize >= (size_t)(mode <= DTOSTR_STANDARD_EXPONENTIAL
-		// ?
-		// DTOSTR_STANDARD_BUFFER_SIZE :
+		// ? DTOSTR_STANDARD_BUFFER_SIZE :
 		// DTOSTR_VARIABLE_BUFFER_SIZE(precision)));
 
 		if (mode == DTOSTR_FIXED && (d >= 1e21 || d <= -1e21))

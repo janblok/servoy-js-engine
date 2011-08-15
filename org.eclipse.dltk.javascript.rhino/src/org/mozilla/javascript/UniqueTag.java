@@ -53,9 +53,7 @@ public final class UniqueTag implements Serializable {
 	static final long serialVersionUID = -4320556826714577259L;
 
 	private static final int ID_NOT_FOUND = 1;
-
 	private static final int ID_NULL_VALUE = 2;
-
 	private static final int ID_DOUBLE_MARK = 3;
 
 	/**
@@ -93,6 +91,7 @@ public final class UniqueTag implements Serializable {
 	}
 
 	// Overridden for better debug printouts
+	@Override
 	public String toString() {
 		String name;
 		switch (tagId) {

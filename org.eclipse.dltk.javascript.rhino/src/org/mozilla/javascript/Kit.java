@@ -42,7 +42,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.lang.reflect.Method;
-import java.util.Hashtable;
+import java.util.Map;
 
 /**
  * Collection of utilities
@@ -58,8 +58,8 @@ public class Kit {
 	static {
 		// Are we running on a JDK 1.4 or later system?
 		try {
-			Class ThrowableClass = Kit.classOrNull("java.lang.Throwable");
-			Class[] signature = { ThrowableClass };
+			Class<?> ThrowableClass = Kit.classOrNull("java.lang.Throwable");
+			Class<?>[] signature = { ThrowableClass };
 			Throwable_initCause = ThrowableClass.getMethod("initCause",
 					signature);
 		} catch (Exception ex) {
@@ -67,7 +67,7 @@ public class Kit {
 		}
 	}
 
-	public static Class classOrNull(String className) {
+	public static Class<?> classOrNull(String className) {
 		try {
 			return Class.forName(className);
 		} catch (ClassNotFoundException ex) {
@@ -80,7 +80,11 @@ public class Kit {
 		return null;
 	}
 
-	public static Class classOrNull(ClassLoader loader, String className) {
+	/**
+	 * Attempt to load the class of the given name. Note that the type parameter
+	 * isn't checked.
+	 */
+	public static Class<?> classOrNull(ClassLoader loader, String className) {
 		try {
 			return loader.loadClass(className);
 		} catch (ClassNotFoundException ex) {
@@ -93,7 +97,7 @@ public class Kit {
 		return null;
 	}
 
-	static Object newInstanceOrNull(Class cl) {
+	static Object newInstanceOrNull(Class<?> cl) {
 		try {
 			return cl.newInstance();
 		} catch (SecurityException x) {
@@ -105,11 +109,11 @@ public class Kit {
 	}
 
 	/**
-	 * Check that testClass is accesible from the given loader.
+	 * Check that testClass is accessible from the given loader.
 	 */
 	static boolean testIfCanLoadRhinoClasses(ClassLoader loader) {
-		Class testClass = ScriptRuntime.ContextFactoryClass;
-		Class x = Kit.classOrNull(loader, testClass.getName());
+		Class<?> testClass = ScriptRuntime.ContextFactoryClass;
+		Class<?> x = Kit.classOrNull(loader, testClass.getName());
 		if (x != testClass) {
 			// The check covers the case when x == null =>
 			// loader does not know about testClass or the case
@@ -137,42 +141,6 @@ public class Kit {
 			}
 		}
 		return ex;
-	}
-
-	/**
-	 * Split string into array of strings using semicolon as string terminator
-	 * (; after the last string is required).
-	 */
-	public static String[] semicolonSplit(String s) {
-		String[] array = null;
-		for (;;) {
-			// loop 2 times: first to count semicolons and then to fill array
-			int count = 0;
-			int cursor = 0;
-			for (;;) {
-				int next = s.indexOf(';', cursor);
-				if (next < 0) {
-					break;
-				}
-				if (array != null) {
-					array[count] = s.substring(cursor, next);
-				}
-				++count;
-				cursor = next + 1;
-			}
-			// after the last semicolon
-			if (array == null) {
-				// array size counting state:
-				// check for required terminating ';'
-				if (cursor != s.length())
-					throw new IllegalArgumentException();
-				array = new String[count];
-			} else {
-				// array filling state: stop the loop
-				break;
-			}
-		}
-		return array;
 	}
 
 	/**
@@ -234,7 +202,7 @@ public class Kit {
 	 *         Object listeners = changeListeners;
 	 *         if (listeners != null) {
 	 *             PropertyChangeEvent e = new PropertyChangeEvent(
-	 *                 this, &quot;someProperty&quot; oldValue, newValue);
+	 *                 this, "someProperty" oldValue, newValue);
 	 *             for (int i = 0; ; ++i) {
 	 *                 Object l = Kit.getListener(listeners, i);
 	 *                 if (l == null)
@@ -380,7 +348,8 @@ public class Kit {
 		}
 	}
 
-	static Object initHash(Hashtable h, Object key, Object initialValue) {
+	static Object initHash(Map<Object, Object> h, Object key,
+			Object initialValue) {
 		synchronized (h) {
 			Object current = h.get(key);
 			if (current == null) {
@@ -394,9 +363,7 @@ public class Kit {
 
 	private final static class ComplexKey {
 		private Object key1;
-
 		private Object key2;
-
 		private int hash;
 
 		ComplexKey(Object key1, Object key2) {
@@ -404,6 +371,7 @@ public class Kit {
 			this.key2 = key2;
 		}
 
+		@Override
 		public boolean equals(Object anotherObj) {
 			if (!(anotherObj instanceof ComplexKey))
 				return false;
@@ -411,6 +379,7 @@ public class Kit {
 			return key1.equals(another.key1) && key2.equals(another.key2);
 		}
 
+		@Override
 		public int hashCode() {
 			if (hash == 0) {
 				hash = key1.hashCode() ^ key2.hashCode();
@@ -481,6 +450,20 @@ public class Kit {
 	 */
 	public static RuntimeException codeBug() throws RuntimeException {
 		RuntimeException ex = new IllegalStateException("FAILED ASSERTION");
+		// Print stack trace ASAP
+		ex.printStackTrace(System.err);
+		throw ex;
+	}
+
+	/**
+	 * Throws RuntimeException to indicate failed assertion. The function never
+	 * returns and its return type is RuntimeException only to be able to write
+	 * <tt>throw Kit.codeBug()</tt> if plain <tt>Kit.codeBug()</tt> triggers
+	 * unreachable code error.
+	 */
+	public static RuntimeException codeBug(String msg) throws RuntimeException {
+		msg = "FAILED ASSERTION: " + msg;
+		RuntimeException ex = new IllegalStateException(msg);
 		// Print stack trace ASAP
 		ex.printStackTrace(System.err);
 		throw ex;

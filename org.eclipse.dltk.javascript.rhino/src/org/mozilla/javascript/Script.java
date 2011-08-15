@@ -37,6 +37,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 // API class
+
 package org.mozilla.javascript;
 
 /**
@@ -66,7 +67,7 @@ public interface Script {
 	 * @param scope
 	 *            the scope to execute relative to
 	 * @return the result of executing the script
-	 * @see org.mozilla.javascript.Context#initStandardObjects
+	 * @see org.mozilla.javascript.Context#initStandardObjects()
 	 */
 	public Object exec(Context cx, Scriptable scope);
 

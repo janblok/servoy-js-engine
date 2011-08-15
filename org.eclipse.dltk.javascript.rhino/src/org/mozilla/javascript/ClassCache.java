@@ -23,6 +23,7 @@
  *
  * Contributor(s):
  *   Igor Bukanov, igor@fastmail.fm
+ *   Norris Boyd
  *
  * Alternatively, the contents of this file may be used under the terms of
  * the GNU General Public License Version 2 or later (the "GPL"), in which
@@ -38,29 +39,27 @@
 
 package org.mozilla.javascript;
 
-import java.util.Hashtable;
+import java.util.Map;
+import java.util.HashMap;
+import java.io.Serializable;
 
 /**
  * Cache of generated classes and data structures to access Java runtime from
  * JavaScript.
  * 
  * @author Igor Bukanov
+ * 
  * @since Rhino 1.5 Release 5
  */
-public class ClassCache {
-	private static final Object AKEY = new Object();
-
+public class ClassCache implements Serializable {
+	private static final long serialVersionUID = -8866246036237312215L;
+	private static final Object AKEY = "ClassCache";
 	private volatile boolean cachingIsEnabled = true;
-
-	private Hashtable classTable = new Hashtable();
-
-	Hashtable javaAdapterGeneratedClasses = new Hashtable();
-
-	private ScriptableObject scope;
-
-	private Hashtable interfaceAdapterCache;
-
+	private transient HashMap<Class<?>, JavaMembers> classTable;
+	private transient HashMap<JavaAdapter.JavaAdapterSignature, Class<?>> classAdapterCache;
+	private transient HashMap<Class<?>, Object> interfaceAdapterCache;
 	private int generatedClassSerial;
+	private Scriptable associatedScope;
 
 	/**
 	 * Search for ClassCache object in the given scope. The method first calls
@@ -72,14 +71,15 @@ public class ClassCache {
 	 *            scope to search for ClassCache object.
 	 * @return previously associated ClassCache object or a new instance of
 	 *         ClassCache if no ClassCache object was found.
+	 * 
 	 * @see #associate(ScriptableObject topScope)
 	 */
 	public static ClassCache get(Scriptable scope) {
-		ClassCache cache;
-		cache = (ClassCache) ScriptableObject.getTopScopeValue(scope, AKEY);
+		ClassCache cache = (ClassCache) ScriptableObject.getTopScopeValue(
+				scope, AKEY);
 		if (cache == null) {
-			// XXX warn somehow about wrong cache usage ?
-			cache = new ClassCache();
+			throw new RuntimeException("Can't find top level scope for "
+					+ "ClassCache.get");
 		}
 		return cache;
 	}
@@ -90,9 +90,10 @@ public class ClassCache {
 	 * 
 	 * @param topScope
 	 *            scope to associate this ClassCache object with.
-	 * @return true if no prevous ClassCache objects were embedded into the
+	 * @return true if no previous ClassCache objects were embedded into the
 	 *         scope and this ClassCache were successfully associated or false
 	 *         otherwise.
+	 * 
 	 * @see #get(Scriptable scope)
 	 */
 	public boolean associate(ScriptableObject topScope) {
@@ -101,7 +102,7 @@ public class ClassCache {
 			throw new IllegalArgumentException();
 		}
 		if (this == topScope.associateValue(AKEY, this)) {
-			scope = topScope;
+			associatedScope = topScope;
 			return true;
 		}
 		return false;
@@ -111,8 +112,8 @@ public class ClassCache {
 	 * Empty caches of generated Java classes and Java reflection information.
 	 */
 	public synchronized void clearCaches() {
-		classTable = new Hashtable();
-		javaAdapterGeneratedClasses = new Hashtable();
+		classTable = null;
+		classAdapterCache = null;
 		interfaceAdapterCache = null;
 	}
 
@@ -122,14 +123,6 @@ public class ClassCache {
 	 */
 	public final boolean isCachingEnabled() {
 		return cachingIsEnabled;
-	}
-
-	public Hashtable getClassTable() {
-		return classTable;
-	}
-
-	public Scriptable getScope() {
-		return scope;
 	}
 
 	/**
@@ -148,6 +141,7 @@ public class ClassCache {
 	 * 
 	 * @param enabled
 	 *            if true, caching is enabled
+	 * 
 	 * @see #clearCaches()
 	 */
 	public synchronized void setCachingEnabled(boolean enabled) {
@@ -156,6 +150,23 @@ public class ClassCache {
 		if (!enabled)
 			clearCaches();
 		cachingIsEnabled = enabled;
+	}
+
+	/**
+	 * @return a map from classes to associated JavaMembers objects
+	 */
+	Map<Class<?>, JavaMembers> getClassCacheMap() {
+		if (classTable == null) {
+			classTable = new HashMap<Class<?>, JavaMembers>();
+		}
+		return classTable;
+	}
+
+	Map<JavaAdapter.JavaAdapterSignature, Class<?>> getInterfaceAdapterCacheMap() {
+		if (classAdapterCache == null) {
+			classAdapterCache = new HashMap<JavaAdapter.JavaAdapterSignature, Class<?>>();
+		}
+		return classAdapterCache;
 	}
 
 	/**
@@ -168,10 +179,11 @@ public class ClassCache {
 
 	/**
 	 * @deprecated The method does nothing. Invoker optimization is no longer
-	 *             used by Rhino. On modern JDK like 1.4 or 1.5 the disadvatages
-	 *             of the optimization like incresed memory usage or longer
-	 *             initialization time overweight small speed increase that can
-	 *             be gained using generated proxy class to replace reflection.
+	 *             used by Rhino. On modern JDK like 1.4 or 1.5 the
+	 *             disadvantages of the optimization like increased memory usage
+	 *             or longer initialization time overweight small speed increase
+	 *             that can be gained using generated proxy class to replace
+	 *             reflection.
 	 */
 	public synchronized void setInvokerOptimizationEnabled(boolean enabled) {
 	}
@@ -184,23 +196,21 @@ public class ClassCache {
 		return ++generatedClassSerial;
 	}
 
-	Object getInterfaceAdapter(Class cl) {
-		Object result;
-		Hashtable cache = interfaceAdapterCache;
-		if (cache == null) {
-			result = null;
-		} else {
-			result = cache.get(cl);
-		}
-		return result;
+	Object getInterfaceAdapter(Class<?> cl) {
+		return interfaceAdapterCache == null ? null : interfaceAdapterCache
+				.get(cl);
 	}
 
-	synchronized void cacheInterfaceAdapter(Class cl, Object iadapter) {
+	synchronized void cacheInterfaceAdapter(Class<?> cl, Object iadapter) {
 		if (cachingIsEnabled) {
 			if (interfaceAdapterCache == null) {
-				interfaceAdapterCache = new Hashtable();
+				interfaceAdapterCache = new HashMap<Class<?>, Object>();
 			}
 			interfaceAdapterCache.put(cl, iadapter);
 		}
+	}
+
+	Scriptable getAssociatedScope() {
+		return associatedScope;
 	}
 }

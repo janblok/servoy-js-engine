@@ -39,6 +39,8 @@
 package org.mozilla.javascript.optimizer;
 
 import org.mozilla.javascript.*;
+import org.mozilla.javascript.ast.FunctionNode;
+import org.mozilla.javascript.ast.ScriptNode;
 
 final class OptFunctionNode {
 	OptFunctionNode(FunctionNode fnode) {
@@ -46,12 +48,12 @@ final class OptFunctionNode {
 		fnode.setCompilerData(this);
 	}
 
-	static OptFunctionNode get(ScriptOrFnNode scriptOrFn, int i) {
+	static OptFunctionNode get(ScriptNode scriptOrFn, int i) {
 		FunctionNode fnode = scriptOrFn.getFunctionNode(i);
 		return (OptFunctionNode) fnode.getCompilerData();
 	}
 
-	static OptFunctionNode get(ScriptOrFnNode scriptOrFn) {
+	static OptFunctionNode get(ScriptNode scriptOrFn) {
 		return (OptFunctionNode) scriptOrFn.getCompilerData();
 	}
 
@@ -109,16 +111,16 @@ final class OptFunctionNode {
 	int getVarIndex(Node n) {
 		int index = n.getIntProp(Node.VARIABLE_PROP, -1);
 		if (index == -1) {
-			String name;
+			Node node;
 			int type = n.getType();
 			if (type == Token.GETVAR) {
-				name = n.getString();
+				node = n;
 			} else if (type == Token.SETVAR || type == Token.SETCONSTVAR) {
-				name = n.getFirstChild().getString();
+				node = n.getFirstChild();
 			} else {
 				throw Kit.codeBug();
 			}
-			index = fnode.getParamOrVarIndex(name);
+			index = fnode.getIndexForNameNode(node);
 			if (index < 0)
 				throw Kit.codeBug();
 			n.putIntProp(Node.VARIABLE_PROP, index);
@@ -127,14 +129,9 @@ final class OptFunctionNode {
 	}
 
 	FunctionNode fnode;
-
 	private boolean[] numberVarFlags;
-
 	private int directTargetIndex = -1;
-
 	private boolean itsParameterNumberContext;
-
 	boolean itsContainsCalls0;
-
 	boolean itsContainsCalls1;
 }

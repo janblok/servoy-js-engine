@@ -49,8 +49,10 @@ public class EvaluatorException extends RhinoException {
 	}
 
 	/**
-	 * Create an exception with the specified detail message. Errors internal to
-	 * the JavaScript engine will simply throw a RuntimeException.
+	 * Create an exception with the specified detail message.
+	 * 
+	 * Errors internal to the JavaScript engine will simply throw a
+	 * RuntimeException.
 	 * 
 	 * @param detail
 	 *            the error message
@@ -64,13 +66,15 @@ public class EvaluatorException extends RhinoException {
 	}
 
 	/**
-	 * Create an exception with the specified detail message. Errors internal to
-	 * the JavaScript engine will simply throw a RuntimeException.
+	 * Create an exception with the specified detail message.
+	 * 
+	 * Errors internal to the JavaScript engine will simply throw a
+	 * RuntimeException.
 	 * 
 	 * @param detail
 	 *            the error message
 	 * @param sourceName
-	 *            the name of the source reponsible for the error
+	 *            the name of the source responsible for the error
 	 * @param lineNumber
 	 *            the line number of the source
 	 * @param columnNumber

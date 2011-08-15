@@ -44,7 +44,7 @@ import org.mozilla.javascript.*;
 class XMLCtor extends IdFunctionObject {
 	static final long serialVersionUID = -8708195078359817341L;
 
-	private static final Object XMLCTOR_TAG = new Object();
+	private static final Object XMLCTOR_TAG = "XMLCtor";
 
 	private XmlProcessor options;
 
@@ -103,13 +103,15 @@ class XMLCtor extends IdFunctionObject {
 
 			MAX_INSTANCE_ID = 5;
 
+	@Override
 	protected int getMaxInstanceId() {
 		return super.getMaxInstanceId() + MAX_INSTANCE_ID;
 	}
 
+	@Override
 	protected int findInstanceIdInfo(String s) {
 		int id;
-		// #generated# Last update: 2004-07-19 13:03:52 CEST
+		// #generated# Last update: 2007-08-20 09:01:10 EDT
 		L0: {
 			id = 0;
 			String X = null;
@@ -140,6 +142,7 @@ class XMLCtor extends IdFunctionObject {
 			}
 			if (X != null && X != s && !X.equals(s))
 				id = 0;
+			break L0;
 		}
 		// #/generated#
 
@@ -163,6 +166,7 @@ class XMLCtor extends IdFunctionObject {
 
 	// #/string_id_map#
 
+	@Override
 	protected String getInstanceIdName(int id) {
 		switch (id - super.getMaxInstanceId()) {
 		case Id_ignoreComments:
@@ -179,6 +183,7 @@ class XMLCtor extends IdFunctionObject {
 		return super.getInstanceIdName(id);
 	}
 
+	@Override
 	protected Object getInstanceIdValue(int id) {
 		switch (id - super.getMaxInstanceId()) {
 		case Id_ignoreComments:
@@ -196,6 +201,7 @@ class XMLCtor extends IdFunctionObject {
 		return super.getInstanceIdValue(id);
 	}
 
+	@Override
 	protected void setInstanceIdValue(int id, Object value) {
 		switch (id - super.getMaxInstanceId()) {
 		case Id_ignoreComments:
@@ -222,9 +228,10 @@ class XMLCtor extends IdFunctionObject {
 	private static final int Id_defaultSettings = 1, Id_settings = 2,
 			Id_setSettings = 3, MAX_FUNCTION_ID = 3;
 
+	@Override
 	protected int findPrototypeId(String s) {
 		int id;
-		// #generated# Last update: 2004-07-19 13:03:52 CEST
+		// #generated# Last update: 2007-08-20 09:01:10 EDT
 		L0: {
 			id = 0;
 			String X = null;
@@ -241,6 +248,7 @@ class XMLCtor extends IdFunctionObject {
 			}
 			if (X != null && X != s && !X.equals(s))
 				id = 0;
+			break L0;
 		}
 		// #/generated#
 		return id;
@@ -248,6 +256,7 @@ class XMLCtor extends IdFunctionObject {
 
 	// #/string_id_map#
 
+	@Override
 	protected void initPrototypeId(int id) {
 		String s;
 		int arity;
@@ -270,6 +279,7 @@ class XMLCtor extends IdFunctionObject {
 		initPrototypeMethod(XMLCTOR_TAG, id, s, arity);
 	}
 
+	@Override
 	public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
 			Scriptable thisObj, Object[] args) {
 		if (!f.hasTag(XMLCTOR_TAG)) {
@@ -305,6 +315,7 @@ class XMLCtor extends IdFunctionObject {
 	 * hasInstance for XML objects works differently than other objects; see
 	 * ECMA357 13.4.3.10.
 	 */
+	@Override
 	public boolean hasInstance(Scriptable instance) {
 		return (instance instanceof XML || instance instanceof XMLList);
 	}

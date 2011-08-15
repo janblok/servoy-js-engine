@@ -15,7 +15,7 @@
  *
  * The Initial Developer of the Original Code is
  * David P. Caldwell.
- * Portions created by David P. Caldwell are Copyright (C) 
+ * Portions created by David P. Caldwell are Copyright (C)
  * 2007 David P. Caldwell. All Rights Reserved.
  *
  *
@@ -38,24 +38,73 @@ package org.mozilla.javascript.xmlimpl;
 
 import org.w3c.dom.*;
 
+import javax.xml.parsers.DocumentBuilder;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.Serializable;
+import java.util.List;
+import java.util.ArrayList;
+
 import org.mozilla.javascript.*;
 
-//	Disambiguate from org.mozilla.javascript.Node
+//    Disambiguate from org.mozilla.javascript.Node
 import org.w3c.dom.Node;
+import org.xml.sax.ErrorHandler;
+import org.xml.sax.SAXParseException;
 
-class XmlProcessor {
+class XmlProcessor implements Serializable {
+
+	private static final long serialVersionUID = 6903514433204808713L;
+
 	private boolean ignoreComments;
 	private boolean ignoreProcessingInstructions;
 	private boolean ignoreWhitespace;
 	private boolean prettyPrint;
 	private int prettyIndent;
 
-	private javax.xml.parsers.DocumentBuilderFactory dom;
-	private javax.xml.transform.TransformerFactory xform;
+	private transient javax.xml.parsers.DocumentBuilderFactory dom;
+	private transient javax.xml.transform.TransformerFactory xform;
+	private transient DocumentBuilder documentBuilder;
+	private RhinoSAXErrorHandler errorHandler = new RhinoSAXErrorHandler();
+
+	private void readObject(ObjectInputStream stream) throws IOException,
+			ClassNotFoundException {
+		stream.defaultReadObject();
+		this.dom = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+		this.dom.setNamespaceAware(true);
+		this.dom.setIgnoringComments(false);
+		this.xform = javax.xml.transform.TransformerFactory.newInstance();
+	}
+
+	private static class RhinoSAXErrorHandler implements ErrorHandler,
+			Serializable {
+
+		private static final long serialVersionUID = 6918417235413084055L;
+
+		private void throwError(SAXParseException e) {
+			throw ScriptRuntime.constructError("TypeError", e.getMessage(),
+					e.getLineNumber() - 1);
+		}
+
+		public void error(SAXParseException e) {
+			throwError(e);
+		}
+
+		public void fatalError(SAXParseException e) {
+			throwError(e);
+		}
+
+		public void warning(SAXParseException e) {
+			Context.reportWarning(e.getMessage());
+		}
+	}
 
 	XmlProcessor() {
 		setDefault();
 		this.dom = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+		this.dom.setNamespaceAware(true);
+		this.dom.setIgnoringComments(false);
 		this.xform = javax.xml.transform.TransformerFactory.newInstance();
 	}
 
@@ -124,34 +173,59 @@ class XmlProcessor {
 		return nl.toString();
 	}
 
-	private javax.xml.parsers.DocumentBuilderFactory newDomFactory() {
+	private javax.xml.parsers.DocumentBuilderFactory getDomFactory() {
 		return dom;
 	}
 
-	private void addProcessingInstructionsTo(java.util.Vector v, Node node) {
+	private synchronized DocumentBuilder getDocumentBuilderFromPool()
+			throws javax.xml.parsers.ParserConfigurationException {
+		DocumentBuilder result;
+		if (documentBuilder == null) {
+			javax.xml.parsers.DocumentBuilderFactory factory = getDomFactory();
+			result = factory.newDocumentBuilder();
+		} else {
+			result = documentBuilder;
+			documentBuilder = null;
+		}
+		result.setErrorHandler(errorHandler);
+		return result;
+	}
+
+	private synchronized void returnDocumentBuilderToPool(DocumentBuilder db) {
+		if (documentBuilder == null) {
+			try {
+				db.reset();
+				documentBuilder = db;
+			} catch (UnsupportedOperationException e) {
+				// document builders that don't support reset() can't
+				// be pooled
+			}
+		}
+	}
+
+	private void addProcessingInstructionsTo(List<Node> list, Node node) {
 		if (node instanceof ProcessingInstruction) {
-			v.add(node);
+			list.add(node);
 		}
 		if (node.getChildNodes() != null) {
 			for (int i = 0; i < node.getChildNodes().getLength(); i++) {
-				addProcessingInstructionsTo(v, node.getChildNodes().item(i));
+				addProcessingInstructionsTo(list, node.getChildNodes().item(i));
 			}
 		}
 	}
 
-	private void addCommentsTo(java.util.Vector v, Node node) {
+	private void addCommentsTo(List<Node> list, Node node) {
 		if (node instanceof Comment) {
-			v.add(node);
+			list.add(node);
 		}
 		if (node.getChildNodes() != null) {
 			for (int i = 0; i < node.getChildNodes().getLength(); i++) {
-				addProcessingInstructionsTo(v, node.getChildNodes().item(i));
+				addProcessingInstructionsTo(list, node.getChildNodes().item(i));
 			}
 		}
 	}
 
-	private void addTextNodesToRemoveAndTrim(java.util.Vector toRemove,
-			Node node) {
+	private void addTextNodesToRemoveAndTrim(List<Node> toRemove, Node node) {
 		if (node instanceof Text) {
 			Text text = (Text) node;
 			boolean BUG_369394_IS_VALID = false;
@@ -174,45 +248,27 @@ class XmlProcessor {
 		}
 	}
 
-	private void setElementDefaultNamespaces(Document document,
-			String defaultNamespaceUri) {
-		NodeList elements = document.getElementsByTagName("*");
-		for (int i = 0; i < elements.getLength(); i++) {
-			Element element = (Element) elements.item(i);
-			if (element.getPrefix() == null) {
-				if (element.lookupNamespaceURI(null) == null) {
-					element.getOwnerDocument().renameNode(element,
-							defaultNamespaceUri, element.getTagName());
-				}
-			}
-		}
-	}
-
 	final Node toXml(String defaultNamespaceUri, String xml)
 			throws org.xml.sax.SAXException {
 		// See ECMA357 10.3.1
-		javax.xml.parsers.DocumentBuilderFactory domFactory = newDomFactory();
-		domFactory.setNamespaceAware(true);
-		domFactory.setIgnoringComments(false);
+		DocumentBuilder builder = null;
 		try {
 			String syntheticXml = "<parent xmlns=\"" + defaultNamespaceUri
 					+ "\">" + xml + "</parent>";
-			Document document = domFactory.newDocumentBuilder().parse(
-					new org.xml.sax.InputSource(new java.io.StringReader(
-							syntheticXml)));
+			builder = getDocumentBuilderFromPool();
+			Document document = builder.parse(new org.xml.sax.InputSource(
+					new java.io.StringReader(syntheticXml)));
 			if (ignoreProcessingInstructions) {
-				java.util.Vector v = new java.util.Vector();
-				addProcessingInstructionsTo(v, document);
-				for (int i = 0; i < v.size(); i++) {
-					Node node = (Node) v.elementAt(i);
+				List<Node> list = new java.util.ArrayList<Node>();
+				addProcessingInstructionsTo(list, document);
+				for (Node node : list) {
 					node.getParentNode().removeChild(node);
 				}
 			}
 			if (ignoreComments) {
-				java.util.Vector v = new java.util.Vector();
-				addCommentsTo(v, document);
-				for (int i = 0; i < v.size(); i++) {
-					Node node = (Node) v.elementAt(i);
+				List<Node> list = new java.util.ArrayList<Node>();
+				addCommentsTo(list, document);
+				for (Node node : list) {
 					node.getParentNode().removeChild(node);
 				}
 			}
@@ -224,10 +280,9 @@ class XmlProcessor {
 				// so that it would know which whitespace to ignore.
 
 				// Instead we will try to delete it ourselves.
-				java.util.Vector v = new java.util.Vector();
-				addTextNodesToRemoveAndTrim(v, document);
-				for (int i = 0; i < v.size(); i++) {
-					Node node = (Node) v.elementAt(i);
+				List<Node> list = new java.util.ArrayList<Node>();
+				addTextNodesToRemoveAndTrim(list, document);
+				for (Node node : list) {
 					node.getParentNode().removeChild(node);
 				}
 			}
@@ -247,22 +302,25 @@ class XmlProcessor {
 			throw new RuntimeException("Unreachable.");
 		} catch (javax.xml.parsers.ParserConfigurationException e) {
 			throw new RuntimeException(e);
+		} finally {
+			if (builder != null)
+				returnDocumentBuilderToPool(builder);
 		}
 	}
 
 	Document newDocument() {
+		DocumentBuilder builder = null;
 		try {
 			// TODO Should this use XML settings?
-			return newDomFactory().newDocumentBuilder().newDocument();
+			builder = getDocumentBuilderFromPool();
+			return builder.newDocument();
 		} catch (javax.xml.parsers.ParserConfigurationException ex) {
 			// TODO How to handle these runtime errors?
 			throw new RuntimeException(ex);
+		} finally {
+			if (builder != null)
+				returnDocumentBuilderToPool(builder);
 		}
-	}
-
-	private Text newEmptyText() {
-		Document dom = newDocument();
-		return dom.createTextNode("");
 	}
 
 	// TODO Cannot remember what this is for, so whether it should use settings
@@ -392,7 +450,7 @@ class XmlProcessor {
 		// We "mark" all the nodes first; if we tried to do this loop otherwise,
 		// it would behave unexpectedly (the inserted nodes
 		// would contribute to the length and it might never terminate).
-		java.util.Vector toIndent = new java.util.Vector();
+		ArrayList<Node> toIndent = new ArrayList<Node>();
 		boolean indentChildren = false;
 		for (int i = 0; i < e.getChildNodes().getLength(); i++) {
 			if (i == 1)
@@ -408,18 +466,18 @@ class XmlProcessor {
 			for (int i = 0; i < toIndent.size(); i++) {
 				e.insertBefore(
 						e.getOwnerDocument().createTextNode(beforeContent),
-						(Node) toIndent.elementAt(i));
+						toIndent.get(i));
 			}
 		}
 		NodeList nodes = e.getChildNodes();
-		java.util.Vector v = new java.util.Vector();
+		ArrayList<Element> list = new ArrayList<Element>();
 		for (int i = 0; i < nodes.getLength(); i++) {
 			if (nodes.item(i) instanceof Element) {
-				v.add(nodes.item(i));
+				list.add((Element) nodes.item(i));
 			}
 		}
-		for (int i = 0; i < v.size(); i++) {
-			beautifyElement((Element) v.elementAt(i), indent + prettyIndent);
+		for (Element elem : list) {
+			beautifyElement(elem, indent + prettyIndent);
 		}
 		if (indentChildren) {
 			e.appendChild(e.getOwnerDocument().createTextNode(afterContent));

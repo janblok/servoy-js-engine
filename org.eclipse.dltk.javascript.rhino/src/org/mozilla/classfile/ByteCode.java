@@ -39,8 +39,9 @@
 package org.mozilla.classfile;
 
 /**
- * This class provides opcode values expected by the JVM in Java class files. It
- * also provides tables for internal use by the ClassFileWriter.
+ * This class provides opcode values expected by the JVM in Java class files.
+ * 
+ * It also provides tables for internal use by the ClassFileWriter.
  * 
  * @author Roger Lawrence
  */

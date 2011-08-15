@@ -46,193 +46,29 @@
 
 package org.mozilla.javascript;
 
-import java.awt.AWTEvent;
-import java.awt.ActiveEvent;
-import java.awt.Component;
 import java.io.PrintStream;
 import java.io.Serializable;
 import java.util.List;
 import java.util.ArrayList;
 
-import org.mozilla.javascript.continuations.Continuation;
+import org.mozilla.javascript.ast.FunctionNode;
+import org.mozilla.javascript.ast.ScriptNode;
+import org.mozilla.javascript.ScriptRuntime.NoSuchMethodShim;
 import org.mozilla.javascript.debug.DebugFrame;
 
-public class Interpreter {
-
-	// Additional interpreter-specific codes
-
-	private static final int
-
-	// Stack: ... value1 -> ... value1 value1
-			Icode_DUP = -1,
-
-			// Stack: ... value2 value1 -> ... value2 value1 value2 value1
-			Icode_DUP2 = -2,
-
-			// Stack: ... value2 value1 -> ... value1 value2
-			Icode_SWAP = -3,
-
-			// Stack: ... value1 -> ...
-			Icode_POP = -4,
-
-			// Store stack top into return register and then pop it
-			Icode_POP_RESULT = -5,
-
-			// To jump conditionally and pop additional stack value
-			Icode_IFEQ_POP = -6,
-
-			// various types of ++/--
-			Icode_VAR_INC_DEC = -7,
-			Icode_NAME_INC_DEC = -8,
-			Icode_PROP_INC_DEC = -9,
-			Icode_ELEM_INC_DEC = -10,
-			Icode_REF_INC_DEC = -11,
-
-			// load/save scope from/to local
-			Icode_SCOPE_LOAD = -12,
-			Icode_SCOPE_SAVE = -13,
-
-			Icode_TYPEOFNAME = -14,
-
-			// helper for function calls
-			Icode_NAME_AND_THIS = -15,
-			Icode_PROP_AND_THIS = -16,
-			Icode_ELEM_AND_THIS = -17,
-			Icode_VALUE_AND_THIS = -18,
-
-			// Create closure object for nested functions
-			Icode_CLOSURE_EXPR = -19,
-			Icode_CLOSURE_STMT = -20,
-
-			// Special calls
-			Icode_CALLSPECIAL = -21,
-
-			// To return undefined value
-			Icode_RETUNDEF = -22,
-
-			// Exception handling implementation
-			Icode_GOSUB = -23,
-			Icode_STARTSUB = -24,
-			Icode_RETSUB = -25,
-
-			// To indicating a line number change in icodes.
-			Icode_LINE = -26,
-
-			// To store shorts and ints inline
-			Icode_SHORTNUMBER = -27,
-			Icode_INTNUMBER = -28,
-
-			// To create and populate array to hold values for [] and {}
-			// literals
-			Icode_LITERAL_NEW = -29,
-			Icode_LITERAL_SET = -30,
-
-			// Array literal with skipped index like [1,,2]
-			Icode_SPARE_ARRAYLIT = -31,
-
-			// Load index register to prepare for the following index operation
-			Icode_REG_IND_C0 = -32,
-			Icode_REG_IND_C1 = -33,
-			Icode_REG_IND_C2 = -34,
-			Icode_REG_IND_C3 = -35,
-			Icode_REG_IND_C4 = -36,
-			Icode_REG_IND_C5 = -37,
-			Icode_REG_IND1 = -38,
-			Icode_REG_IND2 = -39,
-			Icode_REG_IND4 = -40,
-
-			// Load string register to prepare for the following string
-			// operation
-			Icode_REG_STR_C0 = -41,
-			Icode_REG_STR_C1 = -42,
-			Icode_REG_STR_C2 = -43,
-			Icode_REG_STR_C3 = -44,
-			Icode_REG_STR1 = -45, Icode_REG_STR2 = -46, Icode_REG_STR4 = -47,
-
-			// Version of getvar/setvar that read var index directly from
-			// bytecode
-			Icode_GETVAR1 = -48, Icode_SETVAR1 = -49,
-
-			// Load unefined
-			Icode_UNDEF = -50, Icode_ZERO = -51, Icode_ONE = -52,
-
-			// entrance and exit from .()
-			Icode_ENTERDQ = -53, Icode_LEAVEDQ = -54,
-
-			Icode_TAIL_CALL = -55,
-
-			// Clear local to allow GC its context
-			Icode_LOCAL_CLEAR = -56,
-
-			// Literal get/set
-			Icode_LITERAL_GETTER = -57, Icode_LITERAL_SETTER = -58,
-
-			// const
-			Icode_SETCONST = -59,
-			Icode_SETCONSTVAR = -60,
-			Icode_SETCONSTVAR1 = -61,
-
-			// Last icode
-			MIN_ICODE = -61;
-
+public final class Interpreter extends Icode implements Evaluator {
 	// data for parsing
+	InterpreterData itsData;
 
-	private CompilerEnvirons compilerEnv;
-
-	private boolean itsInFunctionFlag;
-
-	private InterpreterData itsData;
-
-	private ScriptOrFnNode scriptOrFn;
-
-	private int itsICodeTop;
-
-	private int itsStackDepth;
-
-	private int itsLineNumber;
-
-	private int itsDoubleTableTop;
-
-	private ObjToIntMap itsStrings = new ObjToIntMap(20);
-
-	private int itsLocalTop;
-
-	private static final int MIN_LABEL_TABLE_SIZE = 32;
-
-	private static final int MIN_FIXUP_TABLE_SIZE = 40;
-
-	private int[] itsLabelTable;
-
-	private int itsLabelTableTop;
-
-	// itsFixupTable[i] = (label_index << 32) | fixup_site
-	private long[] itsFixupTable;
-
-	private int itsFixupTableTop;
-
-	private ObjArray itsLiteralIds = new ObjArray();
-
-	private int itsExceptionTableTop;
-
-	private static final int EXCEPTION_TRY_START_SLOT = 0;
-
-	private static final int EXCEPTION_TRY_END_SLOT = 1;
-
-	private static final int EXCEPTION_HANDLER_SLOT = 2;
-
-	private static final int EXCEPTION_TYPE_SLOT = 3;
-
-	private static final int EXCEPTION_LOCAL_SLOT = 4;
-
-	private static final int EXCEPTION_SCOPE_SLOT = 5;
-
+	static final int EXCEPTION_TRY_START_SLOT = 0;
+	static final int EXCEPTION_TRY_END_SLOT = 1;
+	static final int EXCEPTION_HANDLER_SLOT = 2;
+	static final int EXCEPTION_TYPE_SLOT = 3;
+	static final int EXCEPTION_LOCAL_SLOT = 4;
+	static final int EXCEPTION_SCOPE_SLOT = 5;
 	// SLOT_SIZE: space for try start/end, handler, start, handler type,
 	// exception local and scope local
-	private static final int EXCEPTION_SLOT_SIZE = 6;
-
-	// ECF_ or Expression Context Flags constants: for now only TAIL is
-	// available
-	private static final int ECF_TAIL = 1 << 0;
+	static final int EXCEPTION_SLOT_SIZE = 6;
 
 	/**
 	 * Class to hold data corresponding to one interpreted call stack frame.
@@ -241,15 +77,12 @@ public class Interpreter {
 		static final long serialVersionUID = -2843792508994958978L;
 
 		CallFrame parentFrame;
-
 		// amount of stack frames before this one on the interpretation stack
 		int frameIndex;
-
 		// If true indicates read-only frame that is a part of continuation
 		boolean frozen;
 
 		InterpretedFunction fnOrScript;
-
 		InterpreterData idata;
 
 		// Stack structure
@@ -257,46 +90,34 @@ public class Interpreter {
 		// stack[localShift <= i <= emptyStackTop]: used for local temporaries
 		// stack[emptyStackTop < i < stack.length]: stack data
 		// sDbl[i]: if stack[i] is UniqueTag.DOUBLE_MARK, sDbl[i] holds the
-		// number
-		// value
+		// number value
 
 		Object[] stack;
-
 		int[] stackAttributes;
-
 		double[] sDbl;
-
 		CallFrame varSource; // defaults to this unless continuation frame
-
 		int localShift;
-
 		int emptyStackTop;
 
 		DebugFrame debuggerFrame;
-
 		boolean useActivation;
+		boolean isContinuationsTopFrame;
 
 		Scriptable thisObj;
-
 		Scriptable[] scriptRegExps;
 
 		// The values that change during interpretation
 
 		Object result;
-
 		double resultDbl;
-
 		int pc;
-
 		int pcPrevBranch;
-
 		int pcSourceLineStart;
-
 		Scriptable scope;
 
 		int savedStackTop;
-
 		int savedCallOp;
+		Object throwable;
 
 		CallFrame cloneFrozen() {
 			if (!frozen)
@@ -312,9 +133,9 @@ public class Interpreter {
 			// clone stack but keep varSource to point to values
 			// from this frame to share variables.
 
-			copy.stack = (Object[]) stack.clone();
-			copy.stackAttributes = (int[]) stackAttributes.clone();
-			copy.sDbl = (double[]) sDbl.clone();
+			copy.stack = stack.clone();
+			copy.stackAttributes = stackAttributes.clone();
+			copy.sDbl = sDbl.clone();
 
 			copy.frozen = false;
 			return copy;
@@ -325,14 +146,11 @@ public class Interpreter {
 		static final long serialVersionUID = 7687739156004308247L;
 
 		CallFrame capturedFrame;
-
 		CallFrame branchFrame;
-
 		Object result;
-
 		double resultDbl;
 
-		ContinuationJump(Continuation c, CallFrame current) {
+		ContinuationJump(NativeContinuation c, CallFrame current) {
 			this.capturedFrame = (CallFrame) c.getImplementation();
 			if (this.capturedFrame == null || current == null) {
 				// Continuation and current execution does not share
@@ -375,7 +193,18 @@ public class Interpreter {
 					Kit.codeBug();
 			}
 		}
+	}
 
+	private static CallFrame captureFrameForGenerator(CallFrame frame) {
+		frame.frozen = true;
+		CallFrame result = frame.cloneFrozen();
+		frame.frozen = false;
+
+		// now isolate this frame from its previous context
+		result.parentFrame = null;
+		result.frameIndex = 0;
+
+		return result;
 	}
 
 	static {
@@ -393,185 +222,11 @@ public class Interpreter {
 		}
 	}
 
-	private static String bytecodeName(int bytecode) {
-		if (!validBytecode(bytecode)) {
-			throw new IllegalArgumentException(String.valueOf(bytecode));
-		}
-
-		if (!Token.printICode) {
-			return String.valueOf(bytecode);
-		}
-
-		if (validTokenCode(bytecode)) {
-			return Token.name(bytecode);
-		}
-
-		switch (bytecode) {
-		case Icode_DUP:
-			return "DUP";
-		case Icode_DUP2:
-			return "DUP2";
-		case Icode_SWAP:
-			return "SWAP";
-		case Icode_POP:
-			return "POP";
-		case Icode_POP_RESULT:
-			return "POP_RESULT";
-		case Icode_IFEQ_POP:
-			return "IFEQ_POP";
-		case Icode_VAR_INC_DEC:
-			return "VAR_INC_DEC";
-		case Icode_NAME_INC_DEC:
-			return "NAME_INC_DEC";
-		case Icode_PROP_INC_DEC:
-			return "PROP_INC_DEC";
-		case Icode_ELEM_INC_DEC:
-			return "ELEM_INC_DEC";
-		case Icode_REF_INC_DEC:
-			return "REF_INC_DEC";
-		case Icode_SCOPE_LOAD:
-			return "SCOPE_LOAD";
-		case Icode_SCOPE_SAVE:
-			return "SCOPE_SAVE";
-		case Icode_TYPEOFNAME:
-			return "TYPEOFNAME";
-		case Icode_NAME_AND_THIS:
-			return "NAME_AND_THIS";
-		case Icode_PROP_AND_THIS:
-			return "PROP_AND_THIS";
-		case Icode_ELEM_AND_THIS:
-			return "ELEM_AND_THIS";
-		case Icode_VALUE_AND_THIS:
-			return "VALUE_AND_THIS";
-		case Icode_CLOSURE_EXPR:
-			return "CLOSURE_EXPR";
-		case Icode_CLOSURE_STMT:
-			return "CLOSURE_STMT";
-		case Icode_CALLSPECIAL:
-			return "CALLSPECIAL";
-		case Icode_RETUNDEF:
-			return "RETUNDEF";
-		case Icode_GOSUB:
-			return "GOSUB";
-		case Icode_STARTSUB:
-			return "STARTSUB";
-		case Icode_RETSUB:
-			return "RETSUB";
-		case Icode_LINE:
-			return "LINE";
-		case Icode_SHORTNUMBER:
-			return "SHORTNUMBER";
-		case Icode_INTNUMBER:
-			return "INTNUMBER";
-		case Icode_LITERAL_NEW:
-			return "LITERAL_NEW";
-		case Icode_LITERAL_SET:
-			return "LITERAL_SET";
-		case Icode_SPARE_ARRAYLIT:
-			return "SPARE_ARRAYLIT";
-		case Icode_REG_IND_C0:
-			return "REG_IND_C0";
-		case Icode_REG_IND_C1:
-			return "REG_IND_C1";
-		case Icode_REG_IND_C2:
-			return "REG_IND_C2";
-		case Icode_REG_IND_C3:
-			return "REG_IND_C3";
-		case Icode_REG_IND_C4:
-			return "REG_IND_C4";
-		case Icode_REG_IND_C5:
-			return "REG_IND_C5";
-		case Icode_REG_IND1:
-			return "LOAD_IND1";
-		case Icode_REG_IND2:
-			return "LOAD_IND2";
-		case Icode_REG_IND4:
-			return "LOAD_IND4";
-		case Icode_REG_STR_C0:
-			return "REG_STR_C0";
-		case Icode_REG_STR_C1:
-			return "REG_STR_C1";
-		case Icode_REG_STR_C2:
-			return "REG_STR_C2";
-		case Icode_REG_STR_C3:
-			return "REG_STR_C3";
-		case Icode_REG_STR1:
-			return "LOAD_STR1";
-		case Icode_REG_STR2:
-			return "LOAD_STR2";
-		case Icode_REG_STR4:
-			return "LOAD_STR4";
-		case Icode_GETVAR1:
-			return "GETVAR1";
-		case Icode_SETVAR1:
-			return "SETVAR1";
-		case Icode_UNDEF:
-			return "UNDEF";
-		case Icode_ZERO:
-			return "ZERO";
-		case Icode_ONE:
-			return "ONE";
-		case Icode_ENTERDQ:
-			return "ENTERDQ";
-		case Icode_LEAVEDQ:
-			return "LEAVEDQ";
-		case Icode_TAIL_CALL:
-			return "TAIL_CALL";
-		case Icode_LOCAL_CLEAR:
-			return "LOCAL_CLEAR";
-		case Icode_LITERAL_GETTER:
-			return "LITERAL_GETTER";
-		case Icode_LITERAL_SETTER:
-			return "LITERAL_SETTER";
-		case Icode_SETCONST:
-			return "SETCONST";
-		case Icode_SETCONSTVAR:
-			return "SETCONSTVAR";
-		case Icode_SETCONSTVAR1:
-			return "SETCONSTVAR1";
-		}
-
-		// icode without name
-		throw new IllegalStateException(String.valueOf(bytecode));
-	}
-
-	private static boolean validIcode(int icode) {
-		return MIN_ICODE <= icode && icode <= -1;
-	}
-
-	private static boolean validTokenCode(int token) {
-		return Token.FIRST_BYTECODE_TOKEN <= token
-				&& token <= Token.LAST_BYTECODE_TOKEN;
-	}
-
-	private static boolean validBytecode(int bytecode) {
-		return validIcode(bytecode) || validTokenCode(bytecode);
-	}
-
-	public Object compile(CompilerEnvirons compilerEnv, ScriptOrFnNode tree,
+	public Object compile(CompilerEnvirons compilerEnv, ScriptNode tree,
 			String encodedSource, boolean returnFunction) {
-		this.compilerEnv = compilerEnv;
-		new NodeTransformer().transform(tree);
-
-		if (Token.printTrees) {
-			System.out.println(tree.toStringTree(tree));
-		}
-
-		if (returnFunction) {
-			tree = tree.getFunctionNode(0);
-		}
-
-		scriptOrFn = tree;
-		itsData = new InterpreterData(compilerEnv.getLanguageVersion(),
-				scriptOrFn.getSourceName(), encodedSource);
-		itsData.topLevel = true;
-
-		if (returnFunction) {
-			generateFunctionICode();
-		} else {
-			generateICodeFromTree(scriptOrFn);
-		}
-
+		CodeGenerator cgen = new CodeGenerator();
+		itsData = cgen
+				.compile(compilerEnv, tree, encodedSource, returnFunction);
 		return itsData;
 	}
 
@@ -583,6 +238,10 @@ public class Interpreter {
 		return InterpretedFunction.createScript(itsData, staticSecurityDomain);
 	}
 
+	public void setEvalScriptFlag(Script script) {
+		((InterpretedFunction) script).idata.evalScriptFlag = true;
+	}
+
 	public Function createFunctionObject(Context cx, Scriptable scope,
 			Object bytecode, Object staticSecurityDomain) {
 		if (bytecode != itsData) {
@@ -590,1271 +249,6 @@ public class Interpreter {
 		}
 		return InterpretedFunction.createFunction(cx, scope, itsData,
 				staticSecurityDomain);
-	}
-
-	private void generateFunctionICode() {
-		itsInFunctionFlag = true;
-
-		FunctionNode theFunction = (FunctionNode) scriptOrFn;
-
-		itsData.itsFunctionType = theFunction.getFunctionType();
-		itsData.itsNeedsActivation = theFunction.requiresActivation();
-		itsData.itsName = theFunction.getFunctionName();
-		if (!theFunction.getIgnoreDynamicScope()) {
-			if (compilerEnv.isUseDynamicScope()) {
-				itsData.useDynamicScope = true;
-			}
-		}
-
-		generateICodeFromTree(theFunction.getLastChild());
-	}
-
-	private void generateICodeFromTree(Node tree) {
-		generateNestedFunctions();
-
-		generateRegExpLiterals();
-
-		visitStatement(tree);
-		fixLabelGotos();
-		// add RETURN_RESULT only to scripts as function always ends with RETURN
-		if (itsData.itsFunctionType == 0) {
-			addToken(Token.RETURN_RESULT);
-		}
-
-		if (itsData.itsICode.length != itsICodeTop) {
-			// Make itsData.itsICode length exactly itsICodeTop to save memory
-			// and catch bugs with jumps beyound icode as early as possible
-			byte[] tmp = new byte[itsICodeTop];
-			System.arraycopy(itsData.itsICode, 0, tmp, 0, itsICodeTop);
-			itsData.itsICode = tmp;
-		}
-		if (itsStrings.size() == 0) {
-			itsData.itsStringTable = null;
-		} else {
-			itsData.itsStringTable = new String[itsStrings.size()];
-			ObjToIntMap.Iterator iter = itsStrings.newIterator();
-			for (iter.start(); !iter.done(); iter.next()) {
-				String str = (String) iter.getKey();
-				int index = iter.getValue();
-				if (itsData.itsStringTable[index] != null)
-					Kit.codeBug();
-				itsData.itsStringTable[index] = str;
-			}
-		}
-		if (itsDoubleTableTop == 0) {
-			itsData.itsDoubleTable = null;
-		} else if (itsData.itsDoubleTable.length != itsDoubleTableTop) {
-			double[] tmp = new double[itsDoubleTableTop];
-			System.arraycopy(itsData.itsDoubleTable, 0, tmp, 0,
-					itsDoubleTableTop);
-			itsData.itsDoubleTable = tmp;
-		}
-		if (itsExceptionTableTop != 0
-				&& itsData.itsExceptionTable.length != itsExceptionTableTop) {
-			int[] tmp = new int[itsExceptionTableTop];
-			System.arraycopy(itsData.itsExceptionTable, 0, tmp, 0,
-					itsExceptionTableTop);
-			itsData.itsExceptionTable = tmp;
-		}
-
-		itsData.itsMaxVars = scriptOrFn.getParamAndVarCount();
-		// itsMaxFrameArray: interpret method needs this amount for its
-		// stack and sDbl arrays
-		itsData.itsMaxFrameArray = itsData.itsMaxVars + itsData.itsMaxLocals
-				+ itsData.itsMaxStack;
-
-		itsData.argNames = scriptOrFn.getParamAndVarNames();
-		itsData.argIsConst = scriptOrFn.getParamAndVarConst();
-		itsData.argCount = scriptOrFn.getParamCount();
-
-		itsData.encodedSourceStart = scriptOrFn.getEncodedSourceStart();
-		itsData.encodedSourceEnd = scriptOrFn.getEncodedSourceEnd();
-
-		if (itsLiteralIds.size() != 0) {
-			itsData.literalIds = itsLiteralIds.toArray();
-		}
-
-		if (Token.printICode)
-			dumpICode(itsData);
-	}
-
-	private void generateNestedFunctions() {
-		int functionCount = scriptOrFn.getFunctionCount();
-		if (functionCount == 0)
-			return;
-
-		InterpreterData[] array = new InterpreterData[functionCount];
-		for (int i = 0; i != functionCount; i++) {
-			FunctionNode def = scriptOrFn.getFunctionNode(i);
-			Interpreter jsi = new Interpreter();
-			jsi.compilerEnv = compilerEnv;
-			jsi.scriptOrFn = def;
-			jsi.itsData = new InterpreterData(itsData);
-			jsi.generateFunctionICode();
-			array[i] = jsi.itsData;
-		}
-		itsData.itsNestedFunctions = array;
-	}
-
-	private void generateRegExpLiterals() {
-		int N = scriptOrFn.getRegexpCount();
-		if (N == 0)
-			return;
-
-		Context cx = Context.getContext();
-		RegExpProxy rep = ScriptRuntime.checkRegExpProxy(cx);
-		Object[] array = new Object[N];
-		for (int i = 0; i != N; i++) {
-			String string = scriptOrFn.getRegexpString(i);
-			String flags = scriptOrFn.getRegexpFlags(i);
-			array[i] = rep.compileRegExp(cx, string, flags);
-		}
-		itsData.itsRegExpLiterals = array;
-	}
-
-	private void updateLineNumber(Node node) {
-		int lineno = node.getLineno();
-		if (lineno != itsLineNumber && lineno >= 0) {
-			if (itsData.firstLinePC < 0) {
-				itsData.firstLinePC = lineno;
-			}
-			itsLineNumber = lineno;
-			addIcode(Icode_LINE);
-			addUint16(lineno & 0xFFFF);
-		}
-	}
-
-	private RuntimeException badTree(Node node) {
-		throw new RuntimeException(node.toString());
-	}
-
-	private void visitStatement(Node node) {
-		int type = node.getType();
-		Node child = node.getFirstChild();
-		switch (type) {
-
-		case Token.FUNCTION: {
-			int fnIndex = node.getExistingIntProp(Node.FUNCTION_PROP);
-			int fnType = scriptOrFn.getFunctionNode(fnIndex).getFunctionType();
-			// Only function expressions or function expression
-			// statements need closure code creating new function
-			// object on stack as function statements are initialized
-			// at script/function start.
-			// In addition, function expressions can not be present here
-			// at statement level, they must only be present as expressions.
-			if (fnType == FunctionNode.FUNCTION_EXPRESSION_STATEMENT) {
-				addIndexOp(Icode_CLOSURE_STMT, fnIndex);
-			} else {
-				if (fnType != FunctionNode.FUNCTION_STATEMENT) {
-					throw Kit.codeBug();
-				}
-			}
-			// For function statements or function expression statements
-			// in scripts, we need to ensure that the result of the script
-			// is the function if it is the last statement in the script.
-			// For example, eval("function () {}") should return a
-			// function, not undefined.
-			if (!itsInFunctionFlag) {
-				addIndexOp(Icode_CLOSURE_EXPR, fnIndex);
-				stackChange(1);
-				addIcode(Icode_POP_RESULT);
-				stackChange(-1);
-			}
-		}
-			break;
-
-		case Token.SCRIPT:
-		case Token.LABEL:
-		case Token.LOOP:
-		case Token.BLOCK:
-		case Token.EMPTY:
-		case Token.WITH:
-			updateLineNumber(node);
-			while (child != null) {
-				visitStatement(child);
-				child = child.getNext();
-			}
-			break;
-
-		case Token.ENTERWITH:
-			visitExpression(child, 0);
-			addToken(Token.ENTERWITH);
-			stackChange(-1);
-			break;
-
-		case Token.LEAVEWITH:
-			addToken(Token.LEAVEWITH);
-			break;
-
-		case Token.LOCAL_BLOCK: {
-			int local = allocLocal();
-			node.putIntProp(Node.LOCAL_PROP, local);
-			updateLineNumber(node);
-			while (child != null) {
-				visitStatement(child);
-				child = child.getNext();
-			}
-			addIndexOp(Icode_LOCAL_CLEAR, local);
-			releaseLocal(local);
-		}
-			break;
-
-		case Token.SWITCH:
-			updateLineNumber(node);
-			// See comments in IRFactory.createSwitch() for description
-			// of SWITCH node
-			{
-				visitExpression(child, 0);
-				for (Node.Jump caseNode = (Node.Jump) child.getNext(); caseNode != null; caseNode = (Node.Jump) caseNode
-						.getNext()) {
-					if (caseNode.getType() != Token.CASE)
-						throw badTree(caseNode);
-					Node test = caseNode.getFirstChild();
-					addIcode(Icode_DUP);
-					stackChange(1);
-					visitExpression(test, 0);
-					addToken(Token.SHEQ);
-					stackChange(-1);
-					// If true, Icode_IFEQ_POP will jump and remove case
-					// value from stack
-					addGoto(caseNode.target, Icode_IFEQ_POP);
-					stackChange(-1);
-				}
-				addIcode(Icode_POP);
-				stackChange(-1);
-			}
-			break;
-
-		case Token.TARGET:
-			markTargetLabel(node);
-			break;
-
-		case Token.IFEQ:
-		case Token.IFNE: {
-			Node target = ((Node.Jump) node).target;
-			visitExpression(child, 0);
-			addGoto(target, type);
-			stackChange(-1);
-		}
-			break;
-
-		case Token.GOTO: {
-			Node target = ((Node.Jump) node).target;
-			addGoto(target, type);
-		}
-			break;
-
-		case Token.JSR: {
-			Node target = ((Node.Jump) node).target;
-			addGoto(target, Icode_GOSUB);
-		}
-			break;
-
-		case Token.FINALLY: {
-			// Account for incomming GOTOSUB address
-			stackChange(1);
-			int finallyRegister = getLocalBlockRef(node);
-			addIndexOp(Icode_STARTSUB, finallyRegister);
-			stackChange(-1);
-			while (child != null) {
-				visitStatement(child);
-				child = child.getNext();
-			}
-			addIndexOp(Icode_RETSUB, finallyRegister);
-		}
-			break;
-
-		case Token.EXPR_VOID:
-		case Token.EXPR_RESULT:
-			updateLineNumber(node);
-			visitExpression(child, 0);
-			addIcode((type == Token.EXPR_VOID) ? Icode_POP : Icode_POP_RESULT);
-			stackChange(-1);
-			break;
-
-		case Token.TRY: {
-			Node.Jump tryNode = (Node.Jump) node;
-			int exceptionObjectLocal = getLocalBlockRef(tryNode);
-			int scopeLocal = allocLocal();
-
-			addIndexOp(Icode_SCOPE_SAVE, scopeLocal);
-
-			int tryStart = itsICodeTop;
-			while (child != null) {
-				visitStatement(child);
-				child = child.getNext();
-			}
-
-			Node catchTarget = tryNode.target;
-			if (catchTarget != null) {
-				int catchStartPC = itsLabelTable[getTargetLabel(catchTarget)];
-				addExceptionHandler(tryStart, catchStartPC, catchStartPC,
-						false, exceptionObjectLocal, scopeLocal);
-			}
-			Node finallyTarget = tryNode.getFinally();
-			if (finallyTarget != null) {
-				int finallyStartPC = itsLabelTable[getTargetLabel(finallyTarget)];
-				addExceptionHandler(tryStart, finallyStartPC, finallyStartPC,
-						true, exceptionObjectLocal, scopeLocal);
-			}
-
-			addIndexOp(Icode_LOCAL_CLEAR, scopeLocal);
-			releaseLocal(scopeLocal);
-		}
-			break;
-
-		case Token.CATCH_SCOPE: {
-			int localIndex = getLocalBlockRef(node);
-			int scopeIndex = node.getExistingIntProp(Node.CATCH_SCOPE_PROP);
-			String name = child.getString();
-			child = child.getNext();
-			visitExpression(child, 0); // load expression object
-			addStringPrefix(name);
-			addIndexPrefix(localIndex);
-			addToken(Token.CATCH_SCOPE);
-			addUint8(scopeIndex != 0 ? 1 : 0);
-			stackChange(-1);
-		}
-			break;
-
-		case Token.THROW:
-			updateLineNumber(node);
-			visitExpression(child, 0);
-			addToken(Token.THROW);
-			addUint16(itsLineNumber & 0xFFFF);
-			stackChange(-1);
-			break;
-
-		case Token.RETHROW:
-			updateLineNumber(node);
-			addIndexOp(Token.RETHROW, getLocalBlockRef(node));
-			break;
-
-		case Token.RETURN:
-			updateLineNumber(node);
-			if (child != null) {
-				visitExpression(child, ECF_TAIL);
-				addToken(Token.RETURN);
-				stackChange(-1);
-			} else {
-				addIcode(Icode_RETUNDEF);
-			}
-			break;
-
-		case Token.RETURN_RESULT:
-			updateLineNumber(node);
-			addToken(Token.RETURN_RESULT);
-			break;
-
-		case Token.ENUM_INIT_KEYS:
-		case Token.ENUM_INIT_VALUES:
-			visitExpression(child, 0);
-			addIndexOp(type, getLocalBlockRef(node));
-			stackChange(-1);
-			break;
-
-		default:
-			throw badTree(node);
-		}
-
-		if (itsStackDepth != 0) {
-			throw Kit.codeBug();
-		}
-	}
-
-	private void visitExpression(Node node, int contextFlags) {
-		int type = node.getType();
-		Node child = node.getFirstChild();
-		int savedStackDepth = itsStackDepth;
-		switch (type) {
-
-		case Token.FUNCTION: {
-			int fnIndex = node.getExistingIntProp(Node.FUNCTION_PROP);
-			FunctionNode fn = scriptOrFn.getFunctionNode(fnIndex);
-			// See comments in visitStatement for Token.FUNCTION case
-			if (fn.getFunctionType() != FunctionNode.FUNCTION_EXPRESSION) {
-				throw Kit.codeBug();
-			}
-			addIndexOp(Icode_CLOSURE_EXPR, fnIndex);
-			stackChange(1);
-		}
-			break;
-
-		case Token.LOCAL_LOAD: {
-			int localIndex = getLocalBlockRef(node);
-			addIndexOp(Token.LOCAL_LOAD, localIndex);
-			stackChange(1);
-		}
-			break;
-
-		case Token.COMMA: {
-			Node lastChild = node.getLastChild();
-			while (child != lastChild) {
-				visitExpression(child, 0);
-				addIcode(Icode_POP);
-				stackChange(-1);
-				child = child.getNext();
-			}
-			// Preserve tail context flag if any
-			visitExpression(child, contextFlags & ECF_TAIL);
-		}
-			break;
-
-		case Token.USE_STACK:
-			// Indicates that stack was modified externally,
-			// like placed catch object
-			stackChange(1);
-			break;
-
-		case Token.REF_CALL:
-		case Token.CALL:
-		case Token.NEW: {
-			if (type == Token.NEW) {
-				visitExpression(child, 0);
-			} else {
-				generateCallFunAndThis(child);
-			}
-			int argCount = 0;
-			while ((child = child.getNext()) != null) {
-				visitExpression(child, 0);
-				++argCount;
-			}
-			int callType = node.getIntProp(Node.SPECIALCALL_PROP,
-					Node.NON_SPECIALCALL);
-			if (callType != Node.NON_SPECIALCALL) {
-				// embed line number and source filename
-				addIndexOp(Icode_CALLSPECIAL, argCount);
-				addUint8(callType);
-				addUint8(type == Token.NEW ? 1 : 0);
-				addUint16(itsLineNumber & 0xFFFF);
-			} else {
-				if (type == Token.CALL) {
-					if ((contextFlags & ECF_TAIL) != 0) {
-						type = Icode_TAIL_CALL;
-					}
-				}
-				addIndexOp(type, argCount);
-			}
-			// adjust stack
-			if (type == Token.NEW) {
-				// new: f, args -> result
-				stackChange(-argCount);
-			} else {
-				// call: f, thisObj, args -> result
-				// ref_call: f, thisObj, args -> ref
-				stackChange(-1 - argCount);
-			}
-			if (argCount > itsData.itsMaxCalleeArgs) {
-				itsData.itsMaxCalleeArgs = argCount;
-			}
-		}
-			break;
-
-		case Token.AND:
-		case Token.OR: {
-			visitExpression(child, 0);
-			addIcode(Icode_DUP);
-			stackChange(1);
-			int afterSecondJumpStart = itsICodeTop;
-			int jump = (type == Token.AND) ? Token.IFNE : Token.IFEQ;
-			addGotoOp(jump);
-			stackChange(-1);
-			addIcode(Icode_POP);
-			stackChange(-1);
-			child = child.getNext();
-			// Preserve tail context flag if any
-			visitExpression(child, contextFlags & ECF_TAIL);
-			resolveForwardGoto(afterSecondJumpStart);
-		}
-			break;
-
-		case Token.HOOK: {
-			Node ifThen = child.getNext();
-			Node ifElse = ifThen.getNext();
-			visitExpression(child, 0);
-			int elseJumpStart = itsICodeTop;
-			addGotoOp(Token.IFNE);
-			stackChange(-1);
-			// Preserve tail context flag if any
-			visitExpression(ifThen, contextFlags & ECF_TAIL);
-			int afterElseJumpStart = itsICodeTop;
-			addGotoOp(Token.GOTO);
-			resolveForwardGoto(elseJumpStart);
-			itsStackDepth = savedStackDepth;
-			// Preserve tail context flag if any
-			visitExpression(ifElse, contextFlags & ECF_TAIL);
-			resolveForwardGoto(afterElseJumpStart);
-		}
-			break;
-
-		case Token.GETPROP:
-			visitExpression(child, 0);
-			child = child.getNext();
-			addStringOp(Token.GETPROP, child.getString());
-			break;
-
-		case Token.GETELEM:
-		case Token.DELPROP:
-		case Token.BITAND:
-		case Token.BITOR:
-		case Token.BITXOR:
-		case Token.LSH:
-		case Token.RSH:
-		case Token.URSH:
-		case Token.ADD:
-		case Token.SUB:
-		case Token.MOD:
-		case Token.DIV:
-		case Token.MUL:
-		case Token.EQ:
-		case Token.NE:
-		case Token.SHEQ:
-		case Token.SHNE:
-		case Token.IN:
-		case Token.INSTANCEOF:
-		case Token.LE:
-		case Token.LT:
-		case Token.GE:
-		case Token.GT:
-			visitExpression(child, 0);
-			child = child.getNext();
-			visitExpression(child, 0);
-			addToken(type);
-			stackChange(-1);
-			break;
-
-		case Token.POS:
-		case Token.NEG:
-		case Token.NOT:
-		case Token.BITNOT:
-		case Token.TYPEOF:
-		case Token.VOID:
-			visitExpression(child, 0);
-			if (type == Token.VOID) {
-				addIcode(Icode_POP);
-				addIcode(Icode_UNDEF);
-			} else {
-				addToken(type);
-			}
-			break;
-
-		case Token.GET_REF:
-		case Token.DEL_REF:
-			visitExpression(child, 0);
-			addToken(type);
-			break;
-
-		case Token.SETPROP:
-		case Token.SETPROP_OP: {
-			visitExpression(child, 0);
-			child = child.getNext();
-			String property = child.getString();
-			child = child.getNext();
-			if (type == Token.SETPROP_OP) {
-				addIcode(Icode_DUP);
-				stackChange(1);
-				addStringOp(Token.GETPROP, property);
-				// Compensate for the following USE_STACK
-				stackChange(-1);
-			}
-			visitExpression(child, 0);
-			addStringOp(Token.SETPROP, property);
-			stackChange(-1);
-		}
-			break;
-
-		case Token.SETELEM:
-		case Token.SETELEM_OP:
-			visitExpression(child, 0);
-			child = child.getNext();
-			visitExpression(child, 0);
-			child = child.getNext();
-			if (type == Token.SETELEM_OP) {
-				addIcode(Icode_DUP2);
-				stackChange(2);
-				addToken(Token.GETELEM);
-				stackChange(-1);
-				// Compensate for the following USE_STACK
-				stackChange(-1);
-			}
-			visitExpression(child, 0);
-			addToken(Token.SETELEM);
-			stackChange(-2);
-			break;
-
-		case Token.SET_REF:
-		case Token.SET_REF_OP:
-			visitExpression(child, 0);
-			child = child.getNext();
-			if (type == Token.SET_REF_OP) {
-				addIcode(Icode_DUP);
-				stackChange(1);
-				addToken(Token.GET_REF);
-				// Compensate for the following USE_STACK
-				stackChange(-1);
-			}
-			visitExpression(child, 0);
-			addToken(Token.SET_REF);
-			stackChange(-1);
-			break;
-
-		case Token.SETNAME: {
-			String name = child.getString();
-			visitExpression(child, 0);
-			child = child.getNext();
-			visitExpression(child, 0);
-			addStringOp(Token.SETNAME, name);
-			stackChange(-1);
-		}
-			break;
-
-		case Token.SETCONST: {
-			String name = child.getString();
-			visitExpression(child, 0);
-			child = child.getNext();
-			visitExpression(child, 0);
-			addStringOp(Icode_SETCONST, name);
-			stackChange(-1);
-		}
-			break;
-
-		case Token.TYPEOFNAME: {
-			String name = node.getString();
-			int index = -1;
-			// use typeofname if an activation frame exists
-			// since the vars all exist there instead of in jregs
-			if (itsInFunctionFlag && !itsData.itsNeedsActivation)
-				index = scriptOrFn.getParamOrVarIndex(name);
-			if (index == -1) {
-				addStringOp(Icode_TYPEOFNAME, name);
-				stackChange(1);
-			} else {
-				addVarOp(Token.GETVAR, index);
-				stackChange(1);
-				addToken(Token.TYPEOF);
-			}
-		}
-			break;
-
-		case Token.BINDNAME:
-		case Token.NAME:
-		case Token.STRING:
-			addStringOp(type, node.getString());
-			stackChange(1);
-			break;
-
-		case Token.INC:
-		case Token.DEC:
-			visitIncDec(node, child);
-			break;
-
-		case Token.NUMBER: {
-			double num = node.getDouble();
-			int inum = (int) num;
-			if (inum == num) {
-				if (inum == 0) {
-					addIcode(Icode_ZERO);
-					// Check for negative zero
-					if (1.0 / num < 0.0) {
-						addToken(Token.NEG);
-					}
-				} else if (inum == 1) {
-					addIcode(Icode_ONE);
-				} else if ((short) inum == inum) {
-					addIcode(Icode_SHORTNUMBER);
-					// write short as uin16 bit pattern
-					addUint16(inum & 0xFFFF);
-				} else {
-					addIcode(Icode_INTNUMBER);
-					addInt(inum);
-				}
-			} else {
-				int index = getDoubleIndex(num);
-				addIndexOp(Token.NUMBER, index);
-			}
-			stackChange(1);
-		}
-			break;
-
-		case Token.GETVAR: {
-			if (itsData.itsNeedsActivation)
-				Kit.codeBug();
-			String name = node.getString();
-			int index = scriptOrFn.getParamOrVarIndex(name);
-			addVarOp(Token.GETVAR, index);
-			stackChange(1);
-		}
-			break;
-
-		case Token.SETVAR: {
-			if (itsData.itsNeedsActivation)
-				Kit.codeBug();
-			String name = child.getString();
-			child = child.getNext();
-			visitExpression(child, 0);
-			int index = scriptOrFn.getParamOrVarIndex(name);
-			addVarOp(Token.SETVAR, index);
-		}
-			break;
-
-		case Token.SETCONSTVAR: {
-			if (itsData.itsNeedsActivation)
-				Kit.codeBug();
-			String name = child.getString();
-			child = child.getNext();
-			visitExpression(child, 0);
-			int index = scriptOrFn.getParamOrVarIndex(name);
-			addVarOp(Token.SETCONSTVAR, index);
-		}
-			break;
-
-		case Token.NULL:
-		case Token.THIS:
-		case Token.THISFN:
-		case Token.FALSE:
-		case Token.TRUE:
-			addToken(type);
-			stackChange(1);
-			break;
-
-		case Token.ENUM_NEXT:
-		case Token.ENUM_ID:
-			addIndexOp(type, getLocalBlockRef(node));
-			stackChange(1);
-			break;
-
-		case Token.REGEXP: {
-			int index = node.getExistingIntProp(Node.REGEXP_PROP);
-			addIndexOp(Token.REGEXP, index);
-			stackChange(1);
-		}
-			break;
-
-		case Token.ARRAYLIT:
-		case Token.OBJECTLIT:
-			visitLiteral(node, child);
-			break;
-
-		case Token.REF_SPECIAL:
-			visitExpression(child, 0);
-			addStringOp(type, (String) node.getProp(Node.NAME_PROP));
-			break;
-
-		case Token.REF_MEMBER:
-		case Token.REF_NS_MEMBER:
-		case Token.REF_NAME:
-		case Token.REF_NS_NAME: {
-			int memberTypeFlags = node.getIntProp(Node.MEMBER_TYPE_PROP, 0);
-			// generate possible target, possible namespace and member
-			int childCount = 0;
-			do {
-				visitExpression(child, 0);
-				++childCount;
-				child = child.getNext();
-			} while (child != null);
-			addIndexOp(type, memberTypeFlags);
-			stackChange(1 - childCount);
-		}
-			break;
-
-		case Token.DOTQUERY: {
-			int queryPC;
-			updateLineNumber(node);
-			visitExpression(child, 0);
-			addIcode(Icode_ENTERDQ);
-			stackChange(-1);
-			queryPC = itsICodeTop;
-			visitExpression(child.getNext(), 0);
-			addBackwardGoto(Icode_LEAVEDQ, queryPC);
-		}
-			break;
-
-		case Token.DEFAULTNAMESPACE:
-		case Token.ESCXMLATTR:
-		case Token.ESCXMLTEXT:
-			visitExpression(child, 0);
-			addToken(type);
-			break;
-
-		default:
-			throw badTree(node);
-		}
-		if (savedStackDepth + 1 != itsStackDepth) {
-			Kit.codeBug();
-		}
-	}
-
-	private void generateCallFunAndThis(Node left) {
-		// Generate code to place on stack function and thisObj
-		int type = left.getType();
-		switch (type) {
-		case Token.NAME: {
-			String name = left.getString();
-			// stack: ... -> ... function thisObj
-			addStringOp(Icode_NAME_AND_THIS, name);
-			stackChange(2);
-			break;
-		}
-		case Token.GETPROP:
-		case Token.GETELEM: {
-			Node target = left.getFirstChild();
-			visitExpression(target, 0);
-			Node id = target.getNext();
-			if (type == Token.GETPROP) {
-				String property = id.getString();
-				// stack: ... target -> ... function thisObj
-				addStringOp(Icode_PROP_AND_THIS, property);
-				stackChange(1);
-			} else {
-				visitExpression(id, 0);
-				// stack: ... target id -> ... function thisObj
-				addIcode(Icode_ELEM_AND_THIS);
-			}
-			break;
-		}
-		default:
-			// Including Token.GETVAR
-			visitExpression(left, 0);
-			// stack: ... value -> ... function thisObj
-			addIcode(Icode_VALUE_AND_THIS);
-			stackChange(1);
-			break;
-		}
-	}
-
-	private void visitIncDec(Node node, Node child) {
-		int incrDecrMask = node.getExistingIntProp(Node.INCRDECR_PROP);
-		int childType = child.getType();
-		switch (childType) {
-		case Token.GETVAR: {
-			if (itsData.itsNeedsActivation)
-				Kit.codeBug();
-			String name = child.getString();
-			int i = scriptOrFn.getParamOrVarIndex(name);
-			addVarOp(Icode_VAR_INC_DEC, i);
-			addUint8(incrDecrMask);
-			stackChange(1);
-			break;
-		}
-		case Token.NAME: {
-			String name = child.getString();
-			addStringOp(Icode_NAME_INC_DEC, name);
-			addUint8(incrDecrMask);
-			stackChange(1);
-			break;
-		}
-		case Token.GETPROP: {
-			Node object = child.getFirstChild();
-			visitExpression(object, 0);
-			String property = object.getNext().getString();
-			addStringOp(Icode_PROP_INC_DEC, property);
-			addUint8(incrDecrMask);
-			break;
-		}
-		case Token.GETELEM: {
-			Node object = child.getFirstChild();
-			visitExpression(object, 0);
-			Node index = object.getNext();
-			visitExpression(index, 0);
-			addIcode(Icode_ELEM_INC_DEC);
-			addUint8(incrDecrMask);
-			stackChange(-1);
-			break;
-		}
-		case Token.GET_REF: {
-			Node ref = child.getFirstChild();
-			visitExpression(ref, 0);
-			addIcode(Icode_REF_INC_DEC);
-			addUint8(incrDecrMask);
-			break;
-		}
-		default: {
-			throw badTree(node);
-		}
-		}
-	}
-
-	private void visitLiteral(Node node, Node child) {
-		int type = node.getType();
-		int count;
-		Object[] propertyIds = null;
-		if (type == Token.ARRAYLIT) {
-			count = 0;
-			for (Node n = child; n != null; n = n.getNext()) {
-				++count;
-			}
-		} else if (type == Token.OBJECTLIT) {
-			propertyIds = (Object[]) node.getProp(Node.OBJECT_IDS_PROP);
-			count = propertyIds.length;
-		} else {
-			throw badTree(node);
-		}
-		addIndexOp(Icode_LITERAL_NEW, count);
-		stackChange(2);
-		while (child != null) {
-			int childType = child.getType();
-			if (childType == Token.GET) {
-				visitExpression(child.getFirstChild(), 0);
-				addIcode(Icode_LITERAL_GETTER);
-			} else if (childType == Token.SET) {
-				visitExpression(child.getFirstChild(), 0);
-				addIcode(Icode_LITERAL_SETTER);
-			} else {
-				visitExpression(child, 0);
-				addIcode(Icode_LITERAL_SET);
-			}
-			stackChange(-1);
-			child = child.getNext();
-		}
-		if (type == Token.ARRAYLIT) {
-			int[] skipIndexes = (int[]) node.getProp(Node.SKIP_INDEXES_PROP);
-			if (skipIndexes == null) {
-				addToken(Token.ARRAYLIT);
-			} else {
-				int index = itsLiteralIds.size();
-				itsLiteralIds.add(skipIndexes);
-				addIndexOp(Icode_SPARE_ARRAYLIT, index);
-			}
-		} else {
-			int index = itsLiteralIds.size();
-			itsLiteralIds.add(propertyIds);
-			addIndexOp(Token.OBJECTLIT, index);
-		}
-		stackChange(-1);
-	}
-
-	private int getLocalBlockRef(Node node) {
-		Node localBlock = (Node) node.getProp(Node.LOCAL_BLOCK_PROP);
-		return localBlock.getExistingIntProp(Node.LOCAL_PROP);
-	}
-
-	private int getTargetLabel(Node target) {
-		int label = target.labelId();
-		if (label != -1) {
-			return label;
-		}
-		label = itsLabelTableTop;
-		if (itsLabelTable == null || label == itsLabelTable.length) {
-			if (itsLabelTable == null) {
-				itsLabelTable = new int[MIN_LABEL_TABLE_SIZE];
-			} else {
-				int[] tmp = new int[itsLabelTable.length * 2];
-				System.arraycopy(itsLabelTable, 0, tmp, 0, label);
-				itsLabelTable = tmp;
-			}
-		}
-		itsLabelTableTop = label + 1;
-		itsLabelTable[label] = -1;
-
-		target.labelId(label);
-		return label;
-	}
-
-	private void markTargetLabel(Node target) {
-		int label = getTargetLabel(target);
-		if (itsLabelTable[label] != -1) {
-			// Can mark label only once
-			Kit.codeBug();
-		}
-		itsLabelTable[label] = itsICodeTop;
-	}
-
-	private void addGoto(Node target, int gotoOp) {
-		int label = getTargetLabel(target);
-		if (!(label < itsLabelTableTop))
-			Kit.codeBug();
-		int targetPC = itsLabelTable[label];
-
-		if (targetPC != -1) {
-			addBackwardGoto(gotoOp, targetPC);
-		} else {
-			int gotoPC = itsICodeTop;
-			addGotoOp(gotoOp);
-			int top = itsFixupTableTop;
-			if (itsFixupTable == null || top == itsFixupTable.length) {
-				if (itsFixupTable == null) {
-					itsFixupTable = new long[MIN_FIXUP_TABLE_SIZE];
-				} else {
-					long[] tmp = new long[itsFixupTable.length * 2];
-					System.arraycopy(itsFixupTable, 0, tmp, 0, top);
-					itsFixupTable = tmp;
-				}
-			}
-			itsFixupTableTop = top + 1;
-			itsFixupTable[top] = ((long) label << 32) | gotoPC;
-		}
-	}
-
-	private void fixLabelGotos() {
-		for (int i = 0; i < itsFixupTableTop; i++) {
-			long fixup = itsFixupTable[i];
-			int label = (int) (fixup >> 32);
-			int jumpSource = (int) fixup;
-			int pc = itsLabelTable[label];
-			if (pc == -1) {
-				// Unlocated label
-				throw Kit.codeBug();
-			}
-			resolveGoto(jumpSource, pc);
-		}
-		itsFixupTableTop = 0;
-	}
-
-	private void addBackwardGoto(int gotoOp, int jumpPC) {
-		int fromPC = itsICodeTop;
-		// Ensure that this is a jump backward
-		if (fromPC <= jumpPC)
-			throw Kit.codeBug();
-		addGotoOp(gotoOp);
-		resolveGoto(fromPC, jumpPC);
-	}
-
-	private void resolveForwardGoto(int fromPC) {
-		// Ensure that forward jump skips at least self bytecode
-		if (itsICodeTop < fromPC + 3)
-			throw Kit.codeBug();
-		resolveGoto(fromPC, itsICodeTop);
-	}
-
-	private void resolveGoto(int fromPC, int jumpPC) {
-		int offset = jumpPC - fromPC;
-		// Ensure that jumps do not overlap
-		if (0 <= offset && offset <= 2)
-			throw Kit.codeBug();
-		int offsetSite = fromPC + 1;
-		if (offset != (short) offset) {
-			if (itsData.longJumps == null) {
-				itsData.longJumps = new UintMap();
-			}
-			itsData.longJumps.put(offsetSite, jumpPC);
-			offset = 0;
-		}
-		byte[] array = itsData.itsICode;
-		array[offsetSite] = (byte) (offset >> 8);
-		array[offsetSite + 1] = (byte) offset;
-	}
-
-	private void addToken(int token) {
-		if (!validTokenCode(token))
-			throw Kit.codeBug();
-		addUint8(token);
-	}
-
-	private void addIcode(int icode) {
-		if (!validIcode(icode))
-			throw Kit.codeBug();
-		// Write negative icode as uint8 bits
-		addUint8(icode & 0xFF);
-	}
-
-	private void addUint8(int value) {
-		if ((value & ~0xFF) != 0)
-			throw Kit.codeBug();
-		byte[] array = itsData.itsICode;
-		int top = itsICodeTop;
-		if (top == array.length) {
-			array = increaseICodeCapasity(1);
-		}
-		array[top] = (byte) value;
-		itsICodeTop = top + 1;
-	}
-
-	private void addUint16(int value) {
-		if ((value & ~0xFFFF) != 0)
-			throw Kit.codeBug();
-		byte[] array = itsData.itsICode;
-		int top = itsICodeTop;
-		if (top + 2 > array.length) {
-			array = increaseICodeCapasity(2);
-		}
-		array[top] = (byte) (value >>> 8);
-		array[top + 1] = (byte) value;
-		itsICodeTop = top + 2;
-	}
-
-	private void addInt(int i) {
-		byte[] array = itsData.itsICode;
-		int top = itsICodeTop;
-		if (top + 4 > array.length) {
-			array = increaseICodeCapasity(4);
-		}
-		array[top] = (byte) (i >>> 24);
-		array[top + 1] = (byte) (i >>> 16);
-		array[top + 2] = (byte) (i >>> 8);
-		array[top + 3] = (byte) i;
-		itsICodeTop = top + 4;
-	}
-
-	private int getDoubleIndex(double num) {
-		int index = itsDoubleTableTop;
-		if (index == 0) {
-			itsData.itsDoubleTable = new double[64];
-		} else if (itsData.itsDoubleTable.length == index) {
-			double[] na = new double[index * 2];
-			System.arraycopy(itsData.itsDoubleTable, 0, na, 0, index);
-			itsData.itsDoubleTable = na;
-		}
-		itsData.itsDoubleTable[index] = num;
-		itsDoubleTableTop = index + 1;
-		return index;
-	}
-
-	private void addGotoOp(int gotoOp) {
-		byte[] array = itsData.itsICode;
-		int top = itsICodeTop;
-		if (top + 3 > array.length) {
-			array = increaseICodeCapasity(3);
-		}
-		array[top] = (byte) gotoOp;
-		// Offset would written later
-		itsICodeTop = top + 1 + 2;
-	}
-
-	private void addVarOp(int op, int varIndex) {
-		switch (op) {
-		case Token.SETCONSTVAR:
-			if (varIndex < 128) {
-				addIcode(Icode_SETCONSTVAR1);
-				addUint8(varIndex);
-				return;
-			}
-			addIndexOp(Icode_SETCONSTVAR, varIndex);
-			return;
-		case Token.GETVAR:
-		case Token.SETVAR:
-			if (varIndex < 128) {
-				addIcode(op == Token.GETVAR ? Icode_GETVAR1 : Icode_SETVAR1);
-				addUint8(varIndex);
-				return;
-			}
-			// fallthrough
-		case Icode_VAR_INC_DEC:
-			addIndexOp(op, varIndex);
-			return;
-		}
-		throw Kit.codeBug();
-	}
-
-	private void addStringOp(int op, String str) {
-		addStringPrefix(str);
-		if (validIcode(op)) {
-			addIcode(op);
-		} else {
-			addToken(op);
-		}
-	}
-
-	private void addIndexOp(int op, int index) {
-		addIndexPrefix(index);
-		if (validIcode(op)) {
-			addIcode(op);
-		} else {
-			addToken(op);
-		}
-	}
-
-	private void addStringPrefix(String str) {
-		int index = itsStrings.get(str, -1);
-		if (index == -1) {
-			index = itsStrings.size();
-			itsStrings.put(str, index);
-		}
-		if (index < 4) {
-			addIcode(Icode_REG_STR_C0 - index);
-		} else if (index <= 0xFF) {
-			addIcode(Icode_REG_STR1);
-			addUint8(index);
-		} else if (index <= 0xFFFF) {
-			addIcode(Icode_REG_STR2);
-			addUint16(index);
-		} else {
-			addIcode(Icode_REG_STR4);
-			addInt(index);
-		}
-	}
-
-	private void addIndexPrefix(int index) {
-		if (index < 0)
-			Kit.codeBug();
-		if (index < 6) {
-			addIcode(Icode_REG_IND_C0 - index);
-		} else if (index <= 0xFF) {
-			addIcode(Icode_REG_IND1);
-			addUint8(index);
-		} else if (index <= 0xFFFF) {
-			addIcode(Icode_REG_IND2);
-			addUint16(index);
-		} else {
-			addIcode(Icode_REG_IND4);
-			addInt(index);
-		}
-	}
-
-	private void addExceptionHandler(int icodeStart, int icodeEnd,
-			int handlerStart, boolean isFinally, int exceptionObjectLocal,
-			int scopeLocal) {
-		int top = itsExceptionTableTop;
-		int[] table = itsData.itsExceptionTable;
-		if (table == null) {
-			if (top != 0)
-				Kit.codeBug();
-			table = new int[EXCEPTION_SLOT_SIZE * 2];
-			itsData.itsExceptionTable = table;
-		} else if (table.length == top) {
-			table = new int[table.length * 2];
-			System.arraycopy(itsData.itsExceptionTable, 0, table, 0, top);
-			itsData.itsExceptionTable = table;
-		}
-		table[top + EXCEPTION_TRY_START_SLOT] = icodeStart;
-		table[top + EXCEPTION_TRY_END_SLOT] = icodeEnd;
-		table[top + EXCEPTION_HANDLER_SLOT] = handlerStart;
-		table[top + EXCEPTION_TYPE_SLOT] = isFinally ? 1 : 0;
-		table[top + EXCEPTION_LOCAL_SLOT] = exceptionObjectLocal;
-		table[top + EXCEPTION_SCOPE_SLOT] = scopeLocal;
-
-		itsExceptionTableTop = top + EXCEPTION_SLOT_SIZE;
-	}
-
-	private byte[] increaseICodeCapasity(int extraSize) {
-		int capacity = itsData.itsICode.length;
-		int top = itsICodeTop;
-		if (top + extraSize <= capacity)
-			throw Kit.codeBug();
-		capacity *= 2;
-		if (top + extraSize > capacity) {
-			capacity = top + extraSize;
-		}
-		byte[] array = new byte[capacity];
-		System.arraycopy(itsData.itsICode, 0, array, 0, top);
-		itsData.itsICode = array;
-		return array;
-	}
-
-	private void stackChange(int change) {
-		if (change <= 0) {
-			itsStackDepth += change;
-		} else {
-			int newDepth = itsStackDepth + change;
-			if (newDepth > itsData.itsMaxStack) {
-				itsData.itsMaxStack = newDepth;
-			}
-			itsStackDepth = newDepth;
-		}
-	}
-
-	private int allocLocal() {
-		int localSlot = itsLocalTop;
-		++itsLocalTop;
-		if (itsLocalTop > itsData.itsMaxLocals) {
-			itsData.itsMaxLocals = itsLocalTop;
-		}
-		return localSlot;
-	}
-
-	private void releaseLocal(int localSlot) {
-		--itsLocalTop;
-		if (localSlot != itsLocalTop)
-			Kit.codeBug();
 	}
 
 	private static int getShort(byte[] iCode, int pc) {
@@ -1913,7 +307,7 @@ public class Interpreter {
 		return best;
 	}
 
-	private static void dumpICode(InterpreterData idata) {
+	static void dumpICode(InterpreterData idata) {
 		if (!Token.printICode) {
 			return;
 		}
@@ -1932,7 +326,7 @@ public class Interpreter {
 			out.print(" [" + pc + "] ");
 			int token = iCode[pc];
 			int icodeLength = bytecodeSpan(token);
-			String tname = bytecodeName(token);
+			String tname = Icode.bytecodeName(token);
 			int old_pc = pc;
 			++pc;
 			switch (token) {
@@ -1997,7 +391,10 @@ public class Interpreter {
 			case Token.NEW:
 				out.println(tname + ' ' + indexReg);
 				break;
-			case Token.THROW: {
+			case Token.THROW:
+			case Token.YIELD:
+			case Icode_GENERATOR:
+			case Icode_GENERATOR_END: {
 				int line = getIndex(iCode, pc);
 				out.println(tname + " : " + line);
 				pc += 2;
@@ -2122,6 +519,9 @@ public class Interpreter {
 	private static int bytecodeSpan(int bytecode) {
 		switch (bytecode) {
 		case Token.THROW:
+		case Token.YIELD:
+		case Icode_GENERATOR:
+		case Icode_GENERATOR_END:
 			// source line
 			return 1 + 2;
 
@@ -2219,7 +619,7 @@ public class Interpreter {
 		return presentLines.getKeys();
 	}
 
-	static void captureInterpreterStackInfo(RhinoException ex) {
+	public void captureStackInfo(RhinoException ex) {
 		Context cx = Context.getCurrentContext();
 		if (cx == null || cx.lastInterpreterFrame == null) {
 			// No interpreter invocations
@@ -2271,7 +671,7 @@ public class Interpreter {
 		ex.interpreterLineData = linePC;
 	}
 
-	static String getSourcePositionFromStack(Context cx, int[] linep) {
+	public String getSourcePositionFromStack(Context cx, int[] linep) {
 		CallFrame frame = (CallFrame) cx.lastInterpreterFrame;
 		InterpreterData idata = frame.idata;
 		if (frame.pcSourceLineStart >= 0) {
@@ -2282,7 +682,7 @@ public class Interpreter {
 		return idata.itsSourceFile;
 	}
 
-	static String getPatchedStack(RhinoException ex, String nativeStackTrace) {
+	public String getPatchedStack(RhinoException ex, String nativeStackTrace) {
 		String tag = "org.mozilla.javascript.Interpreter.interpretLoop";
 		StringBuffer sb = new StringBuffer(nativeStackTrace.length() + 1000);
 		String lineSeparator = SecurityUtilities
@@ -2341,14 +741,28 @@ public class Interpreter {
 		return sb.toString();
 	}
 
-	static List getScriptStack(RhinoException ex) {
+	public List<String> getScriptStack(RhinoException ex) {
+		ScriptStackElement[][] stack = getScriptStackElements(ex);
+		List<String> list = new ArrayList<String>(stack.length);
+		String lineSeparator = SecurityUtilities
+				.getSystemProperty("line.separator");
+		for (ScriptStackElement[] group : stack) {
+			StringBuilder sb = new StringBuilder();
+			for (ScriptStackElement elem : group) {
+				elem.renderJavaStyle(sb);
+				sb.append(lineSeparator);
+			}
+			list.add(sb.toString());
+		}
+		return list;
+	}
+
+	public ScriptStackElement[][] getScriptStackElements(RhinoException ex) {
 		if (ex.interpreterStackInfo == null) {
 			return null;
 		}
 
-		List list = new ArrayList();
-		String lineSeparator = SecurityUtilities
-				.getSystemProperty("line.separator");
+		List<ScriptStackElement[]> list = new ArrayList<ScriptStackElement[]>();
 
 		CallFrame[] array = (CallFrame[]) ex.interpreterStackInfo;
 		int[] linePC = ex.interpreterLineData;
@@ -2356,32 +770,30 @@ public class Interpreter {
 		int linePCIndex = linePC.length;
 		while (arrayIndex != 0) {
 			--arrayIndex;
-			StringBuffer sb = new StringBuffer();
 			CallFrame frame = array[arrayIndex];
+			List<ScriptStackElement> group = new ArrayList<ScriptStackElement>();
 			while (frame != null) {
 				if (linePCIndex == 0)
 					Kit.codeBug();
 				--linePCIndex;
 				InterpreterData idata = frame.idata;
-				sb.append("\tat ");
-				sb.append(idata.itsSourceFile);
+				String fileName = idata.itsSourceFile;
+				String functionName = null;
+				int lineNumber = -1;
 				int pc = linePC[linePCIndex];
 				if (pc >= 0) {
-					// Include line info only if available
-					sb.append(':');
-					sb.append(getIndex(idata.itsICode, pc));
+					lineNumber = getIndex(idata.itsICode, pc);
 				}
 				if (idata.itsName != null && idata.itsName.length() != 0) {
-					sb.append(" (");
-					sb.append(idata.itsName);
-					sb.append(')');
+					functionName = idata.itsName;
 				}
-				sb.append(lineSeparator);
 				frame = frame.parentFrame;
+				group.add(new ScriptStackElement(fileName, functionName,
+						lineNumber));
 			}
-			list.add(sb.toString());
+			list.add(group.toArray(new ScriptStackElement[group.size()]));
 		}
-		return list;
+		return list.toArray(new ScriptStackElement[list.size()][]);
 	}
 
 	static String getEncodedSource(InterpreterData idata) {
@@ -2419,11 +831,44 @@ public class Interpreter {
 		CallFrame frame = new CallFrame();
 		initFrame(cx, scope, thisObj, args, null, 0, args.length, ifun, null,
 				frame);
+		frame.isContinuationsTopFrame = cx.isContinuationsTopCall;
+		cx.isContinuationsTopCall = false;
 
 		return interpretLoop(cx, frame, null);
 	}
 
-	public static Object restartContinuation(Continuation c, Context cx,
+	static class GeneratorState {
+		GeneratorState(int operation, Object value) {
+			this.operation = operation;
+			this.value = value;
+		}
+
+		int operation;
+		Object value;
+		RuntimeException returnedException;
+	}
+
+	public static Object resumeGenerator(Context cx, Scriptable scope,
+			int operation, Object savedState, Object value) {
+		CallFrame frame = (CallFrame) savedState;
+		GeneratorState generatorState = new GeneratorState(operation, value);
+		if (operation == NativeGenerator.GENERATOR_CLOSE) {
+			try {
+				return interpretLoop(cx, frame, generatorState);
+			} catch (RuntimeException e) {
+				// Only propagate exceptions other than closingException
+				if (e != value)
+					throw e;
+			}
+			return Undefined.instance;
+		}
+		Object result = interpretLoop(cx, frame, generatorState);
+		if (generatorState.returnedException != null)
+			throw generatorState.returnedException;
+		return result;
+	}
+
+	public static Object restartContinuation(NativeContinuation c, Context cx,
 			Scriptable scope, Object[] args) {
 		if (!ScriptRuntime.hasTopCall(cx)) {
 			return ScriptRuntime.doTopCall(c, cx, scope, null, args);
@@ -2468,7 +913,7 @@ public class Interpreter {
 		int indexReg = -1;
 
 		if (cx.lastInterpreterFrame != null) {
-			// save the top frame from the previous interpreterLoop
+			// save the top frame from the previous interpretLoop
 			// invocation on the stack
 			if (cx.previousInterpreterInvocations == null) {
 				cx.previousInterpreterInvocations = new ObjArray();
@@ -2479,13 +924,19 @@ public class Interpreter {
 		// When restarting continuation throwable is not null and to jump
 		// to the code that rewind continuation state indexReg should be set
 		// to -1.
-		// With the normal call throable == null and indexReg == -1 allows to
-		// catch bugs with using indeReg to access array eleemnts before
+		// With the normal call throwable == null and indexReg == -1 allows to
+		// catch bugs with using indeReg to access array elements before
 		// initializing indexReg.
 
+		GeneratorState generatorState = null;
 		if (throwable != null) {
-			// Assert assumptions
-			if (!(throwable instanceof ContinuationJump)) {
+			if (throwable instanceof GeneratorState) {
+				generatorState = (GeneratorState) throwable;
+
+				// reestablish this call frame
+				enterFrame(cx, frame, ScriptRuntime.emptyArgs, true);
+				throwable = null;
+			} else if (!(throwable instanceof ContinuationJump)) {
 				// It should be continuation
 				Kit.codeBug();
 			}
@@ -2498,97 +949,15 @@ public class Interpreter {
 			withoutExceptions: try {
 
 				if (throwable != null) {
-					// Recovering from exception, indexReg contains
-					// the index of handler
-
-					if (indexReg >= 0) {
-						// Normal excepton handler, transfer
-						// control appropriately
-
-						if (frame.frozen) {
-							// XXX Deal with exceptios!!!
-							frame = frame.cloneFrozen();
-						}
-
-						int[] table = frame.idata.itsExceptionTable;
-
-						frame.pc = table[indexReg + EXCEPTION_HANDLER_SLOT];
-						if (instructionCounting) {
-							frame.pcPrevBranch = frame.pc;
-						}
-
-						frame.savedStackTop = frame.emptyStackTop;
-						int scopeLocal = frame.localShift
-								+ table[indexReg + EXCEPTION_SCOPE_SLOT];
-						int exLocal = frame.localShift
-								+ table[indexReg + EXCEPTION_LOCAL_SLOT];
-						frame.scope = (Scriptable) frame.stack[scopeLocal];
-						frame.stack[exLocal] = throwable;
-
-						throwable = null;
-					} else {
-						// Continuation restoration
-						ContinuationJump cjump = (ContinuationJump) throwable;
-
-						// Clear throwable to indicate that execptions are OK
-						throwable = null;
-
-						if (cjump.branchFrame != frame)
-							Kit.codeBug();
-
-						// Check that we have at least one frozen frame
-						// in the case of detached continuation restoration:
-						// unwind code ensure that
-						if (cjump.capturedFrame == null)
-							Kit.codeBug();
-
-						// Need to rewind branchFrame, capturedFrame
-						// and all frames in between
-						int rewindCount = cjump.capturedFrame.frameIndex + 1;
-						if (cjump.branchFrame != null) {
-							rewindCount -= cjump.branchFrame.frameIndex;
-						}
-
-						int enterCount = 0;
-						CallFrame[] enterFrames = null;
-
-						CallFrame x = cjump.capturedFrame;
-						for (int i = 0; i != rewindCount; ++i) {
-							if (!x.frozen)
-								Kit.codeBug();
-							if (isFrameEnterExitRequired(x)) {
-								if (enterFrames == null) {
-									// Allocate enough space to store the rest
-									// of rewind frames in case all of them
-									// would require to enter
-									enterFrames = new CallFrame[rewindCount - i];
-								}
-								enterFrames[enterCount] = x;
-								++enterCount;
-							}
-							x = x.parentFrame;
-						}
-
-						while (enterCount != 0) {
-							// execute enter: walk enterFrames in the reverse
-							// order since they were stored starting from
-							// the capturedFrame, not branchFrame
-							--enterCount;
-							x = enterFrames[enterCount];
-							enterFrame(cx, x, ScriptRuntime.emptyArgs, true);
-						}
-
-						// Continuation jump is almost done: capturedFrame
-						// points to the call to the function that captured
-						// continuation, so clone capturedFrame and
-						// emulate return that function with the suplied result
-						frame = cjump.capturedFrame.cloneFrozen();
-						setCallResult(frame, cjump.result, cjump.resultDbl);
-						// restart the execution
-					}
-
+					// Need to return both 'frame' and 'throwable' from
+					// 'processThrowable', so just added a 'throwable'
+					// member in 'frame'.
+					frame = processThrowable(cx, throwable, frame, indexReg,
+							instructionCounting);
+					throwable = frame.throwable;
+					frame.throwable = null;
 				} else {
-					if (frame.frozen)
+					if (generatorState == null && frame.frozen)
 						Kit.codeBug();
 				}
 
@@ -2604,7 +973,7 @@ public class Interpreter {
 
 				// Use local for stackTop as well. Since execption handlers
 				// can only exist at statement level where stack is empty,
-				// it is necessary to save/restore stackTop only accross
+				// it is necessary to save/restore stackTop only across
 				// function calls and normal returns.
 				int stackTop = frame.savedStackTop;
 
@@ -2612,14 +981,59 @@ public class Interpreter {
 				cx.lastInterpreterFrame = frame;
 
 				Loop: for (;;) {
+
 					// Exception handler assumes that PC is already incremented
 					// pass the instruction start when it searches the
 					// exception handler
 					int op = iCode[frame.pc++];
 					jumplessRun: {
 
-						// Back indent to ease imlementation reading
+						// Back indent to ease implementation reading
 						switch (op) {
+						case Icode_GENERATOR: {
+							if (!frame.frozen) {
+								// First time encountering this opcode: create
+								// new generator
+								// object and return
+								frame.pc--; // we want to come back here when we
+											// resume
+								CallFrame generatorFrame = captureFrameForGenerator(frame);
+								generatorFrame.frozen = true;
+								NativeGenerator generator = new NativeGenerator(
+										frame.scope, generatorFrame.fnOrScript,
+										generatorFrame);
+								frame.result = generator;
+								break Loop;
+							} else {
+								// We are now resuming execution. Fall through
+								// to YIELD case.
+							}
+						}
+						// fall through...
+						case Token.YIELD: {
+							if (!frame.frozen) {
+								return freezeGenerator(cx, frame, stackTop,
+										generatorState);
+							} else {
+								Object obj = thawGenerator(frame, stackTop,
+										generatorState, op);
+								if (obj != Scriptable.NOT_FOUND) {
+									throwable = obj;
+									break withoutExceptions;
+								}
+								continue Loop;
+							}
+						}
+						case Icode_GENERATOR_END: {
+							// throw StopIteration
+							frame.frozen = true;
+							int sourceLine = getIndex(iCode, frame.pc);
+							generatorState.returnedException = new JavaScriptException(
+									NativeIterator
+											.getStopIterationObject(frame.scope),
+									frame.idata.itsSourceFile, sourceLine);
+							break Loop;
+						}
 						case Token.THROW: {
 							Object value = stack[stackTop];
 							if (value == DBL_MRK)
@@ -2740,37 +1154,8 @@ public class Interpreter {
 						case Token.SHEQ:
 						case Token.SHNE: {
 							--stackTop;
-							Object rhs = stack[stackTop + 1];
-							Object lhs = stack[stackTop];
-							boolean valBln;
-							shallow_compare: {
-								double rdbl, ldbl;
-								if (rhs == DBL_MRK) {
-									rdbl = sDbl[stackTop + 1];
-									if (lhs == DBL_MRK) {
-										ldbl = sDbl[stackTop];
-									} else if (lhs instanceof Number) {
-										ldbl = ((Number) lhs).doubleValue();
-									} else {
-										valBln = false;
-										break shallow_compare;
-									}
-								} else if (lhs == DBL_MRK) {
-									ldbl = sDbl[stackTop];
-									if (rhs == DBL_MRK) {
-										rdbl = sDbl[stackTop + 1];
-									} else if (rhs instanceof Number) {
-										rdbl = ((Number) rhs).doubleValue();
-									} else {
-										valBln = false;
-										break shallow_compare;
-									}
-								} else {
-									valBln = ScriptRuntime.shallowEq(lhs, rhs);
-									break shallow_compare;
-								}
-								valBln = (ldbl == rdbl);
-							}
+							boolean valBln = shallowEquals(stack, sDbl,
+									stackTop);
 							valBln ^= (op == Token.SHNE);
 							stack[stackTop] = ScriptRuntime.wrapBoolean(valBln);
 							continue Loop;
@@ -2804,16 +1189,14 @@ public class Interpreter {
 						case Icode_STARTSUB:
 							if (stackTop == frame.emptyStackTop + 1) {
 								// Call from Icode_GOSUB: store return PC
-								// address in
-								// the local
+								// address in the local
 								indexReg += frame.localShift;
 								stack[indexReg] = stack[stackTop];
 								sDbl[indexReg] = sDbl[stackTop];
 								--stackTop;
 							} else {
 								// Call from exception handler: exception object
-								// is
-								// already stored
+								// is already stored
 								// in the local
 								if (stackTop != frame.emptyStackTop)
 									Kit.codeBug();
@@ -2828,8 +1211,7 @@ public class Interpreter {
 							Object value = stack[indexReg];
 							if (value != DBL_MRK) {
 								// Invocation from exception handler, restore
-								// object
-								// to rethrow
+								// object to rethrow
 								throwable = value;
 								break withoutExceptions;
 							}
@@ -2892,10 +1274,9 @@ public class Interpreter {
 						case Token.BITXOR:
 						case Token.LSH:
 						case Token.RSH: {
+							int lIntValue = stack_int32(frame, stackTop - 1);
 							int rIntValue = stack_int32(frame, stackTop);
-							--stackTop;
-							int lIntValue = stack_int32(frame, stackTop);
-							stack[stackTop] = DBL_MRK;
+							stack[--stackTop] = DBL_MRK;
 							switch (op) {
 							case Token.BITAND:
 								lIntValue &= rIntValue;
@@ -2917,10 +1298,9 @@ public class Interpreter {
 							continue Loop;
 						}
 						case Token.URSH: {
+							double lDbl = stack_double(frame, stackTop - 1);
 							int rIntValue = stack_int32(frame, stackTop) & 0x1F;
-							--stackTop;
-							double lDbl = stack_double(frame, stackTop);
-							stack[stackTop] = DBL_MRK;
+							stack[--stackTop] = DBL_MRK;
 							sDbl[stackTop] = ScriptRuntime.toUint32(lDbl) >>> rIntValue;
 							continue Loop;
 						}
@@ -2971,14 +1351,18 @@ public class Interpreter {
 							stack[++stackTop] = ScriptRuntime.bind(cx,
 									frame.scope, stringReg);
 							continue Loop;
+						case Token.STRICT_SETNAME:
 						case Token.SETNAME: {
 							Object rhs = stack[stackTop];
 							if (rhs == DBL_MRK)
 								rhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);
 							--stackTop;
 							Scriptable lhs = (Scriptable) stack[stackTop];
-							stack[stackTop] = ScriptRuntime.setName(lhs, rhs,
-									cx, frame.scope, stringReg);
+							stack[stackTop] = op == Token.SETNAME ? ScriptRuntime
+									.setName(lhs, rhs, cx, frame.scope,
+											stringReg) : ScriptRuntime
+									.strictSetName(lhs, rhs, cx, frame.scope,
+											stringReg);
 							continue Loop;
 						}
 						case Icode_SETCONST: {
@@ -3003,12 +1387,20 @@ public class Interpreter {
 									.delete(lhs, rhs, cx);
 							continue Loop;
 						}
+						case Token.GETPROPNOWARN: {
+							Object lhs = stack[stackTop];
+							if (lhs == DBL_MRK)
+								lhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);
+							stack[stackTop] = ScriptRuntime
+									.getObjectPropNoWarn(lhs, stringReg, cx);
+							continue Loop;
+						}
 						case Token.GETPROP: {
 							Object lhs = stack[stackTop];
 							if (lhs == DBL_MRK)
 								lhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);
 							stack[stackTop] = ScriptRuntime.getObjectProp(lhs,
-									stringReg, cx);
+									stringReg, cx, frame.scope);
 							continue Loop;
 						}
 						case Token.SETPROP: {
@@ -3041,8 +1433,8 @@ public class Interpreter {
 							Object value;
 							Object id = stack[stackTop + 1];
 							if (id != DBL_MRK) {
-								value = ScriptRuntime
-										.getObjectElem(lhs, id, cx);
+								value = ScriptRuntime.getObjectElem(lhs, id,
+										cx, frame.scope);
 							} else {
 								double d = sDbl[stackTop + 1];
 								value = ScriptRuntime
@@ -3142,7 +1534,8 @@ public class Interpreter {
 								obj = ScriptRuntime.wrapNumber(sDbl[stackTop]);
 							// stringReg: property
 							stack[stackTop] = ScriptRuntime
-									.getPropFunctionAndThis(obj, stringReg, cx);
+									.getPropFunctionAndThis(obj, stringReg, cx,
+											frame.scope);
 							++stackTop;
 							stack[stackTop] = ScriptRuntime
 									.lastStoredScriptable(cx);
@@ -3199,8 +1592,7 @@ public class Interpreter {
 										callType);
 							} else {
 								// stack change: function thisObj arg0 .. argN
-								// ->
-								// result
+								// -> result
 								stackTop -= 1 + indexReg;
 
 								// Call code generation ensure that stack here
@@ -3260,46 +1652,29 @@ public class Interpreter {
 										// happen during frame re-initialization
 										// including
 										// StackOverflowException during
-										// innocent
-										// looking
+										// innocent looking
 										// System.arraycopy may leave the
 										// current frame
 										// data corrupted leading to undefined
 										// behaviour
 										// in the catch code bellow that unwinds
-										// JS
-										// stack
+										// JS stack
 										// on exceptions. Then there is issue
-										// about
-										// frame release
+										// about frame release
 										// end exceptions there.
 										// To avoid frame allocation a released
 										// frame
 										// can be cached for re-use which would
-										// also
-										// benefit
+										// also benefit
 										// non-tail calls but it is not clear
-										// that this
-										// caching
+										// that this caching
 										// would gain in performance due to
 										// potentially
-										// bad iteraction with GC.
+										// bad interaction with GC.
 										callParentFrame = frame.parentFrame;
 										// Release the current frame. See Bug
-										// #344501
-										// to see why
+										// #344501 to see why
 										// it is being done here.
-										// TODO: If using the graphical
-										// debugger, tail
-										// call
-										// optimization will create a "hole" in
-										// the
-										// context stack.
-										// The correct thing to do may be to
-										// disable
-										// tail call
-										// optimization if the code is being
-										// debugged.
 										exitFrame(cx, frame, null);
 									}
 									initFrame(cx, calleeScope, funThisObj,
@@ -3315,15 +1690,15 @@ public class Interpreter {
 								}
 							}
 
-							if (fun instanceof Continuation) {
+							if (fun instanceof NativeContinuation) {
 								// Jump to the captured continuation
 								ContinuationJump cjump;
 								cjump = new ContinuationJump(
-										(Continuation) fun, frame);
+										(NativeContinuation) fun, frame);
 
 								// continuation result is the first argument if
 								// any
-								// of contination call
+								// of continuation call
 								if (indexReg == 0) {
 									cjump.result = undefined;
 								} else {
@@ -3338,17 +1713,64 @@ public class Interpreter {
 
 							if (fun instanceof IdFunctionObject) {
 								IdFunctionObject ifun = (IdFunctionObject) fun;
-								if (Continuation
+								if (NativeContinuation
 										.isContinuationConstructor(ifun)) {
-									captureContinuation(cx, frame, stackTop);
+									frame.stack[stackTop] = captureContinuation(
+											cx, frame.parentFrame, false);
 									continue Loop;
+								}
+								// Bug 405654 -- make best effort to keep
+								// Function.apply and
+								// Function.call within this interpreter loop
+								// invocation
+								if (BaseFunction.isApplyOrCall(ifun)) {
+									Callable applyCallable = ScriptRuntime
+											.getCallable(funThisObj);
+									if (applyCallable instanceof InterpretedFunction) {
+										InterpretedFunction iApplyCallable = (InterpretedFunction) applyCallable;
+										if (frame.fnOrScript.securityDomain == iApplyCallable.securityDomain) {
+											frame = initFrameForApplyOrCall(cx,
+													frame, indexReg, stack,
+													sDbl, stackTop, op,
+													calleeScope, ifun,
+													iApplyCallable);
+											continue StateLoop;
+										}
+									}
 								}
 							}
 
-							Object[] outArgs = getArgsArray(stack, sDbl,
-									stackTop + 2, indexReg);
-							stack[stackTop] = fun.call(cx, calleeScope,
-									funThisObj, outArgs);
+							// Bug 447697 -- make best effort to keep
+							// __noSuchMethod__ within this
+							// interpreter loop invocation
+							if (fun instanceof NoSuchMethodShim) {
+								// get the shim and the actual method
+								NoSuchMethodShim noSuchMethodShim = (NoSuchMethodShim) fun;
+								Callable noSuchMethodMethod = noSuchMethodShim.noSuchMethodMethod;
+								// if the method is in fact an
+								// InterpretedFunction
+								if (noSuchMethodMethod instanceof InterpretedFunction) {
+									InterpretedFunction ifun = (InterpretedFunction) noSuchMethodMethod;
+									if (frame.fnOrScript.securityDomain == ifun.securityDomain) {
+										frame = initFrameForNoSuchMethod(cx,
+												frame, indexReg, stack, sDbl,
+												stackTop, op, funThisObj,
+												calleeScope, noSuchMethodShim,
+												ifun);
+										continue StateLoop;
+									}
+								}
+							}
+
+							cx.lastInterpreterFrame = frame;
+							frame.savedCallOp = op;
+							frame.savedStackTop = stackTop;
+							stack[stackTop] = fun.call(
+									cx,
+									calleeScope,
+									funThisObj,
+									getArgsArray(stack, sDbl, stackTop + 2,
+											indexReg));
 
 							continue Loop;
 						}
@@ -3388,9 +1810,10 @@ public class Interpreter {
 
 							if (fun instanceof IdFunctionObject) {
 								IdFunctionObject ifun = (IdFunctionObject) fun;
-								if (Continuation
+								if (NativeContinuation
 										.isContinuationConstructor(ifun)) {
-									captureContinuation(cx, frame, stackTop);
+									frame.stack[stackTop] = captureContinuation(
+											cx, frame.parentFrame, false);
 									continue Loop;
 								}
 							}
@@ -3591,14 +2014,18 @@ public class Interpreter {
 							continue Loop;
 						}
 						case Token.ENUM_INIT_KEYS:
-						case Token.ENUM_INIT_VALUES: {
+						case Token.ENUM_INIT_VALUES:
+						case Token.ENUM_INIT_ARRAY: {
 							Object lhs = stack[stackTop];
 							if (lhs == DBL_MRK)
 								lhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);
 							--stackTop;
 							indexReg += frame.localShift;
+							int enumType = op == Token.ENUM_INIT_KEYS ? ScriptRuntime.ENUMERATE_KEYS
+									: op == Token.ENUM_INIT_VALUES ? ScriptRuntime.ENUMERATE_VALUES
+											: ScriptRuntime.ENUMERATE_ARRAY;
 							stack[indexReg] = ScriptRuntime.enumInit(lhs, cx,
-									(op == Token.ENUM_INIT_VALUES));
+									enumType);
 							continue Loop;
 						}
 						case Token.ENUM_NEXT:
@@ -3800,6 +2227,11 @@ public class Interpreter {
 							}
 							continue Loop;
 						}
+						case Icode_DEBUGGER:
+							if (frame.debuggerFrame != null) {
+								frame.debuggerFrame.onDebuggerStatement(cx);
+							}
+							continue Loop;
 						case Icode_LINE:
 							frame.pcSourceLineStart = frame.pc;
 							if (frame.debuggerFrame != null) {
@@ -3929,7 +2361,11 @@ public class Interpreter {
 			int exState;
 			ContinuationJump cjump = null;
 
-			if (throwable instanceof JavaScriptException) {
+			if (generatorState != null
+					&& generatorState.operation == NativeGenerator.GENERATOR_CLOSE
+					&& throwable == generatorState.value) {
+				exState = EX_FINALLY_STATE;
+			} else if (throwable instanceof JavaScriptException) {
 				exState = EX_CATCH_STATE;
 			} else if (throwable instanceof EcmaError) {
 				// an offical ECMA error object,
@@ -3937,13 +2373,18 @@ public class Interpreter {
 			} else if (throwable instanceof EvaluatorException) {
 				exState = EX_CATCH_STATE;
 			} else if (throwable instanceof RuntimeException) {
-				exState = EX_FINALLY_STATE;
+				exState = cx.hasFeature(Context.FEATURE_ENHANCED_JAVA_ACCESS) ? EX_CATCH_STATE
+						: EX_FINALLY_STATE;
 			} else if (throwable instanceof Error) {
-				exState = EX_NO_JS_STATE;
-			} else {
+				exState = cx.hasFeature(Context.FEATURE_ENHANCED_JAVA_ACCESS) ? EX_CATCH_STATE
+						: EX_NO_JS_STATE;
+			} else if (throwable instanceof ContinuationJump) {
 				// It must be ContinuationJump
 				exState = EX_FINALLY_STATE;
 				cjump = (ContinuationJump) throwable;
+			} else {
+				exState = cx.hasFeature(Context.FEATURE_ENHANCED_JAVA_ACCESS) ? EX_CATCH_STATE
+						: EX_FINALLY_STATE;
 			}
 
 			if (instructionCounting) {
@@ -3986,7 +2427,7 @@ public class Interpreter {
 						continue StateLoop;
 					}
 				}
-				// No allowed execption handlers in this frame, unwind
+				// No allowed exception handlers in this frame, unwind
 				// to parent and try to look there
 
 				exitFrame(cx, frame, throwable);
@@ -4046,6 +2487,257 @@ public class Interpreter {
 
 		return (interpreterResult != DBL_MRK) ? interpreterResult
 				: ScriptRuntime.wrapNumber(interpreterResultDbl);
+	}
+
+	/**
+	 * Call __noSuchMethod__.
+	 */
+	private static CallFrame initFrameForNoSuchMethod(Context cx,
+			CallFrame frame, int indexReg, Object[] stack, double[] sDbl,
+			int stackTop, int op, Scriptable funThisObj,
+			Scriptable calleeScope, NoSuchMethodShim noSuchMethodShim,
+			InterpretedFunction ifun) {
+		// create an args array from the stack
+		Object[] argsArray = null;
+		// exactly like getArgsArray except that the first argument
+		// is the method name from the shim
+		int shift = stackTop + 2;
+		Object[] elements = new Object[indexReg];
+		for (int i = 0; i < indexReg; ++i, ++shift) {
+			Object val = stack[shift];
+			if (val == UniqueTag.DOUBLE_MARK) {
+				val = ScriptRuntime.wrapNumber(sDbl[shift]);
+			}
+			elements[i] = val;
+		}
+		argsArray = new Object[2];
+		argsArray[0] = noSuchMethodShim.methodName;
+		argsArray[1] = cx.newArray(calleeScope, elements);
+
+		// exactly the same as if it's a regular InterpretedFunction
+		CallFrame callParentFrame = frame;
+		CallFrame calleeFrame = new CallFrame();
+		if (op == Icode_TAIL_CALL) {
+			callParentFrame = frame.parentFrame;
+			exitFrame(cx, frame, null);
+		}
+		// init the frame with the underlying method with the
+		// adjusted args array and shim's function
+		initFrame(cx, calleeScope, funThisObj, argsArray, null, 0, 2, ifun,
+				callParentFrame, calleeFrame);
+		if (op != Icode_TAIL_CALL) {
+			frame.savedStackTop = stackTop;
+			frame.savedCallOp = op;
+		}
+		return calleeFrame;
+	}
+
+	private static boolean shallowEquals(Object[] stack, double[] sDbl,
+			int stackTop) {
+		Object rhs = stack[stackTop + 1];
+		Object lhs = stack[stackTop];
+		final Object DBL_MRK = UniqueTag.DOUBLE_MARK;
+		double rdbl, ldbl;
+		if (rhs == DBL_MRK) {
+			rdbl = sDbl[stackTop + 1];
+			if (lhs == DBL_MRK) {
+				ldbl = sDbl[stackTop];
+			} else if (lhs instanceof Number) {
+				ldbl = ((Number) lhs).doubleValue();
+			} else {
+				return false;
+			}
+		} else if (lhs == DBL_MRK) {
+			ldbl = sDbl[stackTop];
+			if (rhs == DBL_MRK) {
+				rdbl = sDbl[stackTop + 1];
+			} else if (rhs instanceof Number) {
+				rdbl = ((Number) rhs).doubleValue();
+			} else {
+				return false;
+			}
+		} else {
+			return ScriptRuntime.shallowEq(lhs, rhs);
+		}
+		return (ldbl == rdbl);
+	}
+
+	private static CallFrame processThrowable(Context cx, Object throwable,
+			CallFrame frame, int indexReg, boolean instructionCounting) {
+		// Recovering from exception, indexReg contains
+		// the index of handler
+
+		if (indexReg >= 0) {
+			// Normal exception handler, transfer
+			// control appropriately
+
+			if (frame.frozen) {
+				// XXX Deal with exceptios!!!
+				frame = frame.cloneFrozen();
+			}
+
+			int[] table = frame.idata.itsExceptionTable;
+
+			frame.pc = table[indexReg + EXCEPTION_HANDLER_SLOT];
+			if (instructionCounting) {
+				frame.pcPrevBranch = frame.pc;
+			}
+
+			frame.savedStackTop = frame.emptyStackTop;
+			int scopeLocal = frame.localShift
+					+ table[indexReg + EXCEPTION_SCOPE_SLOT];
+			int exLocal = frame.localShift
+					+ table[indexReg + EXCEPTION_LOCAL_SLOT];
+			frame.scope = (Scriptable) frame.stack[scopeLocal];
+			frame.stack[exLocal] = throwable;
+
+			throwable = null;
+		} else {
+			// Continuation restoration
+			ContinuationJump cjump = (ContinuationJump) throwable;
+
+			// Clear throwable to indicate that exceptions are OK
+			throwable = null;
+
+			if (cjump.branchFrame != frame)
+				Kit.codeBug();
+
+			// Check that we have at least one frozen frame
+			// in the case of detached continuation restoration:
+			// unwind code ensure that
+			if (cjump.capturedFrame == null)
+				Kit.codeBug();
+
+			// Need to rewind branchFrame, capturedFrame
+			// and all frames in between
+			int rewindCount = cjump.capturedFrame.frameIndex + 1;
+			if (cjump.branchFrame != null) {
+				rewindCount -= cjump.branchFrame.frameIndex;
+			}
+
+			int enterCount = 0;
+			CallFrame[] enterFrames = null;
+
+			CallFrame x = cjump.capturedFrame;
+			for (int i = 0; i != rewindCount; ++i) {
+				if (!x.frozen)
+					Kit.codeBug();
+				if (isFrameEnterExitRequired(x)) {
+					if (enterFrames == null) {
+						// Allocate enough space to store the rest
+						// of rewind frames in case all of them
+						// would require to enter
+						enterFrames = new CallFrame[rewindCount - i];
+					}
+					enterFrames[enterCount] = x;
+					++enterCount;
+				}
+				x = x.parentFrame;
+			}
+
+			while (enterCount != 0) {
+				// execute enter: walk enterFrames in the reverse
+				// order since they were stored starting from
+				// the capturedFrame, not branchFrame
+				--enterCount;
+				x = enterFrames[enterCount];
+				enterFrame(cx, x, ScriptRuntime.emptyArgs, true);
+			}
+
+			// Continuation jump is almost done: capturedFrame
+			// points to the call to the function that captured
+			// continuation, so clone capturedFrame and
+			// emulate return that function with the suplied result
+			frame = cjump.capturedFrame.cloneFrozen();
+			setCallResult(frame, cjump.result, cjump.resultDbl);
+			// restart the execution
+		}
+		frame.throwable = throwable;
+		return frame;
+	}
+
+	private static Object freezeGenerator(Context cx, CallFrame frame,
+			int stackTop, GeneratorState generatorState) {
+		if (generatorState.operation == NativeGenerator.GENERATOR_CLOSE) {
+			// Error: no yields when generator is closing
+			throw ScriptRuntime.typeError0("msg.yield.closing");
+		}
+		// return to our caller (which should be a method of NativeGenerator)
+		frame.frozen = true;
+		frame.result = frame.stack[stackTop];
+		frame.resultDbl = frame.sDbl[stackTop];
+		frame.savedStackTop = stackTop;
+		frame.pc--; // we want to come back here when we resume
+		ScriptRuntime.exitActivationFunction(cx);
+		return (frame.result != UniqueTag.DOUBLE_MARK) ? frame.result
+				: ScriptRuntime.wrapNumber(frame.resultDbl);
+	}
+
+	private static Object thawGenerator(CallFrame frame, int stackTop,
+			GeneratorState generatorState, int op) {
+		// we are resuming execution
+		frame.frozen = false;
+		int sourceLine = getIndex(frame.idata.itsICode, frame.pc);
+		frame.pc += 2; // skip line number data
+		if (generatorState.operation == NativeGenerator.GENERATOR_THROW) {
+			// processing a call to <generator>.throw(exception): must
+			// act as if exception was thrown from resumption point
+			return new JavaScriptException(generatorState.value,
+					frame.idata.itsSourceFile, sourceLine);
+		}
+		if (generatorState.operation == NativeGenerator.GENERATOR_CLOSE) {
+			return generatorState.value;
+		}
+		if (generatorState.operation != NativeGenerator.GENERATOR_SEND)
+			throw Kit.codeBug();
+		if (op == Token.YIELD)
+			frame.stack[stackTop] = generatorState.value;
+		return Scriptable.NOT_FOUND;
+	}
+
+	private static CallFrame initFrameForApplyOrCall(Context cx,
+			CallFrame frame, int indexReg, Object[] stack, double[] sDbl,
+			int stackTop, int op, Scriptable calleeScope,
+			IdFunctionObject ifun, InterpretedFunction iApplyCallable) {
+		Scriptable applyThis;
+		if (indexReg != 0) {
+			Object obj = stack[stackTop + 2];
+			if (obj == UniqueTag.DOUBLE_MARK)
+				obj = ScriptRuntime.wrapNumber(sDbl[stackTop + 2]);
+			applyThis = ScriptRuntime.toObjectOrNull(cx, obj);
+		} else {
+			applyThis = null;
+		}
+		if (applyThis == null) {
+			// This covers the case of args[0] == (null|undefined) as well.
+			applyThis = ScriptRuntime.getTopCallScope(cx);
+		}
+		if (op == Icode_TAIL_CALL) {
+			exitFrame(cx, frame, null);
+			frame = frame.parentFrame;
+		} else {
+			frame.savedStackTop = stackTop;
+			frame.savedCallOp = op;
+		}
+		CallFrame calleeFrame = new CallFrame();
+		if (BaseFunction.isApply(ifun)) {
+			Object[] callArgs = indexReg < 2 ? ScriptRuntime.emptyArgs
+					: ScriptRuntime.getApplyArguments(cx, stack[stackTop + 3]);
+			initFrame(cx, calleeScope, applyThis, callArgs, null, 0,
+					callArgs.length, iApplyCallable, frame, calleeFrame);
+		} else {
+			// Shift args left
+			for (int i = 1; i < indexReg; ++i) {
+				stack[stackTop + 1 + i] = stack[stackTop + 2 + i];
+				sDbl[stackTop + 1 + i] = sDbl[stackTop + 2 + i];
+			}
+			int argCount = indexReg < 2 ? 0 : indexReg - 1;
+			initFrame(cx, calleeScope, applyThis, stack, sDbl, stackTop + 2,
+					argCount, iApplyCallable, frame, calleeFrame);
+		}
+
+		frame = calleeFrame;
+		return frame;
 	}
 
 	private static void initFrame(Context cx, Scriptable callerScope,
@@ -4220,15 +2912,13 @@ public class Interpreter {
 				// Walk the parent chain of frame.scope until a NativeCall is
 				// found. Normally, frame.scope is a NativeCall when called
 				// from initFrame() for a debugged or activatable function.
-				// However, when called from interpreterLoop() as part of
+				// However, when called from interpretLoop() as part of
 				// restarting a continuation, it can also be a NativeWith if
 				// the continuation was captured within a "with" or "catch"
 				// block ("catch" implicitly uses NativeWith to create a scope
 				// to expose the exception variable).
 				for (;;) {
-					if (scope instanceof NativeCall) {
-						break;
-					} else {
+					if (scope instanceof NativeWith) {
 						scope = scope.getParentScope();
 						if (scope == null
 								|| (frame.parentFrame != null && frame.parentFrame.scope == scope)) {
@@ -4237,11 +2927,11 @@ public class Interpreter {
 							// scope. This should not be possible.
 							Kit.codeBug();
 							break; // Never reached, but keeps the static
-									// analyzer
-									// happy about "scope" not being null 5
-									// lines
-									// above.
+									// analyzer happy about "scope" not being
+									// null 5 lines above.
 						}
+					} else {
+						break;
 					}
 				}
 			}
@@ -4311,14 +3001,24 @@ public class Interpreter {
 		frame.savedCallOp = 0;
 	}
 
-	private static void captureContinuation(Context cx, CallFrame frame,
-			int stackTop) {
-		Continuation c = new Continuation();
+	public static NativeContinuation captureContinuation(Context cx) {
+		if (cx.lastInterpreterFrame == null
+				|| !(cx.lastInterpreterFrame instanceof CallFrame)) {
+			throw new IllegalStateException("Interpreter frames not found");
+		}
+		return captureContinuation(cx, (CallFrame) cx.lastInterpreterFrame,
+				true);
+	}
+
+	private static NativeContinuation captureContinuation(Context cx,
+			CallFrame frame, boolean requireContinuationsTopFrame) {
+		NativeContinuation c = new NativeContinuation();
 		ScriptRuntime.setObjectProtoAndParent(c,
 				ScriptRuntime.getTopCallScope(cx));
 
-		// Make sure that all frames upstack frames are frozen
-		CallFrame x = frame.parentFrame;
+		// Make sure that all frames are frozen
+		CallFrame x = frame;
+		CallFrame outermost = frame;
 		while (x != null && !x.frozen) {
 			x.frozen = true;
 			// Allow to GC unused stack space
@@ -4337,45 +3037,24 @@ public class Interpreter {
 				// object so it shall not be cleared: see comments in
 				// setCallResult
 			}
+			outermost = x;
 			x = x.parentFrame;
 		}
 
-		c.initImplementation(frame.parentFrame);
-		frame.stack[stackTop] = c;
-	}
+		if (requireContinuationsTopFrame) {
+			while (outermost.parentFrame != null)
+				outermost = outermost.parentFrame;
 
-	private static void dispatchEvents() throws Exception {
-		if (Context.isDispatchingEventsEnabled
-				&& java.awt.EventQueue.isDispatchThread()) {
-			java.awt.EventQueue eventQ = java.awt.Toolkit.getDefaultToolkit()
-					.getSystemEventQueue();
-			long time = System.currentTimeMillis() + 200; // max 0.2 seconds.
-			while (System.currentTimeMillis() < time) {
-				if (eventQ.peekEvent() == null) {
-					if (lastEmptyTime < (System.currentTimeMillis() - 1000)) {
-						// Posting an extra events so that all events are
-						// flushed to
-						// this quere (see EventQueue.getNextEvent() ->
-						// SunToolkit.flushPendingEvents())
-						eventQ.postEvent(new EmptyEvent());
-					} else {
-						break;
-					}
-				}
-				try {
-					AWTEvent event = eventQ.getNextEvent();
-					if (event instanceof ActiveEvent) {
-						((ActiveEvent) event).dispatch();
-					} else {
-						Object source = event.getSource();
-						if (source instanceof Component) {
-							((Component) source).dispatchEvent(event);
-						}
-					}
-				} catch (InterruptedException e) {
-				}
+			if (!outermost.isContinuationsTopFrame) {
+				throw new IllegalStateException("Cannot capture continuation "
+						+ "from JavaScript code not called directly by "
+						+ "executeScriptWithContinuations or "
+						+ "callFunctionWithContinuations");
 			}
 		}
+
+		c.initImplementation(frame);
+		return c;
 	}
 
 	private static int stack_int32(CallFrame frame, int i) {
@@ -4441,28 +3120,14 @@ public class Interpreter {
 		} else {
 			if (lhs instanceof Scriptable || rhs instanceof Scriptable) {
 				stack[stackTop] = ScriptRuntime.add(lhs, rhs, cx);
-			} else if (lhs instanceof CharSequenceBuffer) {
-				// CharSequenceBuffer
-				if (rhs instanceof CharSequenceBuffer) {
-					lhs = ((CharSequenceBuffer) lhs)
-							.append((CharSequenceBuffer) rhs);
-				} else {
-					lhs = ((CharSequenceBuffer) lhs).append(ScriptRuntime
-							.toString(rhs));
-				}
-				stack[stackTop] = lhs;
-			} else if (lhs instanceof String || rhs instanceof String) {
-				if (rhs instanceof CharSequenceBuffer) {
-					CharSequenceBuffer sb = new CharSequenceBuffer(
-							ScriptRuntime.toString(lhs),
-							(CharSequenceBuffer) rhs);
-					stack[stackTop] = sb;
-				} else {
-					CharSequenceBuffer sb = new CharSequenceBuffer(
-							ScriptRuntime.toString(lhs),
-							ScriptRuntime.toString(rhs));
-					stack[stackTop] = sb;
-				}
+			} else if (lhs instanceof String) {
+				String lstr = (String) lhs;
+				String rstr = ScriptRuntime.toString(rhs);
+				stack[stackTop] = lstr.concat(rstr);
+			} else if (rhs instanceof String) {
+				String lstr = ScriptRuntime.toString(lhs);
+				String rstr = (String) rhs;
+				stack[stackTop] = lstr.concat(rstr);
 			} else {
 				double lDbl = (lhs instanceof Number) ? ((Number) lhs)
 						.doubleValue() : ScriptRuntime.toNumber(lhs);
@@ -4490,14 +3155,6 @@ public class Interpreter {
 				stack[stackTop] = lstr.concat(rstr);
 			} else {
 				stack[stackTop] = rstr.concat(lstr);
-			}
-		} else if (lhs instanceof CharSequenceBuffer) {
-			CharSequenceBuffer lstr = (CharSequenceBuffer) lhs;
-			String rstr = ScriptRuntime.toString(d);
-			if (leftRightOrder) {
-				stack[stackTop] = lstr.append(rstr);
-			} else {
-				stack[stackTop] = new CharSequenceBuffer(rstr, lstr);
 			}
 		} else {
 			double lDbl = (lhs instanceof Number) ? ((Number) lhs)
@@ -4531,17 +3188,4 @@ public class Interpreter {
 			cx.instructionCount = 0;
 		}
 	}
-
-	static long lastEmptyTime;
-
-	private static class EmptyEvent extends AWTEvent implements ActiveEvent {
-		public EmptyEvent() {
-			super(new Object(), 0);
-		}
-
-		public void dispatch() {
-			lastEmptyTime = System.currentTimeMillis();
-		}
-	}
-
 }

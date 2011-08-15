@@ -45,8 +45,6 @@ import org.mozilla.javascript.*;
 import org.mozilla.javascript.xml.*;
 
 public final class XMLLibImpl extends XMLLib implements Serializable {
-	// TODO Document that this only works with JDK 1.5 or backport its
-	// features to earlier versions
 	private static final long serialVersionUID = 1L;
 
 	//
@@ -73,6 +71,46 @@ public final class XMLLibImpl extends XMLLib implements Serializable {
 		if (bound == lib) {
 			lib.exportToScope(sealed);
 		}
+	}
+
+	public void setIgnoreComments(boolean b) {
+		options.setIgnoreComments(b);
+	}
+
+	public void setIgnoreWhitespace(boolean b) {
+		options.setIgnoreWhitespace(b);
+	}
+
+	public void setIgnoreProcessingInstructions(boolean b) {
+		options.setIgnoreProcessingInstructions(b);
+	}
+
+	public void setPrettyPrinting(boolean b) {
+		options.setPrettyPrinting(b);
+	}
+
+	public void setPrettyIndent(int i) {
+		options.setPrettyIndent(i);
+	}
+
+	public boolean isIgnoreComments() {
+		return options.isIgnoreComments();
+	}
+
+	public boolean isIgnoreProcessingInstructions() {
+		return options.isIgnoreProcessingInstructions();
+	}
+
+	public boolean isIgnoreWhitespace() {
+		return options.isIgnoreWhitespace();
+	}
+
+	public boolean isPrettyPrinting() {
+		return options.isPrettyPrinting();
+	}
+
+	public int getPrettyIndent() {
+		return options.getPrettyIndent();
 	}
 
 	private Scriptable globalScope;
@@ -161,7 +199,7 @@ public final class XMLLibImpl extends XMLLib implements Serializable {
 		return XMLName.create(getDefaultNamespaceURI(cx), name);
 	}
 
-	/** @deprecated */
+	/* TODO: Marked deprecated by original author */
 	XMLName toXMLName(Context cx, Object nameValue) {
 		XMLName result;
 
@@ -324,7 +362,6 @@ public final class XMLLibImpl extends XMLLib implements Serializable {
 			}
 		}
 
-		Namespace result;
 		Object ns = ScriptRuntime.searchDefaultNamespace(cx);
 		if (ns == null) {
 			return namespacePrototype;
@@ -372,14 +409,11 @@ public final class XMLLibImpl extends XMLLib implements Serializable {
 	}
 
 	XML newXML(XmlNode node) {
-		XML rv = new XML();
-		rv.initialize(this, this.globalScope, this.xmlPrototype);
-		rv.initialize(node);
-		return rv;
+		return new XML(this, this.globalScope, this.xmlPrototype, node);
 	}
 
-	/**
-	 * @deprecated I believe this can be replaced by ecmaToXml below.
+	/*
+	 * TODO: Can this can be replaced by ecmaToXml below?
 	 */
 	final XML newXMLFromJs(Object inputObject) {
 		String frag;
@@ -424,8 +458,8 @@ public final class XMLLibImpl extends XMLLib implements Serializable {
 			return (XML) object;
 		if (object instanceof XMLList) {
 			XMLList list = (XMLList) object;
-			if (list.XML() != null) {
-				return list.XML();
+			if (list.getXML() != null) {
+				return list.getXML();
 			} else {
 				throw ScriptRuntime
 						.typeError("Cannot convert list of >1 element to XML");
@@ -434,6 +468,15 @@ public final class XMLLibImpl extends XMLLib implements Serializable {
 		// TODO Technically we should fail on anything except a String, Number
 		// or Boolean
 		// See ECMA357 10.3
+		// Extension: if object is a DOM node, use that to construct the XML
+		// object.
+		if (object instanceof Wrapper) {
+			object = ((Wrapper) object).unwrap();
+		}
+		if (object instanceof org.w3c.dom.Node) {
+			org.w3c.dom.Node node = (org.w3c.dom.Node) object;
+			return newXML(XmlNode.createElementFromNode(node));
+		}
 		// Instead we just blindly cast to a String and let them convert
 		// anything.
 		String s = ScriptRuntime.toString(object);
@@ -452,9 +495,7 @@ public final class XMLLibImpl extends XMLLib implements Serializable {
 	}
 
 	XMLList newXMLList() {
-		XMLList rv = new XMLList();
-		rv.initialize(this, this.globalScope, this.xmlListPrototype);
-		return rv;
+		return new XMLList(this, this.globalScope, this.xmlListPrototype);
 	}
 
 	final XMLList newXMLListFrom(Object inputObject) {
@@ -488,7 +529,7 @@ public final class XMLLibImpl extends XMLLib implements Serializable {
 			XML orgXML = newXMLFromJs(frag);
 
 			// Now orphan the children and add them to our XMLList.
-			XMLList children = (XMLList) orgXML.children();
+			XMLList children = orgXML.children();
 
 			for (int i = 0; i < children.getNodeList().length(); i++) {
 				// Copy here is so that they'll be orphaned (parent() will be
@@ -504,7 +545,6 @@ public final class XMLLibImpl extends XMLLib implements Serializable {
 		// This is duplication of constructQName(cx, namespaceValue, nameValue)
 		// but for XMLName
 
-		String uri;
 		String localName;
 
 		if (nameValue instanceof QName) {
@@ -536,7 +576,6 @@ public final class XMLLibImpl extends XMLLib implements Serializable {
 	}
 
 	XmlNode.QName toNodeQName(Context cx, String name, boolean attribute) {
-		String local = name;
 		XmlNode.Namespace defaultNamespace = getDefaultNamespace(cx)
 				.getDelegate();
 		if (name != null && name.equals("*")) {
@@ -550,9 +589,9 @@ public final class XMLLibImpl extends XMLLib implements Serializable {
 		}
 	}
 
-	/**
-	 * @deprecated Too general; this should be split into overloaded methods. Is
-	 *             that possible?
+	/*
+	 * TODO: Too general; this should be split into overloaded methods. Is that
+	 * possible?
 	 */
 	XmlNode.QName toNodeQName(Context cx, Object nameValue, boolean attribute) {
 		if (nameValue instanceof XMLName) {
@@ -578,32 +617,38 @@ public final class XMLLibImpl extends XMLLib implements Serializable {
 	// Override methods from XMLLib
 	//
 
+	@Override
 	public boolean isXMLName(Context _cx, Object nameObj) {
 		return XMLName.accept(nameObj);
 	}
 
+	@Override
 	public Object toDefaultXmlNamespace(Context cx, Object uriValue) {
 		return this.namespacePrototype.constructNamespace(uriValue);
 	}
 
+	@Override
 	public String escapeTextValue(Object o) {
 		return options.escapeTextValue(o);
 	}
 
+	@Override
 	public String escapeAttributeValue(Object o) {
 		return options.escapeAttributeValue(o);
 	}
 
+	@Override
 	public Ref nameRef(Context cx, Object name, Scriptable scope,
 			int memberTypeFlags) {
 		if ((memberTypeFlags & Node.ATTRIBUTE_FLAG) == 0) {
-			// should only be called foir cases like @name or @[expr]
+			// should only be called for cases like @name or @[expr]
 			throw Kit.codeBug();
 		}
 		XMLName xmlName = toAttributeName(cx, name);
 		return xmlPrimaryReference(cx, xmlName, scope);
 	}
 
+	@Override
 	public Ref nameRef(Context cx, Object namespace, Object name,
 			Scriptable scope, int memberTypeFlags) {
 		XMLName xmlName = XMLName.create(toNodeQName(cx, namespace, name),

@@ -37,6 +37,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 // API class
+
 package org.mozilla.javascript;
 
 /**
@@ -49,8 +50,9 @@ package org.mozilla.javascript;
 public interface ErrorReporter {
 
 	/**
-	 * Report a warning. The implementing class may choose to ignore the warning
-	 * if it desires.
+	 * Report a warning.
+	 * 
+	 * The implementing class may choose to ignore the warning if it desires.
 	 * 
 	 * @param message
 	 *            a String describing the warning
@@ -68,10 +70,13 @@ public interface ErrorReporter {
 			String lineSource, int lineOffset);
 
 	/**
-	 * Report an error. The implementing class is free to throw an exception if
-	 * it desires. If execution has not yet begun, the JavaScript engine is free
-	 * to find additional errors rather than terminating the translation. It
-	 * will not execute a script that had errors, however.
+	 * Report an error.
+	 * 
+	 * The implementing class is free to throw an exception if it desires.
+	 * 
+	 * If execution has not yet begun, the JavaScript engine is free to find
+	 * additional errors rather than terminating the translation. It will not
+	 * execute a script that had errors, however.
 	 * 
 	 * @param message
 	 *            a String describing the error
@@ -89,8 +94,9 @@ public interface ErrorReporter {
 			int lineOffset);
 
 	/**
-	 * Creates an EvaluatorException that may be thrown. runtimeErrors, unlike
-	 * errors, will always terminate the current script.
+	 * Creates an EvaluatorException that may be thrown.
+	 * 
+	 * runtimeErrors, unlike errors, will always terminate the current script.
 	 * 
 	 * @param message
 	 *            a String describing the error

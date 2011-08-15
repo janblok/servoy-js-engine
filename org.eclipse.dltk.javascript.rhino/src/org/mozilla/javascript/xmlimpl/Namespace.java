@@ -49,7 +49,7 @@ import org.mozilla.javascript.*;
 class Namespace extends IdScriptableObject {
 	static final long serialVersionUID = -5765755238131301744L;
 
-	private static final Object NAMESPACE_TAG = new Object();
+	private static final Object NAMESPACE_TAG = "Namespace";
 
 	private Namespace prototype;
 	private XmlNode.Namespace ns;
@@ -83,6 +83,7 @@ class Namespace extends IdScriptableObject {
 		return ns.getPrefix();
 	}
 
+	@Override
 	public String toString() {
 		return uri();
 	}
@@ -95,12 +96,19 @@ class Namespace extends IdScriptableObject {
 		return uri().equals(n.uri());
 	}
 
+	@Override
 	public boolean equals(Object obj) {
 		if (!(obj instanceof Namespace))
 			return false;
 		return equals((Namespace) obj);
 	}
 
+	@Override
+	public int hashCode() {
+		return uri().hashCode();
+	}
+
+	@Override
 	protected Object equivalentValues(Object value) {
 		if (!(value instanceof Namespace))
 			return Scriptable.NOT_FOUND;
@@ -108,24 +116,28 @@ class Namespace extends IdScriptableObject {
 		return result ? Boolean.TRUE : Boolean.FALSE;
 	}
 
+	@Override
 	public String getClassName() {
 		return "Namespace";
 	}
 
-	public Object getDefaultValue(Class hint) {
+	@Override
+	public Object getDefaultValue(Class<?> hint) {
 		return uri();
 	}
 
 	// #string_id_map#
 	private static final int Id_prefix = 1, Id_uri = 2, MAX_INSTANCE_ID = 2;
 
+	@Override
 	protected int getMaxInstanceId() {
 		return super.getMaxInstanceId() + MAX_INSTANCE_ID;
 	}
 
+	@Override
 	protected int findInstanceIdInfo(String s) {
 		int id;
-		// #generated# Last update: 2004-07-20 19:50:50 CEST
+		// #generated# Last update: 2007-08-20 08:23:22 EDT
 		L0: {
 			id = 0;
 			String X = null;
@@ -139,6 +151,7 @@ class Namespace extends IdScriptableObject {
 			}
 			if (X != null && X != s && !X.equals(s))
 				id = 0;
+			break L0;
 		}
 		// #/generated#
 
@@ -159,6 +172,7 @@ class Namespace extends IdScriptableObject {
 
 	// #/string_id_map#
 
+	@Override
 	protected String getInstanceIdName(int id) {
 		switch (id - super.getMaxInstanceId()) {
 		case Id_prefix:
@@ -169,6 +183,7 @@ class Namespace extends IdScriptableObject {
 		return super.getInstanceIdName(id);
 	}
 
+	@Override
 	protected Object getInstanceIdValue(int id) {
 		switch (id - super.getMaxInstanceId()) {
 		case Id_prefix:
@@ -185,9 +200,10 @@ class Namespace extends IdScriptableObject {
 	private static final int Id_constructor = 1, Id_toString = 2,
 			Id_toSource = 3, MAX_PROTOTYPE_ID = 3;
 
+	@Override
 	protected int findPrototypeId(String s) {
 		int id;
-		// #generated# Last update: 2004-08-21 12:07:01 CEST
+		// #generated# Last update: 2007-08-20 08:23:22 EDT
 		L0: {
 			id = 0;
 			String X = null;
@@ -208,6 +224,7 @@ class Namespace extends IdScriptableObject {
 			}
 			if (X != null && X != s && !X.equals(s))
 				id = 0;
+			break L0;
 		}
 		// #/generated#
 		return id;
@@ -215,6 +232,7 @@ class Namespace extends IdScriptableObject {
 
 	// #/string_id_map#
 
+	@Override
 	protected void initPrototypeId(int id) {
 		String s;
 		int arity;
@@ -237,6 +255,7 @@ class Namespace extends IdScriptableObject {
 		initPrototypeMethod(NAMESPACE_TAG, id, s, arity);
 	}
 
+	@Override
 	public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
 			Scriptable thisObj, Object[] args) {
 		if (!f.hasTag(NAMESPACE_TAG)) {

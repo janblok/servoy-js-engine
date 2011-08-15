@@ -447,8 +447,6 @@ public class ObjArray implements Serializable {
 	private boolean sealed;
 
 	private static final int FIELDS_STORE_SIZE = 5;
-
 	private transient Object f0, f1, f2, f3, f4;
-
 	private transient Object[] data;
 }

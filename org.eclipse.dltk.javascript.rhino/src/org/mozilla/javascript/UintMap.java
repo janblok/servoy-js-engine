@@ -50,6 +50,7 @@ import java.io.ObjectOutputStream;
  * before passing the map to others.
  * 
  * @author Igor Bukanov
+ * 
  */
 
 public class UintMap implements Serializable {
@@ -392,7 +393,6 @@ public class UintMap implements Serializable {
 			if (keys == null || occupiedCount * 4 >= (1 << power) * 3) {
 				// Too litle unused entries: rehash
 				rehashTable(intType);
-				keys = this.keys;
 				return insertNewKey(key);
 			}
 			++occupiedCount;
@@ -470,7 +470,6 @@ public class UintMap implements Serializable {
 	private static final int A = 0x9e3779b9;
 
 	private static final int EMPTY = -1;
-
 	private static final int DELETED = -2;
 
 	// Structure of kyes and values arrays (N == 1 << power):
@@ -479,13 +478,10 @@ public class UintMap implements Serializable {
 	// keys[N <= i < 2N]: int values of keys at keys[i - N]
 
 	private transient int[] keys;
-
 	private transient Object[] values;
 
 	private int power;
-
 	private int keyCount;
-
 	private transient int occupiedCount; // == keyCount + deleted_count
 
 	// If ivaluesShift != 0, keys[ivaluesShift + index] contains integer
@@ -496,68 +492,100 @@ public class UintMap implements Serializable {
 	private static final boolean check = false;
 
 	/*
-	 * TEST START public static void main(String[] args) { if (!check) {
+	 * TEST START
+	 * 
+	 * public static void main(String[] args) { if (!check) {
 	 * System.err.println("Set check to true and re-run"); throw new
-	 * RuntimeException("Set check to true and re-run"); } UintMap map; map =
-	 * new UintMap(); testHash(map, 2); map = new UintMap(); testHash(map, 10 *
-	 * 1000); map = new UintMap(30 * 1000); testHash(map, 10 * 100);
-	 * map.clear(); testHash(map, 4); map = new UintMap(0); testHash(map, 10 *
-	 * 100); } private static void testHash(UintMap map, int N) {
-	 * System.out.print("."); System.out.flush(); for (int i = 0; i != N; ++i) {
-	 * map.put(i, i); check(i == map.getInt(i, -1)); } System.out.print(".");
+	 * RuntimeException("Set check to true and re-run"); }
+	 * 
+	 * UintMap map; map = new UintMap(); testHash(map, 2); map = new UintMap();
+	 * testHash(map, 10 * 1000); map = new UintMap(30 * 1000); testHash(map, 10
+	 * * 100); map.clear(); testHash(map, 4); map = new UintMap(0);
+	 * testHash(map, 10 * 100); }
+	 * 
+	 * private static void testHash(UintMap map, int N) { System.out.print(".");
 	 * System.out.flush(); for (int i = 0; i != N; ++i) { map.put(i, i); check(i
-	 * == map.getInt(i, -1)); } System.out.print("."); System.out.flush(); for
-	 * (int i = 0; i != N; ++i) { map.put(i, new Integer(i)); check(-1 ==
-	 * map.getInt(i, -1)); Integer obj = (Integer)map.getObject(i); check(obj !=
-	 * null && i == obj.intValue()); } check(map.size() == N);
+	 * == map.getInt(i, -1)); }
+	 * 
+	 * System.out.print("."); System.out.flush(); for (int i = 0; i != N; ++i) {
+	 * map.put(i, i); check(i == map.getInt(i, -1)); }
+	 * 
+	 * System.out.print("."); System.out.flush(); for (int i = 0; i != N; ++i) {
+	 * map.put(i, new Integer(i)); check(-1 == map.getInt(i, -1)); Integer obj =
+	 * (Integer)map.getObject(i); check(obj != null && i == obj.intValue()); }
+	 * 
+	 * check(map.size() == N);
+	 * 
 	 * System.out.print("."); System.out.flush(); int[] keys = map.getKeys();
 	 * check(keys.length == N); for (int i = 0; i != N; ++i) { int key =
 	 * keys[i]; check(map.has(key)); check(!map.isIntType(key));
 	 * check(map.isObjectType(key)); Integer obj = (Integer) map.getObject(key);
-	 * check(obj != null && key == obj.intValue()); } System.out.print(".");
-	 * System.out.flush(); for (int i = 0; i != N; ++i) { check(-1 ==
-	 * map.getInt(i, -1)); } System.out.print("."); System.out.flush(); for (int
-	 * i = 0; i != N; ++i) { map.put(i * i, i); check(i == map.getInt(i * i,
-	 * -1)); } System.out.print("."); System.out.flush(); for (int i = 0; i !=
-	 * N; ++i) { check(i == map.getInt(i * i, -1)); } System.out.print(".");
-	 * System.out.flush(); for (int i = 0; i != N; ++i) { map.put(i * i, new
-	 * Integer(i)); check(-1 == map.getInt(i * i, -1)); map.remove(i * i);
-	 * check(!map.has(i * i)); map.put(i * i, i); check(map.isIntType(i * i));
-	 * check(null == map.getObject(i * i)); map.remove(i * i);
-	 * check(!map.isObjectType(i * i)); check(!map.isIntType(i * i)); } int
-	 * old_size = map.size(); for (int i = 0; i != N; ++i) { map.remove(i * i);
-	 * check(map.size() == old_size); } System.out.print(".");
-	 * System.out.flush(); map.clear(); check(map.size() == 0); for (int i = 0;
-	 * i != N; ++i) { map.put(i * i, i); map.put(i * i + 1, new Double(i+0.5));
-	 * } checkSameMaps(map, (UintMap)writeAndRead(map)); System.out.print(".");
-	 * System.out.flush(); map = new UintMap(0); checkSameMaps(map,
-	 * (UintMap)writeAndRead(map)); map = new UintMap(1); checkSameMaps(map,
-	 * (UintMap)writeAndRead(map)); map = new UintMap(1000); checkSameMaps(map,
-	 * (UintMap)writeAndRead(map)); System.out.print("."); System.out.flush();
-	 * map = new UintMap(N / 10); for (int i = 0; i != N; ++i) { map.put(2*i+1,
-	 * i); } checkSameMaps(map, (UintMap)writeAndRead(map));
+	 * check(obj != null && key == obj.intValue()); }
+	 * 
+	 * 
+	 * System.out.print("."); System.out.flush(); for (int i = 0; i != N; ++i) {
+	 * check(-1 == map.getInt(i, -1)); }
+	 * 
+	 * System.out.print("."); System.out.flush(); for (int i = 0; i != N; ++i) {
+	 * map.put(i * i, i); check(i == map.getInt(i * i, -1)); }
+	 * 
+	 * System.out.print("."); System.out.flush(); for (int i = 0; i != N; ++i) {
+	 * check(i == map.getInt(i * i, -1)); }
+	 * 
+	 * System.out.print("."); System.out.flush(); for (int i = 0; i != N; ++i) {
+	 * map.put(i * i, new Integer(i)); check(-1 == map.getInt(i * i, -1));
+	 * map.remove(i * i); check(!map.has(i * i)); map.put(i * i, i);
+	 * check(map.isIntType(i * i)); check(null == map.getObject(i * i));
+	 * map.remove(i * i); check(!map.isObjectType(i * i));
+	 * check(!map.isIntType(i * i)); }
+	 * 
+	 * int old_size = map.size(); for (int i = 0; i != N; ++i) { map.remove(i *
+	 * i); check(map.size() == old_size); }
+	 * 
+	 * System.out.print("."); System.out.flush(); map.clear(); check(map.size()
+	 * == 0); for (int i = 0; i != N; ++i) { map.put(i * i, i); map.put(i * i +
+	 * 1, new Double(i+0.5)); } checkSameMaps(map, (UintMap)writeAndRead(map));
+	 * 
+	 * System.out.print("."); System.out.flush(); map = new UintMap(0);
+	 * checkSameMaps(map, (UintMap)writeAndRead(map)); map = new UintMap(1);
+	 * checkSameMaps(map, (UintMap)writeAndRead(map)); map = new UintMap(1000);
+	 * checkSameMaps(map, (UintMap)writeAndRead(map));
+	 * 
+	 * System.out.print("."); System.out.flush(); map = new UintMap(N / 10); for
+	 * (int i = 0; i != N; ++i) { map.put(2*i+1, i); } checkSameMaps(map,
+	 * (UintMap)writeAndRead(map));
+	 * 
 	 * System.out.print("."); System.out.flush(); map = new UintMap(N / 10); for
 	 * (int i = 0; i != N; ++i) { map.put(2*i+1, i); } for (int i = 0; i != N /
 	 * 2; ++i) { map.remove(2*i+1); } checkSameMaps(map,
-	 * (UintMap)writeAndRead(map)); System.out.print("."); System.out.flush();
-	 * map = new UintMap(); for (int i = 0; i != N; ++i) { map.put(2*i+1, new
-	 * Double(i + 10)); } for (int i = 0; i != N / 2; ++i) { map.remove(2*i+1);
-	 * } checkSameMaps(map, (UintMap)writeAndRead(map)); System.out.println();
-	 * System.out.flush(); } private static void checkSameMaps(UintMap map1,
-	 * UintMap map2) { check(map1.size() == map2.size()); int[] keys =
-	 * map1.getKeys(); check(keys.length == map1.size()); for (int i = 0; i !=
-	 * keys.length; ++i) { int key = keys[i]; check(map2.has(key));
-	 * check(map1.isObjectType(key) == map2.isObjectType(key));
-	 * check(map1.isIntType(key) == map2.isIntType(key)); Object o1 =
-	 * map1.getObject(key); Object o2 = map2.getObject(key); if
-	 * (map1.isObjectType(key)) { check(o1.equals(o2)); }else {
-	 * check(map1.getObject(key) == null); check(map2.getObject(key) == null); }
-	 * if (map1.isIntType(key)) { check(map1.getExistingInt(key) ==
+	 * (UintMap)writeAndRead(map));
+	 * 
+	 * System.out.print("."); System.out.flush(); map = new UintMap(); for (int
+	 * i = 0; i != N; ++i) { map.put(2*i+1, new Double(i + 10)); } for (int i =
+	 * 0; i != N / 2; ++i) { map.remove(2*i+1); } checkSameMaps(map,
+	 * (UintMap)writeAndRead(map));
+	 * 
+	 * System.out.println(); System.out.flush();
+	 * 
+	 * }
+	 * 
+	 * private static void checkSameMaps(UintMap map1, UintMap map2) {
+	 * check(map1.size() == map2.size()); int[] keys = map1.getKeys();
+	 * check(keys.length == map1.size()); for (int i = 0; i != keys.length; ++i)
+	 * { int key = keys[i]; check(map2.has(key)); check(map1.isObjectType(key)
+	 * == map2.isObjectType(key)); check(map1.isIntType(key) ==
+	 * map2.isIntType(key)); Object o1 = map1.getObject(key); Object o2 =
+	 * map2.getObject(key); if (map1.isObjectType(key)) { check(o1.equals(o2));
+	 * }else { check(map1.getObject(key) == null); check(map2.getObject(key) ==
+	 * null); } if (map1.isIntType(key)) { check(map1.getExistingInt(key) ==
 	 * map2.getExistingInt(key)); }else { check(map1.getInt(key, -10) == -10);
 	 * check(map1.getInt(key, -11) == -11); check(map2.getInt(key, -10) == -10);
-	 * check(map2.getInt(key, -11) == -11); } } } private static void
-	 * check(boolean condition) { if (!condition) Kit.codeBug(); } private
-	 * static Object writeAndRead(Object obj) { try {
+	 * check(map2.getInt(key, -11) == -11); } } }
+	 * 
+	 * private static void check(boolean condition) { if (!condition)
+	 * Kit.codeBug(); }
+	 * 
+	 * private static Object writeAndRead(Object obj) { try {
 	 * java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
 	 * java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(bos);
 	 * out.writeObject(obj); out.close(); byte[] data = bos.toByteArray();
@@ -565,6 +593,8 @@ public class UintMap implements Serializable {
 	 * java.io.ByteArrayInputStream(data); java.io.ObjectInputStream in = new
 	 * java.io.ObjectInputStream(bis); Object result = in.readObject();
 	 * in.close(); return result; }catch (Exception ex) { ex.printStackTrace();
-	 * throw new RuntimeException("Unexpected"); } } // TEST END
+	 * throw new RuntimeException("Unexpected"); } }
+	 * 
+	 * // TEST END
 	 */
 }

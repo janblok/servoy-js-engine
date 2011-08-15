@@ -40,18 +40,20 @@ package org.mozilla.javascript;
 
 import java.io.*;
 
-import org.mozilla.javascript.debug.Debugger;
-import org.mozilla.javascript.debug.IDebuggerWithWatchPoints;
-
 /**
  * Base class for native object implementation that uses IdFunctionObject to
- * export its methods to script via <class-name>.prototype object. Any
- * descendant should implement at least the following methods:
- * findInstanceIdInfo getInstanceIdName execIdCall methodArity To define
- * non-function properties, the descendant should override getInstanceIdValue
- * setInstanceIdValue to get/set property value and provide its default
- * attributes. To customize initializition of constructor and protype objects,
- * descendant may override scopeInit or fillConstructorProperties methods.
+ * export its methods to script via <class-name>.prototype object.
+ * 
+ * Any descendant should implement at least the following methods:
+ * findInstanceIdInfo getInstanceIdName execIdCall methodArity
+ * 
+ * To define non-function properties, the descendant should override
+ * getInstanceIdValue setInstanceIdValue to get/set property value and provide
+ * its default attributes.
+ * 
+ * 
+ * To customize initialization of constructor and prototype objects, descendant
+ * may override scopeInit or fillConstructorProperties methods.
  */
 public abstract class IdScriptableObject extends ScriptableObject implements
 		IdFunctionCall {
@@ -61,27 +63,19 @@ public abstract class IdScriptableObject extends ScriptableObject implements
 		static final long serialVersionUID = 3038645279153854371L;
 
 		private static final int VALUE_SLOT = 0;
-
 		private static final int NAME_SLOT = 1;
-
 		private static final int SLOT_SPAN = 2;
 
 		private IdScriptableObject obj;
-
 		private int maxId;
-
 		private volatile Object[] valueArray;
-
 		private volatile short[] attributeArray;
-
 		private volatile int lastFoundId = 1;
 
 		// The following helps to avoid creation of valueArray during runtime
 		// initialization for common case of "constructor" property
 		int constructorId;
-
 		private IdFunctionObject constructor;
-
 		private short constructorAttrs;
 
 		PrototypeValues(IdScriptableObject obj, int maxId) {
@@ -334,6 +328,7 @@ public abstract class IdScriptableObject extends ScriptableObject implements
 		super.put(name, this, value);
 	}
 
+	@Override
 	public boolean has(String name, Scriptable start) {
 		int info = findInstanceIdInfo(name);
 		if (info != 0) {
@@ -353,40 +348,28 @@ public abstract class IdScriptableObject extends ScriptableObject implements
 		return super.has(name, start);
 	}
 
+	@Override
 	public Object get(String name, Scriptable start) {
-		Context currentContext = Context.getCurrentContext();
-		if (currentContext != null) {
-			Debugger debugger = currentContext.getDebugger();
-			if (debugger instanceof IDebuggerWithWatchPoints) {
-				IDebuggerWithWatchPoints wp = (IDebuggerWithWatchPoints) debugger;
-				wp.access(name, this);
-			}
-		}
 		int info = findInstanceIdInfo(name);
 		if (info != 0) {
 			int id = (info & 0xFFFF);
-			return getInstanceIdValue(id);
+			Object value = getInstanceIdValue(id);
+			if (value != NOT_FOUND)
+				return value;
 		}
 		if (prototypeValues != null) {
 			int id = prototypeValues.findId(name);
 			if (id != 0) {
-				return prototypeValues.get(id);
+				Object value = prototypeValues.get(id);
+				if (value != NOT_FOUND)
+					return value;
 			}
 		}
 		return super.get(name, start);
 	}
 
+	@Override
 	public void put(String name, Scriptable start, Object value) {
-		Context currentContext = Context.getCurrentContext();
-		if (currentContext != null) {
-			Debugger debugger = currentContext.getDebugger();
-			if (debugger != null) {
-				if (debugger instanceof IDebuggerWithWatchPoints) {
-					IDebuggerWithWatchPoints wp = (IDebuggerWithWatchPoints) debugger;
-					wp.modification(name, this);
-				}
-			}
-		}
 		int info = findInstanceIdInfo(name);
 		if (info != 0) {
 			if (start == this && isSealed()) {
@@ -417,6 +400,7 @@ public abstract class IdScriptableObject extends ScriptableObject implements
 		super.put(name, start, value);
 	}
 
+	@Override
 	public void delete(String name) {
 		int info = findInstanceIdInfo(name);
 		if (info != 0) {
@@ -442,6 +426,7 @@ public abstract class IdScriptableObject extends ScriptableObject implements
 		super.delete(name);
 	}
 
+	@Override
 	public int getAttributes(String name) {
 		int info = findInstanceIdInfo(name);
 		if (info != 0) {
@@ -457,6 +442,7 @@ public abstract class IdScriptableObject extends ScriptableObject implements
 		return super.getAttributes(name);
 	}
 
+	@Override
 	public void setAttributes(String name, int attributes) {
 		ScriptableObject.checkValidAttributes(attributes);
 		int info = findInstanceIdInfo(name);
@@ -478,6 +464,7 @@ public abstract class IdScriptableObject extends ScriptableObject implements
 		super.setAttributes(name, attributes);
 	}
 
+	@Override
 	Object[] getIds(boolean getAll) {
 		Object[] result = super.getIds(getAll);
 
@@ -550,9 +537,9 @@ public abstract class IdScriptableObject extends ScriptableObject implements
 	}
 
 	/**
-	 * Get id value. * If id value is constant, descendant can call cacheIdValue
-	 * to store * value in the permanent cache. * Default implementation creates
-	 * IdFunctionObject instance for given id * and cache its value
+	 * Get id value. If id value is constant, descendant can call cacheIdValue
+	 * to store value in the permanent cache. Default implementation creates
+	 * IdFunctionObject instance for given id and cache its value
 	 */
 	protected Object getInstanceIdValue(int id) {
 		throw new IllegalStateException(String.valueOf(id));
@@ -566,10 +553,10 @@ public abstract class IdScriptableObject extends ScriptableObject implements
 		throw new IllegalStateException(String.valueOf(id));
 	}
 
-	/****************************************************************************
+	/**
 	 * 'thisObj' will be null if invoked as constructor, in which case instance
-	 * of Scriptable should be returned. *
-	 ***************************************************************************/
+	 * of Scriptable should be returned.
+	 */
 	public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
 			Scriptable thisObj, Object[] args) {
 		throw f.unknown();
@@ -687,6 +674,84 @@ public abstract class IdScriptableObject extends ScriptableObject implements
 			f.sealObject();
 		}
 		return f;
+	}
+
+	@Override
+	public void defineOwnProperty(Context cx, Object key, ScriptableObject desc) {
+		if (key instanceof String) {
+			String name = (String) key;
+			int info = findInstanceIdInfo(name);
+			if (info != 0) {
+				int id = (info & 0xFFFF);
+				if (isAccessorDescriptor(desc)) {
+					delete(id); // it will be replaced with a slot
+				} else {
+					int attr = (info >>> 16);
+					Object value = getProperty(desc, "value");
+					setInstanceIdValue(id,
+							value == NOT_FOUND ? Undefined.instance : value);
+					setAttributes(id,
+							applyDescriptorToAttributeBitset(attr, desc));
+					return;
+				}
+			}
+			if (prototypeValues != null) {
+				int id = prototypeValues.findId(name);
+				if (id != 0) {
+					if (isAccessorDescriptor(desc)) {
+						prototypeValues.delete(id); // it will be replaced with
+													// a slot
+					} else {
+						int attr = prototypeValues.getAttributes(id);
+						Object value = getProperty(desc, "value");
+						prototypeValues
+								.set(id, this,
+										value == NOT_FOUND ? Undefined.instance
+												: value);
+						prototypeValues.setAttributes(id,
+								applyDescriptorToAttributeBitset(attr, desc));
+						return;
+					}
+				}
+			}
+		}
+		super.defineOwnProperty(cx, key, desc);
+	}
+
+	@Override
+	protected ScriptableObject getOwnPropertyDescriptor(Context cx, Object id) {
+		ScriptableObject desc = super.getOwnPropertyDescriptor(cx, id);
+		if (desc == null && id instanceof String) {
+			desc = getBuiltInDescriptor((String) id);
+		}
+		return desc;
+	}
+
+	private ScriptableObject getBuiltInDescriptor(String name) {
+		Object value = null;
+		int attr = EMPTY;
+
+		Scriptable scope = getParentScope();
+		if (scope == null) {
+			scope = this;
+		}
+
+		int info = findInstanceIdInfo(name);
+		if (info != 0) {
+			int id = (info & 0xFFFF);
+			value = getInstanceIdValue(id);
+			attr = (info >>> 16);
+			return buildDataDescriptor(scope, value, attr);
+		}
+		if (prototypeValues != null) {
+			int id = prototypeValues.findId(name);
+			if (id != 0) {
+				value = prototypeValues.get(id);
+				attr = prototypeValues.getAttributes(id);
+				return buildDataDescriptor(scope, value, attr);
+			}
+		}
+		return null;
 	}
 
 	private void readObject(ObjectInputStream stream) throws IOException,

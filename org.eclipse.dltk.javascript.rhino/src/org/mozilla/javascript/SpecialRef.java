@@ -42,15 +42,11 @@ class SpecialRef extends Ref {
 	static final long serialVersionUID = -7521596632456797847L;
 
 	private static final int SPECIAL_NONE = 0;
-
 	private static final int SPECIAL_PROTO = 1;
-
 	private static final int SPECIAL_PARENT = 2;
 
 	private Scriptable target;
-
 	private int type;
-
 	private String name;
 
 	private SpecialRef(Scriptable target, int type, String name) {
@@ -82,6 +78,7 @@ class SpecialRef extends Ref {
 		return new SpecialRef(target, type, name);
 	}
 
+	@Override
 	public Object get(Context cx) {
 		switch (type) {
 		case SPECIAL_NONE:
@@ -95,6 +92,7 @@ class SpecialRef extends Ref {
 		}
 	}
 
+	@Override
 	public Object set(Context cx, Object value) {
 		switch (type) {
 		case SPECIAL_NONE:
@@ -130,6 +128,7 @@ class SpecialRef extends Ref {
 		}
 	}
 
+	@Override
 	public boolean has(Context cx) {
 		if (type == SPECIAL_NONE) {
 			return ScriptRuntime.hasObjectElem(target, name, cx);
@@ -137,6 +136,7 @@ class SpecialRef extends Ref {
 		return true;
 	}
 
+	@Override
 	public boolean delete(Context cx) {
 		if (type == SPECIAL_NONE) {
 			return ScriptRuntime.deleteObjectElem(target, name, cx);

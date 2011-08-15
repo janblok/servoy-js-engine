@@ -41,14 +41,16 @@
 package org.mozilla.javascript;
 
 /**
- * This class implements the Number native object. See ECMA 15.7.
+ * This class implements the Number native object.
+ * 
+ * See ECMA 15.7.
  * 
  * @author Norris Boyd
  */
 final class NativeNumber extends IdScriptableObject {
 	static final long serialVersionUID = 3504516769741512101L;
 
-	private static final Object NUMBER_TAG = new Object();
+	private static final Object NUMBER_TAG = "Number";
 
 	private static final int MAX_PRECISION = 100;
 
@@ -57,14 +59,16 @@ final class NativeNumber extends IdScriptableObject {
 		obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);
 	}
 
-	public NativeNumber(double number) {
+	NativeNumber(double number) {
 		doubleValue = number;
 	}
 
+	@Override
 	public String getClassName() {
 		return "Number";
 	}
 
+	@Override
 	protected void fillConstructorProperties(IdFunctionObject ctor) {
 		final int attr = ScriptableObject.DONTENUM | ScriptableObject.PERMANENT
 				| ScriptableObject.READONLY;
@@ -82,6 +86,7 @@ final class NativeNumber extends IdScriptableObject {
 		super.fillConstructorProperties(ctor);
 	}
 
+	@Override
 	protected void initPrototypeId(int id) {
 		String s;
 		int arity;
@@ -124,6 +129,7 @@ final class NativeNumber extends IdScriptableObject {
 		initPrototypeMethod(NUMBER_TAG, id, s, arity);
 	}
 
+	@Override
 	public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
 			Scriptable thisObj, Object[] args) {
 		if (!f.hasTag(NUMBER_TAG)) {
@@ -166,19 +172,49 @@ final class NativeNumber extends IdScriptableObject {
 			return num_to(value, args, DToA.DTOSTR_FIXED, DToA.DTOSTR_FIXED,
 					-20, 0);
 
-		case Id_toExponential:
+		case Id_toExponential: {
+			// Handle special values before range check
+			if (Double.isNaN(value)) {
+				return "NaN";
+			}
+			if (Double.isInfinite(value)) {
+				if (value >= 0) {
+					return "Infinity";
+				} else {
+					return "-Infinity";
+				}
+			}
+			// General case
 			return num_to(value, args, DToA.DTOSTR_STANDARD_EXPONENTIAL,
 					DToA.DTOSTR_EXPONENTIAL, 0, 1);
+		}
 
-		case Id_toPrecision:
+		case Id_toPrecision: {
+			// Undefined precision, fall back to ToString()
+			if (args.length == 0 || args[0] == Undefined.instance) {
+				return ScriptRuntime.numberToString(value, 10);
+			}
+			// Handle special values before range check
+			if (Double.isNaN(value)) {
+				return "NaN";
+			}
+			if (Double.isInfinite(value)) {
+				if (value >= 0) {
+					return "Infinity";
+				} else {
+					return "-Infinity";
+				}
+			}
 			return num_to(value, args, DToA.DTOSTR_STANDARD,
 					DToA.DTOSTR_PRECISION, 1, 0);
+		}
 
 		default:
 			throw new IllegalArgumentException(String.valueOf(id));
 		}
 	}
 
+	@Override
 	public String toString() {
 		return ScriptRuntime.numberToString(doubleValue, 10);
 	}
@@ -208,6 +244,7 @@ final class NativeNumber extends IdScriptableObject {
 
 	// #string_id_map#
 
+	@Override
 	protected int findPrototypeId(String s) {
 		int id;
 		// #generated# Last update: 2007-05-09 08:15:50 EDT

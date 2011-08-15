@@ -37,6 +37,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 // API class
+
 package org.mozilla.javascript;
 
 /**
@@ -47,15 +48,16 @@ public class EcmaError extends RhinoException {
 	static final long serialVersionUID = -6261226256957286699L;
 
 	private String errorName;
-
 	private String errorMessage;
 
 	/**
-	 * Create an exception with the specified detail message. Errors internal to
-	 * the JavaScript engine will simply throw a RuntimeException.
+	 * Create an exception with the specified detail message.
+	 * 
+	 * Errors internal to the JavaScript engine will simply throw a
+	 * RuntimeException.
 	 * 
 	 * @param sourceName
-	 *            the name of the source reponsible for the error
+	 *            the name of the source responsible for the error
 	 * @param lineNumber
 	 *            the line number of the source
 	 * @param columnNumber
@@ -64,7 +66,7 @@ public class EcmaError extends RhinoException {
 	 *            the source of the line containing the error (may be null if
 	 *            unknown)
 	 */
-	public EcmaError(String errorName, String errorMessage, String sourceName,
+	EcmaError(String errorName, String errorMessage, String sourceName,
 			int lineNumber, String lineSource, int columnNumber) {
 		recordErrorOrigin(sourceName, lineNumber, lineSource, columnNumber);
 		this.errorName = errorName;
@@ -81,15 +83,19 @@ public class EcmaError extends RhinoException {
 				lineNumber, lineSource, columnNumber);
 	}
 
+	@Override
 	public String details() {
 		return errorName + ": " + errorMessage;
 	}
 
 	/**
-	 * Gets the name of the error. ECMA edition 3 defines the following errors:
-	 * EvalError, RangeError, ReferenceError, SyntaxError, TypeError, and
-	 * URIError. Additional error names may be added in the future. See ECMA
-	 * edition 3, 15.11.7.9.
+	 * Gets the name of the error.
+	 * 
+	 * ECMA edition 3 defines the following errors: EvalError, RangeError,
+	 * ReferenceError, SyntaxError, TypeError, and URIError. Additional error
+	 * names may be added in the future.
+	 * 
+	 * See ECMA edition 3, 15.11.7.9.
 	 * 
 	 * @return the name of the error.
 	 */
@@ -98,10 +104,11 @@ public class EcmaError extends RhinoException {
 	}
 
 	/**
-	 * Gets the message corresponding to the error. See ECMA edition 3,
-	 * 15.11.7.10.
+	 * Gets the message corresponding to the error.
 	 * 
-	 * @return an implemenation-defined string describing the error.
+	 * See ECMA edition 3, 15.11.7.10.
+	 * 
+	 * @return an implementation-defined string describing the error.
 	 */
 	public String getErrorMessage() {
 		return errorMessage;

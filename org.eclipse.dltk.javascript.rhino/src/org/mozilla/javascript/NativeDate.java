@@ -42,23 +42,31 @@
 
 package org.mozilla.javascript;
 
-import java.text.DateFormat;
-import java.util.Calendar;
 import java.util.Date;
-import java.util.GregorianCalendar;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+
 import java.util.TimeZone;
+import java.util.SimpleTimeZone;
 
 /**
  * This class implements the Date native object. See ECMA 15.9.
  * 
  * @author Mike McCabe
  */
-public final class NativeDate extends IdScriptableObject implements Wrapper {
+final class NativeDate extends IdScriptableObject {
 	static final long serialVersionUID = -8307438915861678966L;
 
-	private static final Object DATE_TAG = new Object();
+	private static final Object DATE_TAG = "Date";
 
 	private static final String js_NaN_date_str = "Invalid Date";
+
+	private static final DateFormat isoFormat;
+	static {
+		isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+		isoFormat.setTimeZone(new SimpleTimeZone(0, "UTC"));
+		isoFormat.setLenient(false);
+	}
 
 	static void init(Scriptable scope, boolean sealed) {
 		NativeDate obj = new NativeDate();
@@ -71,51 +79,9 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 		if (thisTimeZone == null) {
 			// j.u.TimeZone is synchronized, so setting class statics from it
 			// should be OK.
-			thisTimeZone = java.util.TimeZone.getDefault();
+			thisTimeZone = TimeZone.getDefault();
 			LocalTZA = thisTimeZone.getRawOffset();
 		}
-	}
-
-	public NativeDate(Date date) {
-		this();
-		this.javaDate = date;
-		this.date = convertToUTCMillisFromJava(date.getTime());
-
-	}
-
-	/**
-	 * This method converts java date milliseconds into javaScript date
-	 * milliseconds (the two are not compatible; for example the same
-	 * milliseconds that mean in java 7 Jul 0010 mean in javaScript 5 Jul 0010).
-	 * When we convert from a Java date to a JS date, it should remain the same
-	 * not in milliseconds, but in actual year/month/day/hh/mm/ss/ms.
-	 */
-	private static double convertToUTCMillisFromJava(long javaMillis) {
-		GregorianCalendar calendar = new GregorianCalendar(
-				TimeZone.getTimeZone("GMT"));
-		calendar.setTimeInMillis(javaMillis);
-		return TimeClip(date_msecFromDate(calendar.get(Calendar.YEAR),
-				calendar.get(Calendar.MONTH),
-				calendar.get(Calendar.DAY_OF_MONTH),
-				calendar.get(Calendar.HOUR_OF_DAY),
-				calendar.get(Calendar.MINUTE), calendar.get(Calendar.SECOND),
-				calendar.get(Calendar.MILLISECOND)));
-	}
-
-	/**
-	 * This method converts javaScript date milliseconds into java date
-	 * milliseconds (the two are not compatible; for example the same
-	 * milliseconds that mean in java 7 Jul 0010 mean in javaScript 5 Jul 0010).
-	 * When we convert from a JS date to a Java date, it should remain the same
-	 * not in milliseconds, but in actual year/month/day/hh/mm/ss/ms.
-	 */
-	private static long convertFromUTCMillisToJava(double t) {
-		GregorianCalendar calendar = new GregorianCalendar(
-				TimeZone.getTimeZone("GMT"));
-		calendar.set(YearFromTime(t), MonthFromTime(t), DateFromTime(t),
-				HourFromTime(t), MinFromTime(t), SecFromTime(t));
-		calendar.set(Calendar.MILLISECOND, msFromTime(t));
-		return calendar.getTimeInMillis();
 	}
 
 	@Override
@@ -124,7 +90,7 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 	}
 
 	@Override
-	public Object getDefaultValue(Class typeHint) {
+	public Object getDefaultValue(Class<?> typeHint) {
 		if (typeHint == null)
 			typeHint = ScriptRuntime.StringClass;
 		return super.getDefaultValue(typeHint);
@@ -327,6 +293,14 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 			arity = 1;
 			s = "setYear";
 			break;
+		case Id_toISOString:
+			arity = 0;
+			s = "toISOString";
+			break;
+		case Id_toJSON:
+			arity = 1;
+			s = "toJSON";
+			break;
 		default:
 			throw new IllegalArgumentException(String.valueOf(id));
 		}
@@ -359,6 +333,42 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 				return date_format(now(), Id_toString);
 			return jsConstructor(args);
 		}
+
+		case Id_toJSON: {
+			if (thisObj instanceof NativeDate) {
+				return ((NativeDate) thisObj).toISOString();
+			}
+
+			final String toISOString = "toISOString";
+
+			Scriptable o = ScriptRuntime.toObject(cx, scope, thisObj);
+			Object tv = ScriptRuntime.toPrimitive(o, ScriptRuntime.NumberClass);
+			if (tv instanceof Number) {
+				double d = ((Number) tv).doubleValue();
+				if (d != d || Double.isInfinite(d)) {
+					return null;
+				}
+			}
+			Object toISO = o.get(toISOString, o);
+			if (toISO == NOT_FOUND) {
+				throw ScriptRuntime.typeError2("msg.function.not.found.in",
+						toISOString, ScriptRuntime.toString(o));
+			}
+			if (!(toISO instanceof Callable)) {
+				throw ScriptRuntime.typeError3("msg.isnt.function.in",
+						toISOString, ScriptRuntime.toString(o),
+						ScriptRuntime.toString(toISO));
+			}
+			Object result = ((Callable) toISO).call(cx, scope, o,
+					ScriptRuntime.emptyArgs);
+			if (!ScriptRuntime.isPrimitive(result)) {
+				throw ScriptRuntime.typeError1(
+						"msg.toisostring.must.return.primitive",
+						ScriptRuntime.toString(result));
+			}
+			return result;
+		}
+
 		}
 
 		// The rest of Date.prototype methods require thisObj to be Date
@@ -490,7 +500,6 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 		case Id_setTime:
 			t = TimeClip(ScriptRuntime.toNumber(args, 0));
 			realThis.date = t;
-			updateJavaDateIfNecessary(realThis);
 			return ScriptRuntime.wrapNumber(t);
 
 		case Id_setMilliseconds:
@@ -503,7 +512,6 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 		case Id_setUTCHours:
 			t = makeTime(t, args, id);
 			realThis.date = t;
-			updateJavaDateIfNecessary(realThis);
 			return ScriptRuntime.wrapNumber(t);
 
 		case Id_setDate:
@@ -514,7 +522,6 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 		case Id_setUTCFullYear:
 			t = makeDate(t, args, id);
 			realThis.date = t;
-			updateJavaDateIfNecessary(realThis);
 			return ScriptRuntime.wrapNumber(t);
 
 		case Id_setYear: {
@@ -539,8 +546,10 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 			}
 		}
 			realThis.date = t;
-			updateJavaDateIfNecessary(realThis);
 			return ScriptRuntime.wrapNumber(t);
+
+		case Id_toISOString:
+			return realThis.toISOString();
 
 		default:
 			throw new IllegalArgumentException(String.valueOf(id));
@@ -548,35 +557,28 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 
 	}
 
-	private void updateJavaDateIfNecessary(NativeDate realThis) {
-		if (realThis.javaDate != null) {
-			realThis.javaDate
-					.setTime(convertFromUTCMillisToJava(realThis.date));
+	private String toISOString() {
+		if (date == date) {
+			synchronized (isoFormat) {
+				return isoFormat.format(new Date((long) date));
+			}
 		}
+		String msg = ScriptRuntime.getMessage0("msg.invalid.date");
+		throw ScriptRuntime.constructError("RangeError", msg);
 	}
 
 	/* ECMA helper functions */
 
 	private static final double HalfTimeDomain = 8.64e15;
-
 	private static final double HoursPerDay = 24.0;
-
 	private static final double MinutesPerHour = 60.0;
-
 	private static final double SecondsPerMinute = 60.0;
-
 	private static final double msPerSecond = 1000.0;
-
 	private static final double MinutesPerDay = (HoursPerDay * MinutesPerHour);
-
 	private static final double SecondsPerDay = (MinutesPerDay * SecondsPerMinute);
-
 	private static final double SecondsPerHour = (MinutesPerHour * SecondsPerMinute);
-
 	private static final double msPerDay = (SecondsPerDay * msPerSecond);
-
 	private static final double msPerHour = (SecondsPerHour * msPerSecond);
-
 	private static final double msPerMinute = (SecondsPerMinute * msPerSecond);
 
 	private static double Day(double t) {
@@ -796,7 +798,7 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 	}
 
 	private static double now() {
-		return convertToUTCMillisFromJava(System.currentTimeMillis());
+		return System.currentTimeMillis();
 	}
 
 	/*
@@ -810,8 +812,17 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 	private final static boolean TZO_WORKAROUND = false;
 
 	private static double DaylightSavingTA(double t) {
+		// Another workaround! The JRE doesn't seem to know about DST
+		// before year 1 AD, so we map to equivalent dates for the
+		// purposes of finding dst. To be safe, we do this for years
+		// outside 1970-2038.
+		if (t < 0.0 || t > 2145916800000.0) {
+			int year = EquivalentYear(YearFromTime(t));
+			double day = MakeDay(year, MonthFromTime(t), DateFromTime(t));
+			t = MakeDate(day, TimeWithinDay(t));
+		}
 		if (!TZO_WORKAROUND) {
-			Date date = new Date(convertFromUTCMillisToJava(t));
+			Date date = new Date((long) t);
 			if (thisTimeZone.inDaylightTime(date))
 				return msPerHour;
 			else
@@ -841,24 +852,64 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 		}
 	}
 
+	/*
+	 * Find a year for which any given date will fall on the same weekday.
+	 * 
+	 * This function should be used with caution when used other than for
+	 * determining DST; it hasn't been proven not to produce an incorrect year
+	 * for times near year boundaries.
+	 */
+	private static int EquivalentYear(int year) {
+		int day = (int) DayFromYear(year) + 4;
+		day = day % 7;
+		if (day < 0)
+			day += 7;
+		// Years and leap years on which Jan 1 is a Sunday, Monday, etc.
+		if (IsLeapYear(year)) {
+			switch (day) {
+			case 0:
+				return 1984;
+			case 1:
+				return 1996;
+			case 2:
+				return 1980;
+			case 3:
+				return 1992;
+			case 4:
+				return 1976;
+			case 5:
+				return 1988;
+			case 6:
+				return 1972;
+			}
+		} else {
+			switch (day) {
+			case 0:
+				return 1978;
+			case 1:
+				return 1973;
+			case 2:
+				return 1974;
+			case 3:
+				return 1975;
+			case 4:
+				return 1981;
+			case 5:
+				return 1971;
+			case 6:
+				return 1977;
+			}
+		}
+		// Unreachable
+		throw Kit.codeBug();
+	}
+
 	private static double LocalTime(double t) {
 		return t + LocalTZA + DaylightSavingTA(t);
 	}
 
 	private static double internalUTC(double t) {
-		double varTime = t - LocalTZA;
-		// if time is between the first hour after entering dts, add an hour so
-		// the time is correctly displayed
-		// ex. if dts is changed at 3h, 3h will become 4h, so 3h10min will
-		// become 4h10min,
-		// as because of dts change the time between 3-4 does not exist
-		if (thisTimeZone.inDaylightTime(new Date(
-				convertFromUTCMillisToJava(varTime)))
-				&& !thisTimeZone.inDaylightTime(new Date(
-						convertFromUTCMillisToJava(varTime - msPerHour))))
-			varTime += msPerHour;
-
-		return varTime - DaylightSavingTA(varTime);
+		return t - LocalTZA - DaylightSavingTA(t - LocalTZA);
 	}
 
 	private static int HourFromTime(double t) {
@@ -980,6 +1031,17 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 	}
 
 	private static double date_parseString(String s) {
+		try {
+			if (s.length() == 24) {
+				final Date d;
+				synchronized (isoFormat) {
+					d = isoFormat.parse(s);
+				}
+				return d.getTime();
+			}
+		} catch (java.text.ParseException ex) {
+		}
+
 		int year = -1;
 		int mon = -1;
 		int mday = -1;
@@ -1256,10 +1318,17 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 			append0PaddedUint(result, offset, 4);
 
 			if (timeZoneFormatter == null)
-				timeZoneFormatter = new java.text.SimpleDateFormat("zzz");
+				timeZoneFormatter = new SimpleDateFormat("zzz");
 
+			// Find an equivalent year before getting the timezone
+			// comment. See DaylightSavingTA.
+			if (t < 0.0 || t > 2145916800000.0) {
+				int equiv = EquivalentYear(YearFromTime(local));
+				double day = MakeDay(equiv, MonthFromTime(t), DateFromTime(t));
+				t = MakeDate(day, TimeWithinDay(t));
+			}
 			result.append(" (");
-			java.util.Date date = new Date(convertFromUTCMillisToJava(t));
+			Date date = new Date((long) t);
 			synchronized (timeZoneFormatter) {
 				result.append(timeZoneFormatter.format(date));
 			}
@@ -1269,7 +1338,7 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 	}
 
 	/* the javascript constructor */
-	public static Object jsConstructor(Object[] args) {
+	private static Object jsConstructor(Object[] args) {
 		NativeDate obj = new NativeDate();
 
 		// if called as a constructor with no args,
@@ -1280,14 +1349,11 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 		}
 
 		// if called with just one arg -
-		if (args.length == 1 && !(args[0] instanceof Date)) {
-			if (args[0] instanceof CharSequenceBuffer) {
-				args[0] = args[0].toString();
-			}
-			double date;
+		if (args.length == 1) {
 			Object arg0 = args[0];
 			if (arg0 instanceof Scriptable)
 				arg0 = ((Scriptable) arg0).getDefaultValue(null);
+			double date;
 			if (arg0 instanceof String) {
 				// it's a string; parse it.
 				date = date_parseString((String) arg0);
@@ -1299,15 +1365,10 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 			return obj;
 		}
 
-		double time;
-		if (args.length == 1 && args[0] instanceof Date) {
-			obj.javaDate = (Date) args[0];
-			time = convertToUTCMillisFromJava(obj.javaDate.getTime());
-		} else {
-			time = date_msecFromArgs(args);
-			if (!Double.isNaN(time) && !Double.isInfinite(time))
-				time = TimeClip(internalUTC(time));
-		}
+		double time = date_msecFromArgs(args);
+
+		if (!Double.isNaN(time) && !Double.isInfinite(time))
+			time = TimeClip(internalUTC(time));
 
 		obj.date = time;
 
@@ -1315,7 +1376,7 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 	}
 
 	private static String toLocale_helper(double t, int methodId) {
-		java.text.DateFormat formatter;
+		DateFormat formatter;
 		switch (methodId) {
 		case Id_toLocaleString:
 			if (localeDateTimeFormatter == null) {
@@ -1339,11 +1400,11 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 			formatter = localeDateFormatter;
 			break;
 		default:
-			formatter = null; // unreachable
+			throw new AssertionError(); // unreachable
 		}
 
 		synchronized (formatter) {
-			return formatter.format(new Date(convertFromUTCMillisToJava(t)));
+			return formatter.format(new Date((long) t));
 		}
 	}
 
@@ -1634,15 +1695,21 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 	@Override
 	protected int findPrototypeId(String s) {
 		int id;
-		// #generated# Last update: 2007-05-09 08:15:38 EDT
+		// #generated# Last update: 2009-07-22 05:44:02 EST
 		L0: {
 			id = 0;
 			String X = null;
 			int c;
 			L: switch (s.length()) {
 			case 6:
-				X = "getDay";
-				id = Id_getDay;
+				c = s.charAt(0);
+				if (c == 'g') {
+					X = "getDay";
+					id = Id_getDay;
+				} else if (c == 't') {
+					X = "toJSON";
+					id = Id_toJSON;
+				}
 				break L;
 			case 7:
 				switch (s.charAt(3)) {
@@ -1765,6 +1832,10 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 					X = "toGMTString";
 					id = Id_toGMTString;
 					break L;
+				case 'S':
+					X = "toISOString";
+					id = Id_toISOString;
+					break L;
 				case 'T':
 					X = "toUTCString";
 					id = Id_toUTCString;
@@ -1884,16 +1955,6 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 		return id;
 	}
 
-	/**
-	 * @see org.mozilla.javascript.Wrapper#unwrap()
-	 */
-	public Object unwrap() {
-		if (javaDate == null) {
-			javaDate = new Date(convertFromUTCMillisToJava(this.date));
-		}
-		return javaDate;
-	}
-
 	private static final int ConstructorId_now = -3, ConstructorId_parse = -2,
 			ConstructorId_UTC = -1,
 
@@ -1914,27 +1975,21 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 			Id_setHours = 37, Id_setUTCHours = 38, Id_setDate = 39,
 			Id_setUTCDate = 40, Id_setMonth = 41, Id_setUTCMonth = 42,
 			Id_setFullYear = 43, Id_setUTCFullYear = 44, Id_setYear = 45,
+			Id_toISOString = 46, Id_toJSON = 47,
 
-			MAX_PROTOTYPE_ID = 45;
+			MAX_PROTOTYPE_ID = Id_toJSON;
 
-	private static final int Id_toGMTString = Id_toUTCString; // Alias, see
-																// Ecma B.2.6
+	private static final int Id_toGMTString = Id_toUTCString; // Alias, see Ecma
+																// B.2.6
 	// #/string_id_map#
 
 	/* cached values */
-	private static java.util.TimeZone thisTimeZone;
-
+	private static TimeZone thisTimeZone;
 	private static double LocalTZA;
-
-	private static java.text.DateFormat timeZoneFormatter;
-
-	private static java.text.DateFormat localeDateTimeFormatter;
-
-	private static java.text.DateFormat localeDateFormatter;
-
-	private static java.text.DateFormat localeTimeFormatter;
+	private static DateFormat timeZoneFormatter;
+	private static DateFormat localeDateTimeFormatter;
+	private static DateFormat localeDateFormatter;
+	private static DateFormat localeTimeFormatter;
 
 	private double date;
-
-	private Date javaDate;
 }

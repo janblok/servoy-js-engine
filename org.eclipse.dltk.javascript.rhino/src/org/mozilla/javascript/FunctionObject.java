@@ -40,25 +40,24 @@
  * ***** END LICENSE BLOCK ***** */
 
 // API class
+
 package org.mozilla.javascript;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Member;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
+import java.lang.reflect.*;
+import java.io.*;
 
 public class FunctionObject extends BaseFunction {
 	static final long serialVersionUID = -5332312783643935019L;
 
 	/**
 	 * Create a JavaScript function object from a Java method.
+	 * 
 	 * <p>
 	 * The <code>member</code> argument must be either a
 	 * java.lang.reflect.Method or a java.lang.reflect.Constructor and must
 	 * match one of two forms.
 	 * <p>
+	 * 
 	 * The first form is a member with zero or more parameters of the following
 	 * types: Object, String, boolean, Scriptable, int, or double. The Long type
 	 * is not supported because the double representation of a long (which is
@@ -66,6 +65,7 @@ public class FunctionObject extends BaseFunction {
 	 * member is a Method, the return value must be void or one of the types
 	 * allowed for parameters.
 	 * <p>
+	 * 
 	 * The runtime will perform appropriate conversions based upon the type of
 	 * the parameter. A parameter type of Object specifies that no conversions
 	 * are to be done. A parameter of type String will use Context.toString to
@@ -73,10 +73,12 @@ public class FunctionObject extends BaseFunction {
 	 * Scriptable will cause Context.toNumber, Context.toBoolean, and
 	 * Context.toObject, respectively, to be called.
 	 * <p>
+	 * 
 	 * If the method is not static, the Java 'this' value will correspond to the
 	 * JavaScript 'this' value. Any attempt to call the function with a 'this'
 	 * value that is not of the right Java type will result in an error.
 	 * <p>
+	 * 
 	 * The second form is the variable arguments (or "varargs") form. If the
 	 * FunctionObject will be used as a constructor, the member must have the
 	 * following parameters
@@ -88,21 +90,24 @@ public class FunctionObject extends BaseFunction {
 	 * 
 	 * and if it is a Method, be static and return an Object result.
 	 * <p>
-	 * Otherwise, if the FunctionObject will <i>not</i> be used to define a
-	 * constructor, the member must be a static Method with parameters (Context
-	 * cx, Scriptable thisObj, Object[] args, Function funObj)
 	 * 
-	 * </pre>
+	 * Otherwise, if the FunctionObject will <i>not</i> be used to define a
+	 * constructor, the member must be a static Method with parameters
 	 * 
 	 * <pre>
+	 *      (Context cx, Scriptable thisObj, Object[] args,
+	 *       Function funObj)
+	 * </pre>
 	 * 
 	 * and an Object result.
 	 * <p>
+	 * 
 	 * When the function varargs form is called as part of a function call, the
 	 * <code>args</code> parameter contains the arguments, with
 	 * <code>thisObj</code> set to the JavaScript 'this' value.
 	 * <code>funObj</code> is the function object for the invoked function.
 	 * <p>
+	 * 
 	 * When the constructor varargs form is called or invoked while evaluating a
 	 * <code>new</code> expression, <code>args</code> contains the arguments,
 	 * <code>ctorObj</code> refers to this FunctionObject, and
@@ -110,22 +115,23 @@ public class FunctionObject extends BaseFunction {
 	 * expression caused the call. This supports defining a function that has
 	 * different behavior when called as a constructor than when invoked as a
 	 * normal function call. (For example, the Boolean constructor, when called
-	 * as a function, will convert to boolean rather than creating a new object.)
+	 * as a function, will convert to boolean rather than creating a new
+	 * object.)
 	 * <p>
 	 * 
 	 * @param name
-	 *           the name of the function
+	 *            the name of the function
 	 * @param methodOrConstructor
-	 *           a java.lang.reflect.Method or a java.lang.reflect.Constructor
-	 *           that defines the object
+	 *            a java.lang.reflect.Method or a java.lang.reflect.Constructor
+	 *            that defines the object
 	 * @param scope
-	 *           enclosing scope of function
+	 *            enclosing scope of function
 	 * @see org.mozilla.javascript.Scriptable
 	 */
 	public FunctionObject(String name, Member methodOrConstructor,
 			Scriptable scope) {
 		if (methodOrConstructor instanceof Constructor) {
-			member = new MemberBox((Constructor) methodOrConstructor);
+			member = new MemberBox((Constructor<?>) methodOrConstructor);
 			isStatic = true; // well, doesn't take a 'this'
 		} else {
 			member = new MemberBox((Method) methodOrConstructor);
@@ -133,7 +139,7 @@ public class FunctionObject extends BaseFunction {
 		}
 		String methodName = member.getName();
 		this.functionName = name;
-		Class[] types = member.argTypes;
+		Class<?>[] types = member.argTypes;
 		int arity = types.length;
 		if (arity == 4 && (types[1].isArray() || types[2].isArray())) {
 			// Either variable args or an error.
@@ -165,13 +171,8 @@ public class FunctionObject extends BaseFunction {
 				for (int i = 0; i != arity; ++i) {
 					int tag = getTypeTag(types[i]);
 					if (tag == JAVA_UNSUPPORTED_TYPE) {
-						if (parmsLength > 1 || !types[i].isArray())
-							throw Context.reportRuntimeError2("msg.bad.parms",
-									types[i].getName(), methodName);
-						else {
-							parmsLength = VARARGS_METHOD;
-							break;
-						}
+						throw Context.reportRuntimeError2("msg.bad.parms",
+								types[i].getName(), methodName);
 					}
 					typeTags[i] = (byte) tag;
 				}
@@ -180,14 +181,14 @@ public class FunctionObject extends BaseFunction {
 
 		if (member.isMethod()) {
 			Method method = member.method();
-			Class returnType = method.getReturnType();
+			Class<?> returnType = method.getReturnType();
 			if (returnType == Void.TYPE) {
 				hasVoidReturn = true;
 			} else {
 				returnTypeTag = getTypeTag(returnType);
 			}
 		} else {
-			Class ctorType = member.getDeclaringClass();
+			Class<?> ctorType = member.getDeclaringClass();
 			if (!ScriptRuntime.ScriptableClass.isAssignableFrom(ctorType)) {
 				throw Context.reportRuntimeError1("msg.bad.ctor.return",
 						ctorType.getName());
@@ -201,7 +202,7 @@ public class FunctionObject extends BaseFunction {
 	 * @return One of <tt>JAVA_*_TYPE</tt> constants to indicate desired type or
 	 *         {@link #JAVA_UNSUPPORTED_TYPE} if the convertion is not possible
 	 */
-	public static int getTypeTag(Class type) {
+	public static int getTypeTag(Class<?> type) {
 		if (type == ScriptRuntime.StringClass)
 			return JAVA_STRING_TYPE;
 		if (type == ScriptRuntime.IntegerClass || type == Integer.TYPE)
@@ -214,9 +215,6 @@ public class FunctionObject extends BaseFunction {
 			return JAVA_SCRIPTABLE_TYPE;
 		if (type == ScriptRuntime.ObjectClass)
 			return JAVA_OBJECT_TYPE;
-
-		// var args
-		// if (!(type.isArray() && parmsLength == 1))
 
 		// Note that the long type is not supported; see the javadoc for
 		// the constructor for this class
@@ -234,7 +232,7 @@ public class FunctionObject extends BaseFunction {
 		case JAVA_INT_TYPE:
 			if (arg instanceof Integer)
 				return arg;
-			return new Integer(ScriptRuntime.toInt32(arg));
+			return Integer.valueOf(ScriptRuntime.toInt32(arg));
 		case JAVA_BOOLEAN_TYPE:
 			if (arg instanceof Boolean)
 				return arg;
@@ -244,9 +242,7 @@ public class FunctionObject extends BaseFunction {
 				return arg;
 			return new Double(ScriptRuntime.toNumber(arg));
 		case JAVA_SCRIPTABLE_TYPE:
-			if (arg instanceof Scriptable)
-				return arg;
-			return ScriptRuntime.toObject(cx, scope, arg);
+			return ScriptRuntime.toObjectOrNull(cx, arg, scope);
 		case JAVA_OBJECT_TYPE:
 			return arg;
 		default:
@@ -254,30 +250,12 @@ public class FunctionObject extends BaseFunction {
 		}
 	}
 
-	// TODO var arrays
-	// private Object unwrap(Object obj)
-	// {
-	// obj = convertArg(this, obj, types[0].getComponentType());
-	// if(obj instanceof Wrapper)
-	// {
-	// obj = ((Wrapper)obj).unwrap();
-	// }
-	// if(obj instanceof Object[])
-	// {
-	// Object[] array = (Object[]) obj;
-	// for (int k = 0; k < array.length; k++)
-	// {
-	// array[k] = unwrap(array[k]);
-	// }
-	// }
-	// return obj;
-	// }
-
 	/**
 	 * Return the value defined by the method used to construct the object
 	 * (number of parameters of the method, or 1 if the method is a "varargs"
 	 * form).
 	 */
+	@Override
 	public int getArity() {
 		return parmsLength < 0 ? 1 : parmsLength;
 	}
@@ -285,10 +263,12 @@ public class FunctionObject extends BaseFunction {
 	/**
 	 * Return the same value as {@link #getArity()}.
 	 */
+	@Override
 	public int getLength() {
 		return getArity();
 	}
 
+	@Override
 	public String getFunctionName() {
 		return (functionName == null) ? "" : functionName;
 	}
@@ -328,7 +308,7 @@ public class FunctionObject extends BaseFunction {
 	 * @return the public methods declared in the specified class
 	 * @see Class#getDeclaredMethods()
 	 */
-	static Method[] getMethodList(Class clazz) {
+	static Method[] getMethodList(Class<?> clazz) {
 		Method[] methods = null;
 		try {
 			// getDeclaredMethods may be rejected by the security manager
@@ -398,10 +378,10 @@ public class FunctionObject extends BaseFunction {
 	/**
 	 * @deprecated Use {@link #getTypeTag(Class)} and
 	 *             {@link #convertArg(Context, Scriptable, Object, int)} for
-	 *             type convertion.
+	 *             type conversion.
 	 */
 	public static Object convertArg(Context cx, Scriptable scope, Object arg,
-			Class desired) {
+			Class<?> desired) {
 		int tag = getTypeTag(desired);
 		if (tag == JAVA_UNSUPPORTED_TYPE) {
 			throw Context.reportRuntimeError1("msg.cant.convert",
@@ -419,6 +399,7 @@ public class FunctionObject extends BaseFunction {
 	 * @see org.mozilla.javascript.Function#call(Context, Scriptable,
 	 *      Scriptable, Object[])
 	 */
+	@Override
 	public Object call(Context cx, Scriptable scope, Scriptable thisObj,
 			Object[] args) {
 		Object result;
@@ -427,22 +408,19 @@ public class FunctionObject extends BaseFunction {
 		if (parmsLength < 0) {
 			if (parmsLength == VARARGS_METHOD) {
 				Object[] invokeArgs = { cx, thisObj, args, this };
-				if (!member.method().isVarArgs()) {
-					invokeArgs = new Object[] { args };
-				}
-				result = member.invoke(thisObj, invokeArgs);
+				result = member.invoke(null, invokeArgs);
 				checkMethodResult = true;
 			} else {
 				boolean inNewExpr = (thisObj == null);
 				Boolean b = inNewExpr ? Boolean.TRUE : Boolean.FALSE;
 				Object[] invokeArgs = { cx, args, this, b };
 				result = (member.isCtor()) ? member.newInstance(invokeArgs)
-						: member.invoke(thisObj, invokeArgs);
+						: member.invoke(null, invokeArgs);
 			}
 
 		} else {
 			if (!isStatic) {
-				Class clazz = member.getDeclaringClass();
+				Class<?> clazz = member.getDeclaringClass();
 				if (!clazz.isInstance(thisObj)) {
 					boolean compatible = false;
 					if (thisObj == scope) {
@@ -465,42 +443,28 @@ public class FunctionObject extends BaseFunction {
 			}
 
 			Object[] invokeArgs;
-			// TODO var arrays
-			// if(parmsLength == 1 && typeTags[0].isArray())
-			// {
-			// for (int j = 0; j < args.length; j++)
-			// {
-			// args[j] = unwrap(args[j]);
-			// }
-			// invokeArgs = new Object[parmsLength];
-			// invokeArgs[0] = args;
-			// }
-			// else
-			{
-				if (parmsLength == args.length) {
-					// Do not allocate new argument array if java arguments are
-					// the same as the original js ones.
-					invokeArgs = args;
-					for (int i = 0; i != parmsLength; ++i) {
-						Object arg = args[i];
-						Object converted = convertArg(cx, scope, arg,
-								typeTags[i]);
-						if (arg != converted) {
-							if (invokeArgs == args) {
-								invokeArgs = (Object[]) args.clone();
-							}
-							invokeArgs[i] = converted;
+			if (parmsLength == args.length) {
+				// Do not allocate new argument array if java arguments are
+				// the same as the original js ones.
+				invokeArgs = args;
+				for (int i = 0; i != parmsLength; ++i) {
+					Object arg = args[i];
+					Object converted = convertArg(cx, scope, arg, typeTags[i]);
+					if (arg != converted) {
+						if (invokeArgs == args) {
+							invokeArgs = args.clone();
 						}
+						invokeArgs[i] = converted;
 					}
-				} else if (parmsLength == 0) {
-					invokeArgs = ScriptRuntime.emptyArgs;
-				} else {
-					invokeArgs = new Object[parmsLength];
-					for (int i = 0; i != parmsLength; ++i) {
-						Object arg = (i < args.length) ? args[i]
-								: Undefined.instance;
-						invokeArgs[i] = convertArg(cx, scope, arg, typeTags[i]);
-					}
+				}
+			} else if (parmsLength == 0) {
+				invokeArgs = ScriptRuntime.emptyArgs;
+			} else {
+				invokeArgs = new Object[parmsLength];
+				for (int i = 0; i != parmsLength; ++i) {
+					Object arg = (i < args.length) ? args[i]
+							: Undefined.instance;
+					invokeArgs[i] = convertArg(cx, scope, arg, typeTags[i]);
 				}
 			}
 
@@ -533,6 +497,7 @@ public class FunctionObject extends BaseFunction {
 	 * the class of the underlying Java method. Return null to indicate that the
 	 * call method should be used to create new objects.
 	 */
+	@Override
 	public Scriptable createObject(Context cx, Scriptable scope) {
 		if (member.isCtor() || parmsLength == VARARGS_CTOR) {
 			return null;
@@ -561,7 +526,7 @@ public class FunctionObject extends BaseFunction {
 			ClassNotFoundException {
 		in.defaultReadObject();
 		if (parmsLength > 0) {
-			Class[] types = member.argTypes;
+			Class<?>[] types = member.argTypes;
 			typeTags = new byte[parmsLength];
 			for (int i = 0; i != parmsLength; ++i) {
 				typeTags[i] = (byte) getTypeTag(types[i]);
@@ -569,7 +534,7 @@ public class FunctionObject extends BaseFunction {
 		}
 		if (member.isMethod()) {
 			Method method = member.method();
-			Class returnType = method.getReturnType();
+			Class<?> returnType = method.getReturnType();
 			if (returnType == Void.TYPE) {
 				hasVoidReturn = true;
 			} else {
@@ -579,36 +544,23 @@ public class FunctionObject extends BaseFunction {
 	}
 
 	private static final short VARARGS_METHOD = -1;
-
 	private static final short VARARGS_CTOR = -2;
 
 	private static boolean sawSecurityException;
 
 	public static final int JAVA_UNSUPPORTED_TYPE = 0;
-
 	public static final int JAVA_STRING_TYPE = 1;
-
 	public static final int JAVA_INT_TYPE = 2;
-
 	public static final int JAVA_BOOLEAN_TYPE = 3;
-
 	public static final int JAVA_DOUBLE_TYPE = 4;
-
 	public static final int JAVA_SCRIPTABLE_TYPE = 5;
-
 	public static final int JAVA_OBJECT_TYPE = 6;
 
 	MemberBox member;
-
 	private String functionName;
-
 	private transient byte[] typeTags;
-
 	private int parmsLength;
-
 	private transient boolean hasVoidReturn;
-
 	private transient int returnTypeTag;
-
 	private boolean isStatic;
 }

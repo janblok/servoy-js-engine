@@ -40,7 +40,6 @@ package org.mozilla.javascript.optimizer;
 class DataFlowBitSet {
 
 	private int itsBits[];
-
 	private int itsSize;
 
 	DataFlowBitSet(int size) {
@@ -84,6 +83,7 @@ class DataFlowBitSet {
 			itsBits[i] |= b.itsBits[i];
 	}
 
+	@Override
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
 		sb.append("DataFlowBitSet, size = ");

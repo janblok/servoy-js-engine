@@ -23,6 +23,7 @@
  *   Norris Boyd
  *   Igor Bukanov
  *   Roger Lawrence
+ *   Cameron McCormack
  *
  * Alternatively, the contents of this file may be used under the terms of
  * the GNU General Public License Version 2 or later (the "GPL"), in which
@@ -39,8 +40,10 @@
 package org.mozilla.javascript.optimizer;
 
 import org.mozilla.javascript.*;
+import org.mozilla.javascript.ast.Jump;
 
-import java.util.Hashtable;
+import java.util.HashMap;
+import java.util.Map;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -81,7 +84,6 @@ class Block {
 
 		// all the Blocks that come immediately after this
 		private ObjToIntMap successors = new ObjToIntMap();
-
 		// all the Blocks that come immediately before this
 		private ObjToIntMap predecessors = new ObjToIntMap();
 
@@ -141,7 +143,7 @@ class Block {
 
 	private static Block[] buildBlocks(Node[] statementNodes) {
 		// a mapping from each target node to the block it begins
-		Hashtable theTargetBlocks = new Hashtable();
+		Map<Node, FatBlock> theTargetBlocks = new HashMap<Node, FatBlock>();
 		ObjArray theBlocks = new ObjArray();
 
 		// there's a block that starts at index 0
@@ -199,9 +201,8 @@ class Block {
 			if ((blockEndNodeType == Token.IFNE)
 					|| (blockEndNodeType == Token.IFEQ)
 					|| (blockEndNodeType == Token.GOTO)) {
-				Node target = ((Node.Jump) blockEndNode).target;
-				FatBlock branchTargetBlock = (FatBlock) (theTargetBlocks
-						.get(target));
+				Node target = ((Jump) blockEndNode).target;
+				FatBlock branchTargetBlock = theTargetBlocks.get(target);
 				target.putProp(Node.TARGETBLOCK_PROP,
 						branchTargetBlock.realBlock);
 				fb.addSuccessor(branchTargetBlock);
@@ -363,8 +364,9 @@ class Block {
 
 	/*
 	 * We're tracking uses and defs - in order to build the def set and to
-	 * identify the last use nodes. The itsNotDefSet is built reversed then
-	 * flipped later.
+	 * identify the last use nodes.
+	 * 
+	 * The itsNotDefSet is built reversed then flipped later.
 	 */
 	private void lookForVariableAccess(OptFunctionNode fn, Node n) {
 		switch (n.getType()) {
@@ -456,6 +458,7 @@ class Block {
 
 		case Token.INC:
 		case Token.DEC:
+		case Token.MUL:
 		case Token.DIV:
 		case Token.MOD:
 		case Token.BITOR:
@@ -465,12 +468,14 @@ class Block {
 		case Token.RSH:
 		case Token.URSH:
 		case Token.SUB:
+		case Token.POS:
+		case Token.NEG:
 			return Optimizer.NumberType;
 
 		case Token.ARRAYLIT:
 		case Token.OBJECTLIT:
 			return Optimizer.AnyType; // XXX: actually, we know it's not
-			// number, but no type yet for that
+										// number, but no type yet for that
 
 		case Token.ADD: {
 			// if the lhs & rhs are known to be numbers, we can be sure that's
@@ -567,27 +572,21 @@ class Block {
 
 	// all the Blocks that come immediately after this
 	private Block[] itsSuccessors;
-
 	// all the Blocks that come immediately before this
 	private Block[] itsPredecessors;
 
 	private int itsStartNodeIndex; // the Node at the start of the block
-
 	private int itsEndNodeIndex; // the Node at the end of the block
 
 	private int itsBlockID; // a unique index for each block
 
 	// reaching def bit sets -
 	private DataFlowBitSet itsLiveOnEntrySet;
-
 	private DataFlowBitSet itsLiveOnExitSet;
-
 	private DataFlowBitSet itsUseBeforeDefSet;
-
 	private DataFlowBitSet itsNotDefSet;
 
 	static final boolean DEBUG = false;
-
 	private static int debug_blockCount;
 
 }

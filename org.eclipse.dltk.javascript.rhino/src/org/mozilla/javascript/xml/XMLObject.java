@@ -46,6 +46,7 @@ import org.mozilla.javascript.*;
 /**
  * This Interface describes what all XML objects (XML, XMLList) should have in
  * common.
+ * 
  */
 public abstract class XMLObject extends IdScriptableObject {
 	public XMLObject() {
@@ -122,4 +123,15 @@ public abstract class XMLObject extends IdScriptableObject {
 		return Scriptable.NOT_FOUND;
 	}
 
+	/**
+	 * Gets the value returned by calling the typeof operator on this object.
+	 * 
+	 * @see org.mozilla.javascript.ScriptableObject#getTypeOf()
+	 * @return "xml" or "undefined" if {@link #avoidObjectDetection()} returns
+	 *         <code>true</code>
+	 */
+	@Override
+	public String getTypeOf() {
+		return avoidObjectDetection() ? "undefined" : "xml";
+	}
 }

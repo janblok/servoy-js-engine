@@ -39,8 +39,10 @@
 package org.mozilla.javascript;
 
 /**
- * A wrapper for runtime exceptions. Used by the JavaScript runtime to wrap and
- * propagate exceptions that occur during runtime.
+ * A wrapper for runtime exceptions.
+ * 
+ * Used by the JavaScript runtime to wrap and propagate exceptions that occur
+ * during runtime.
  * 
  * @author Norris Boyd
  */

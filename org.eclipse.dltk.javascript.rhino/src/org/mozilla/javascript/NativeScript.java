@@ -42,11 +42,14 @@
 package org.mozilla.javascript;
 
 /**
- * The JavaScript Script object. Note that the C version of the engine uses XDR
- * as the format used by freeze and thaw. Since this depends on the internal
- * format of structures in the C runtime, we cannot duplicate it. Since we
- * cannot replace 'this' as a result of the compile method, will forward
- * requests to execute to the nonnull 'script' field.
+ * The JavaScript Script object.
+ * 
+ * Note that the C version of the engine uses XDR as the format used by freeze
+ * and thaw. Since this depends on the internal format of structures in the C
+ * runtime, we cannot duplicate it.
+ * 
+ * Since we cannot replace 'this' as a result of the compile method, will
+ * forward requests to execute to the nonnull 'script' field.
  * 
  * @since 1.3
  * @author Norris Boyd
@@ -55,7 +58,7 @@ package org.mozilla.javascript;
 class NativeScript extends BaseFunction {
 	static final long serialVersionUID = -6795101161980121700L;
 
-	private static final Object SCRIPT_TAG = new Object();
+	private static final Object SCRIPT_TAG = "Script";
 
 	static void init(Scriptable scope, boolean sealed) {
 		NativeScript obj = new NativeScript(null);
@@ -69,10 +72,12 @@ class NativeScript extends BaseFunction {
 	/**
 	 * Returns the name of this JavaScript class, "Script".
 	 */
+	@Override
 	public String getClassName() {
 		return "Script";
 	}
 
+	@Override
 	public Object call(Context cx, Scriptable scope, Scriptable thisObj,
 			Object[] args) {
 		if (script != null) {
@@ -81,18 +86,22 @@ class NativeScript extends BaseFunction {
 		return Undefined.instance;
 	}
 
+	@Override
 	public Scriptable construct(Context cx, Scriptable scope, Object[] args) {
 		throw Context.reportRuntimeError0("msg.script.is.not.constructor");
 	}
 
+	@Override
 	public int getLength() {
 		return 0;
 	}
 
+	@Override
 	public int getArity() {
 		return 0;
 	}
 
+	@Override
 	String decompile(int indent, int flags) {
 		if (script instanceof NativeFunction) {
 			return ((NativeFunction) script).decompile(indent, flags);
@@ -100,6 +109,7 @@ class NativeScript extends BaseFunction {
 		return super.decompile(indent, flags);
 	}
 
+	@Override
 	protected void initPrototypeId(int id) {
 		String s;
 		int arity;
@@ -126,6 +136,7 @@ class NativeScript extends BaseFunction {
 		initPrototypeMethod(SCRIPT_TAG, id, s, arity);
 	}
 
+	@Override
 	public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
 			Scriptable thisObj, Object[] args) {
 		if (!f.hasTag(SCRIPT_TAG)) {
@@ -186,6 +197,7 @@ class NativeScript extends BaseFunction {
 
 	// #string_id_map#
 
+	@Override
 	protected int findPrototypeId(String s) {
 		int id;
 		// #generated# Last update: 2007-05-09 08:16:01 EDT

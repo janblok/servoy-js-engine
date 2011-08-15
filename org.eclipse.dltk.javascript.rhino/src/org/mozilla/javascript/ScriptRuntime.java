@@ -25,6 +25,7 @@
  *   Patrick Beard
  *   Norris Boyd
  *   Igor Bukanov
+ *   Mike Harm
  *   Ethan Hugg
  *   Bob Jervis
  *   Roger Lawrence
@@ -48,15 +49,15 @@
 
 package org.mozilla.javascript;
 
+import java.io.Serializable;
 import java.lang.reflect.*;
 import java.text.MessageFormat;
-import java.util.Date;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
+import org.mozilla.javascript.ast.FunctionNode;
 import org.mozilla.javascript.xml.XMLObject;
 import org.mozilla.javascript.xml.XMLLib;
-import org.mozilla.javascript.continuations.Continuation;
 
 /**
  * This is the class that implements the runtime.
@@ -72,9 +73,34 @@ public class ScriptRuntime {
 	protected ScriptRuntime() {
 	}
 
-	private static class NoSuchMethodShim implements Callable {
-		String methodName;
+	/**
+	 * Returns representation of the [[ThrowTypeError]] object. See ECMA 5 spec,
+	 * 13.2.3
+	 */
+	public static BaseFunction typeErrorThrower() {
+		if (THROW_TYPE_ERROR == null) {
+			BaseFunction thrower = new BaseFunction() {
+				@Override
+				public Object call(Context cx, Scriptable scope,
+						Scriptable thisObj, Object[] args) {
+					throw typeError0("msg.op.not.allowed");
+				}
 
+				@Override
+				public int getLength() {
+					return 0;
+				}
+			};
+			thrower.preventExtensions();
+			THROW_TYPE_ERROR = thrower;
+		}
+		return THROW_TYPE_ERROR;
+	}
+
+	private static BaseFunction THROW_TYPE_ERROR = null;
+
+	static class NoSuchMethodShim implements Callable {
+		String methodName;
 		Callable noSuchMethodMethod;
 
 		NoSuchMethodShim(Callable noSuchMethodMethod, String methodName) {
@@ -110,13 +136,13 @@ public class ScriptRuntime {
 	 * There's such a huge space (and some time) waste for the Foo.class syntax:
 	 * the compiler sticks in a test of a static field in the enclosing class
 	 * for null and the code for creating the class value. It has to do this
-	 * since the reference has to get pushed off til executiontime (i.e. can't
-	 * force an early load), but for the 'standard' classes - especially those
-	 * in java.lang, we can trust that they won't cause problems by being loaded
-	 * early.
+	 * since the reference has to get pushed off until execution time (i.e.
+	 * can't force an early load), but for the 'standard' classes - especially
+	 * those in java.lang, we can trust that they won't cause problems by being
+	 * loaded early.
 	 */
 
-	public final static Class BooleanClass = Kit
+	public final static Class<?> BooleanClass = Kit
 			.classOrNull("java.lang.Boolean"), ByteClass = Kit
 			.classOrNull("java.lang.Byte"), CharacterClass = Kit
 			.classOrNull("java.lang.Character"), ClassClass = Kit
@@ -131,30 +157,40 @@ public class ScriptRuntime {
 			.classOrNull("java.lang.String"), DateClass = Kit
 			.classOrNull("java.util.Date");
 
-	public final static Class ContextClass = Kit
+	public final static Class<?> ContextClass = Kit
 			.classOrNull("org.mozilla.javascript.Context"),
 			ContextFactoryClass = Kit
 					.classOrNull("org.mozilla.javascript.ContextFactory"),
 			FunctionClass = Kit.classOrNull("org.mozilla.javascript.Function"),
-			ScriptableClass = Kit
-					.classOrNull("org.mozilla.javascript.Scriptable"),
 			ScriptableObjectClass = Kit
 					.classOrNull("org.mozilla.javascript.ScriptableObject");
+	public static final Class<Scriptable> ScriptableClass = Scriptable.class;
 
 	private static final String[] lazilyNames = { "RegExp",
 			"org.mozilla.javascript.regexp.NativeRegExp", "Packages",
 			"org.mozilla.javascript.NativeJavaTopPackage", "java",
+			"org.mozilla.javascript.NativeJavaTopPackage", "javax",
+			"org.mozilla.javascript.NativeJavaTopPackage", "org",
+			"org.mozilla.javascript.NativeJavaTopPackage", "com",
+			"org.mozilla.javascript.NativeJavaTopPackage", "edu",
+			"org.mozilla.javascript.NativeJavaTopPackage", "net",
 			"org.mozilla.javascript.NativeJavaTopPackage", "getClass",
 			"org.mozilla.javascript.NativeJavaTopPackage", "JavaAdapter",
 			"org.mozilla.javascript.JavaAdapter", "JavaImporter",
 			"org.mozilla.javascript.ImporterTopLevel",
-			// hack using literal string (xml) just to minimize changes for now
+			"Continuation",
+			"org.mozilla.javascript.NativeContinuation",
+			// TODO Grotesque hack using literal string (xml) just to minimize
+			// changes for now
 			"XML", "(xml)", "XMLList", "(xml)", "Namespace", "(xml)", "QName",
 			"(xml)", };
 
-	private static final Object LIBRARY_SCOPE_KEY = new Object();
+	// Locale object used to request locale-neutral operations.
+	public static Locale ROOT_LOCALE = new Locale("");
 
-	public static boolean isRhinoRuntimeType(Class cl) {
+	private static final Object LIBRARY_SCOPE_KEY = "LIBRARY_SCOPE";
+
+	public static boolean isRhinoRuntimeType(Class<?> cl) {
 		if (cl.isPrimitive()) {
 			return (cl != Character.TYPE);
 		} else {
@@ -178,7 +214,8 @@ public class ScriptRuntime {
 		Scriptable objectProto = ScriptableObject.getObjectPrototype(scope);
 
 		// Function.prototype.__proto__ should be Object.prototype
-		Scriptable functionProto = ScriptableObject.getFunctionPrototype(scope);
+		Scriptable functionProto = ScriptableObject.getClassPrototype(scope,
+				"Function");
 		functionProto.setPrototype(objectProto);
 
 		// Set the prototype of the object passed in if need be
@@ -190,15 +227,24 @@ public class ScriptRuntime {
 		NativeGlobal.init(cx, scope, sealed);
 
 		NativeArray.init(scope, sealed);
+		if (cx.getOptimizationLevel() > 0) {
+			// When optimizing, attempt to fulfill all requests for new Array(N)
+			// with a higher threshold before switching to a sparse
+			// representation
+			NativeArray.setMaximumInitialCapacity(200000);
+		}
 		NativeString.init(scope, sealed);
 		NativeBoolean.init(scope, sealed);
 		NativeNumber.init(scope, sealed);
 		NativeDate.init(scope, sealed);
 		NativeMath.init(scope, sealed);
+		NativeJSON.init(scope, sealed);
 
 		NativeWith.init(scope, sealed);
 		NativeCall.init(scope, sealed);
 		NativeScript.init(scope, sealed);
+
+		NativeIterator.init(scope, sealed); // Also initializes NativeGenerator
 
 		boolean withXml = cx.hasFeature(Context.FEATURE_E4X)
 				&& cx.getE4xImplementationFactory() != null;
@@ -212,10 +258,12 @@ public class ScriptRuntime {
 				className = cx.getE4xImplementationFactory()
 						.getImplementationClassName();
 			}
-			new LazilyLoadedCtor(scope, topProperty, className, sealed);
+			new LazilyLoadedCtor(scope, topProperty, className, sealed, true);
 		}
 
-		Continuation.init(scope, sealed);
+		if (scope instanceof TopLevel) {
+			((TopLevel) scope).cacheBuiltins();
+		}
 
 		return scope;
 	}
@@ -227,7 +275,7 @@ public class ScriptRuntime {
 		return libScope;
 	}
 
-	// It is public so NativeRegExp can access it .
+	// It is public so NativeRegExp can access it.
 	public static boolean isJSLineTerminator(int c) {
 		// Optimization for faster check for eol character:
 		// they do not have 0xDFD0 bits set
@@ -237,12 +285,39 @@ public class ScriptRuntime {
 		return c == '\n' || c == '\r' || c == 0x2028 || c == 0x2029;
 	}
 
+	public static boolean isJSWhitespaceOrLineTerminator(int c) {
+		return (isStrWhiteSpaceChar(c) || isJSLineTerminator(c));
+	}
+
+	/**
+	 * Indicates if the character is a Str whitespace char according to ECMA
+	 * spec: StrWhiteSpaceChar ::: <TAB> <SP> <NBSP> <FF> <VT> <CR> <LF> <LS>
+	 * <PS> <USP> <BOM>
+	 */
+	static boolean isStrWhiteSpaceChar(int c) {
+		switch (c) {
+		case ' ': // <SP>
+		case '\n': // <LF>
+		case '\r': // <CR>
+		case '\t': // <TAB>
+		case '\u00A0': // <NBSP>
+		case '\u000C': // <FF>
+		case '\u000B': // <VT>
+		case '\u2028': // <LS>
+		case '\u2029': // <PS>
+		case '\uFEFF': // <BOM>
+			return true;
+		default:
+			return Character.getType(c) == Character.SPACE_SEPARATOR;
+		}
+	}
+
 	public static Boolean wrapBoolean(boolean b) {
 		return b ? Boolean.TRUE : Boolean.FALSE;
 	}
 
 	public static Integer wrapInt(int i) {
-		return new Integer(i);
+		return Integer.valueOf(i);
 	}
 
 	public static Number wrapNumber(double x) {
@@ -253,29 +328,27 @@ public class ScriptRuntime {
 	}
 
 	/**
-	 * Convert the value to a boolean. See ECMA 9.2.
+	 * Convert the value to a boolean.
+	 * 
+	 * See ECMA 9.2.
 	 */
 	public static boolean toBoolean(Object val) {
 		for (;;) {
-			if (val instanceof Date)
-				return true;
 			if (val instanceof Boolean)
 				return ((Boolean) val).booleanValue();
 			if (val == null || val == Undefined.instance)
 				return false;
 			if (val instanceof String)
 				return ((String) val).length() != 0;
-			// CharSequenceBuffer
-			if (val instanceof CharSequenceBuffer)
-				return ((CharSequenceBuffer) val).length() != 0;
-			if (val.getClass().isArray()) {
-				return Array.getLength(val) != 0;
-			}
 			if (val instanceof Number) {
 				double d = ((Number) val).doubleValue();
 				return (d == d && d != 0.0);
 			}
 			if (val instanceof Scriptable) {
+				if (val instanceof ScriptableObject
+						&& ((ScriptableObject) val).avoidObjectDetection()) {
+					return false;
+				}
 				if (Context.getContext().isVersionECMA1()) {
 					// pure ECMA
 					return true;
@@ -291,12 +364,10 @@ public class ScriptRuntime {
 		}
 	}
 
-	public static boolean toBoolean(Object[] args, int index) {
-		return (index < args.length) ? toBoolean(args[index]) : false;
-	}
-
 	/**
-	 * Convert the value to a number. See ECMA 9.3.
+	 * Convert the value to a number.
+	 * 
+	 * See ECMA 9.3.
 	 */
 	public static double toNumber(Object val) {
 		for (;;) {
@@ -308,13 +379,8 @@ public class ScriptRuntime {
 				return NaN;
 			if (val instanceof String)
 				return toNumber((String) val);
-			// CharSequenceBuffer
-			if (val instanceof CharSequenceBuffer)
-				return toNumber(((CharSequenceBuffer) val).toString());
 			if (val instanceof Boolean)
 				return ((Boolean) val).booleanValue() ? 1 : +0.0;
-			if (val instanceof Date)
-				return ((Date) val).getTime();
 			if (val instanceof Scriptable) {
 				val = ((Scriptable) val).getDefaultValue(NumberClass);
 				if (val instanceof Scriptable)
@@ -497,7 +563,9 @@ public class ScriptRuntime {
 	}
 
 	/**
-	 * ToNumber applied to the String type See ECMA 9.3.1
+	 * ToNumber applied to the String type
+	 * 
+	 * See ECMA 9.3.1
 	 */
 	public static double toNumber(String s) {
 		int len = s.length();
@@ -509,7 +577,7 @@ public class ScriptRuntime {
 				return +0.0;
 			}
 			startChar = s.charAt(start);
-			if (!Character.isWhitespace(startChar))
+			if (!ScriptRuntime.isStrWhiteSpaceChar(startChar))
 				break;
 			start++;
 		}
@@ -535,7 +603,7 @@ public class ScriptRuntime {
 
 		int end = len - 1;
 		char endChar;
-		while (Character.isWhitespace(endChar = s.charAt(end)))
+		while (ScriptRuntime.isStrWhiteSpaceChar(endChar = s.charAt(end)))
 			end--;
 		if (endChar == 'y') {
 			// check for "Infinity"
@@ -693,12 +761,14 @@ public class ScriptRuntime {
 	}
 
 	/**
-	 * Convert the value to a string. See ECMA 9.8.
+	 * Convert the value to a string.
+	 * 
+	 * See ECMA 9.8.
 	 */
 	public static String toString(Object val) {
 		for (;;) {
 			if (val == null) {
-				return "";
+				return "null";
 			}
 			if (val == Undefined.instance) {
 				return "undefined";
@@ -769,9 +839,6 @@ public class ScriptRuntime {
 		if (value == Undefined.instance) {
 			return "undefined";
 		}
-		if (value instanceof CharSequenceBuffer) {
-			value = ((CharSequenceBuffer) value).unwrap();
-		}
 		if (value instanceof String) {
 			String escaped = escapeString((String) value);
 			StringBuffer sb = new StringBuffer(escaped.length() + 2);
@@ -790,15 +857,16 @@ public class ScriptRuntime {
 		if (value instanceof Boolean) {
 			return toString(value);
 		}
-		if (value instanceof Date) {
-			return value.toString();
-		}
 		if (value instanceof Scriptable) {
 			Scriptable obj = (Scriptable) value;
-			Object v = ScriptableObject.getProperty(obj, "toSource");
-			if (v instanceof Function) {
-				Function f = (Function) v;
-				return toString(f.call(cx, scope, obj, emptyArgs));
+			// Wrapped Java objects won't have "toSource" and will report
+			// errors for get()s of nonexistent name, so use has() first
+			if (ScriptableObject.hasProperty(obj, "toSource")) {
+				Object v = ScriptableObject.getProperty(obj, "toSource");
+				if (v instanceof Function) {
+					Function f = (Function) v;
+					return toString(f.call(cx, scope, obj, emptyArgs));
+				}
 			}
 			return toString(value);
 		}
@@ -881,6 +949,10 @@ public class ScriptRuntime {
 		return toObject(Context.getContext(), scope, val);
 	}
 
+	/**
+	 * Warning: this doesn't allow to resolve primitive prototype properly when
+	 * many top scopes are involved
+	 */
 	public static Scriptable toObjectOrNull(Context cx, Object obj) {
 		if (obj instanceof Scriptable) {
 			return (Scriptable) obj;
@@ -891,10 +963,24 @@ public class ScriptRuntime {
 	}
 
 	/**
+	 * @param scope
+	 *            the scope that should be used to resolve primitive prototype
+	 */
+	public static Scriptable toObjectOrNull(Context cx, Object obj,
+			final Scriptable scope) {
+		if (obj instanceof Scriptable) {
+			return (Scriptable) obj;
+		} else if (obj != null && obj != Undefined.instance) {
+			return toObject(cx, scope, obj);
+		}
+		return null;
+	}
+
+	/**
 	 * @deprecated Use {@link #toObject(Scriptable, Object)} instead.
 	 */
 	public static Scriptable toObject(Scriptable scope, Object val,
-			Class staticClass) {
+			Class<?> staticClass) {
 		if (val instanceof Scriptable) {
 			return (Scriptable) val;
 		}
@@ -902,27 +988,35 @@ public class ScriptRuntime {
 	}
 
 	/**
-	 * Convert the value to an object. See ECMA 9.9.
+	 * Convert the value to an object.
+	 * 
+	 * See ECMA 9.9.
 	 */
 	public static Scriptable toObject(Context cx, Scriptable scope, Object val) {
 		if (val instanceof Scriptable) {
 			return (Scriptable) val;
+		}
+		if (val instanceof String) {
+			NativeString result = new NativeString((String) val);
+			setBuiltinProtoAndParent(result, scope, TopLevel.Builtins.String);
+			return result;
+		}
+		if (val instanceof Number) {
+			NativeNumber result = new NativeNumber(((Number) val).doubleValue());
+			setBuiltinProtoAndParent(result, scope, TopLevel.Builtins.Number);
+			return result;
+		}
+		if (val instanceof Boolean) {
+			NativeBoolean result = new NativeBoolean(
+					((Boolean) val).booleanValue());
+			setBuiltinProtoAndParent(result, scope, TopLevel.Builtins.Boolean);
+			return result;
 		}
 		if (val == null) {
 			throw typeError0("msg.null.to.object");
 		}
 		if (val == Undefined.instance) {
 			throw typeError0("msg.undef.to.object");
-		}
-		String className = val instanceof String ? "String"
-				: val instanceof CharSequenceBuffer ? "String"
-						: val instanceof Number ? "Number"
-								: val instanceof Boolean ? "Boolean"
-										: val instanceof Date ? "Date" : null;
-		if (className != null) {
-			Object[] args = { val };
-			scope = ScriptableObject.getTopLevelScope(scope);
-			return newObject(cx, scope, className, args);
 		}
 
 		// Extension: Wrap as a LiveConnect object.
@@ -936,7 +1030,7 @@ public class ScriptRuntime {
 	 * @deprecated Use {@link #toObject(Context, Scriptable, Object)} instead.
 	 */
 	public static Scriptable toObject(Context cx, Scriptable scope, Object val,
-			Class staticClass) {
+			Class<?> staticClass) {
 		return toObject(cx, scope, val);
 	}
 
@@ -953,12 +1047,6 @@ public class ScriptRuntime {
 		if (thisObj == null) {
 			throw undefCallError(thisObj, "function");
 		}
-		// Fix for client.. scope is wrong when jumping from form method to form
-		// method
-		if (function.getParentScope() != null) {
-			scope = function.getParentScope();
-		}
-
 		return function.call(cx, scope, thisObj, args);
 	}
 
@@ -972,7 +1060,18 @@ public class ScriptRuntime {
 		return ctor.construct(cx, scope, args);
 	}
 
+	public static Scriptable newBuiltinObject(Context cx, Scriptable scope,
+			TopLevel.Builtins type, Object[] args) {
+		scope = ScriptableObject.getTopLevelScope(scope);
+		Function ctor = TopLevel.getBuiltinCtor(cx, scope, type);
+		if (args == null) {
+			args = ScriptRuntime.emptyArgs;
+		}
+		return ctor.construct(cx, scope, args);
+	}
+
 	/**
+	 * 
 	 * See ECMA 9.4.
 	 */
 	public static double toInteger(Object val) {
@@ -1000,6 +1099,7 @@ public class ScriptRuntime {
 	}
 
 	/**
+	 * 
 	 * See ECMA 9.5.
 	 */
 	public static int toInt32(Object val) {
@@ -1069,6 +1169,7 @@ public class ScriptRuntime {
 	}
 
 	/**
+	 * 
 	 * See ECMA 9.7.
 	 */
 	public static char toUint16(Object val) {
@@ -1161,10 +1262,11 @@ public class ScriptRuntime {
 	}
 
 	/**
-	 * Return -1L if str is not an index or the index value as lower 32 bits of
-	 * the result.
+	 * Return -1L if str is not an index, or the index value as lower 32 bits of
+	 * the result. Note that the result needs to be cast to an int in order to
+	 * produce the actual index, which may be negative.
 	 */
-	private static long indexFromString(String str) {
+	public static long indexFromString(String str) {
 		// The length of the decimal string representation of
 		// Integer.MAX_VALUE, 2147483647
 		final int MAX_VALUE_LENGTH = 10;
@@ -1253,7 +1355,7 @@ public class ScriptRuntime {
 	static Object getIndexObject(String s) {
 		long indexTest = indexFromString(s);
 		if (indexTest >= 0) {
-			return new Integer((int) indexTest);
+			return Integer.valueOf((int) indexTest);
 		}
 		return s;
 	}
@@ -1265,7 +1367,7 @@ public class ScriptRuntime {
 	static Object getIndexObject(double d) {
 		int i = (int) d;
 		if (i == d) {
-			return new Integer(i);
+			return Integer.valueOf(i);
 		}
 		return toString(d);
 	}
@@ -1304,7 +1406,15 @@ public class ScriptRuntime {
 	 * Call obj.[[Get]](id)
 	 */
 	public static Object getObjectElem(Object obj, Object elem, Context cx) {
-		Scriptable sobj = toObjectOrNull(cx, obj);
+		return getObjectElem(obj, elem, cx, getTopCallScope(cx));
+	}
+
+	/**
+	 * Call obj.[[Get]](id)
+	 */
+	public static Object getObjectElem(Object obj, Object elem, Context cx,
+			final Scriptable scope) {
+		Scriptable sobj = toObjectOrNull(cx, obj, scope);
 		if (sobj == null) {
 			throw undefReadError(obj, elem);
 		}
@@ -1345,9 +1455,25 @@ public class ScriptRuntime {
 		return getObjectProp(sobj, property, cx);
 	}
 
+	/**
+	 * @param scope
+	 *            the scope that should be used to resolve primitive prototype
+	 */
+	public static Object getObjectProp(Object obj, String property, Context cx,
+			final Scriptable scope) {
+		Scriptable sobj = toObjectOrNull(cx, obj, scope);
+		if (sobj == null) {
+			throw undefReadError(obj, property);
+		}
+		return getObjectProp(sobj, property, cx);
+	}
+
 	public static Object getObjectProp(Scriptable obj, String property,
 			Context cx) {
 		if (obj instanceof XMLObject) {
+			// TODO: Change XMLObject to just use Scriptable interface
+			// to avoid paying cost of instanceof check on *every property
+			// lookup* !
 			XMLObject xmlObject = (XMLObject) obj;
 			return xmlObject.ecmaGet(cx, property);
 		}
@@ -1361,6 +1487,23 @@ public class ScriptRuntime {
 			result = Undefined.instance;
 		}
 
+		return result;
+	}
+
+	public static Object getObjectPropNoWarn(Object obj, String property,
+			Context cx) {
+		Scriptable sobj = toObjectOrNull(cx, obj);
+		if (sobj == null) {
+			throw undefReadError(obj, property);
+		}
+		if (obj instanceof XMLObject) {
+			// TODO: fix as mentioned in note in method above
+			getObjectProp(sobj, property, cx);
+		}
+		Object result = ScriptableObject.getProperty(sobj, property);
+		if (result == Scriptable.NOT_FOUND) {
+			return Undefined.instance;
+		}
 		return result;
 	}
 
@@ -1386,7 +1529,7 @@ public class ScriptRuntime {
 	public static Object getObjectIndex(Scriptable obj, int index, Context cx) {
 		if (obj instanceof XMLObject) {
 			XMLObject xmlObject = (XMLObject) obj;
-			return xmlObject.ecmaGet(cx, new Integer(index));
+			return xmlObject.ecmaGet(cx, Integer.valueOf(index));
 		}
 
 		Object result = ScriptableObject.getProperty(obj, index);
@@ -1475,7 +1618,7 @@ public class ScriptRuntime {
 			Object value, Context cx) {
 		if (obj instanceof XMLObject) {
 			XMLObject xmlObject = (XMLObject) obj;
-			xmlObject.ecmaPut(cx, new Integer(index), value);
+			xmlObject.ecmaPut(cx, Integer.valueOf(index), value);
 		} else {
 			ScriptableObject.putProperty(obj, index, value);
 		}
@@ -1492,9 +1635,11 @@ public class ScriptRuntime {
 			String s = toStringIdOrIndex(cx, elem);
 			if (s == null) {
 				int index = lastIndexResult(cx);
-				result = ScriptableObject.deleteProperty(target, index);
+				target.delete(index);
+				return !target.has(index, target);
 			} else {
-				result = ScriptableObject.deleteProperty(target, s);
+				target.delete(s);
+				return !target.has(s, target);
 			}
 		}
 		return result;
@@ -1541,11 +1686,14 @@ public class ScriptRuntime {
 	}
 
 	/**
-	 * The delete operator See ECMA 11.4.1 In ECMA 0.19, the description of the
-	 * delete operator (11.4.1) assumes that the [[Delete]] method returns a
-	 * value. However, the definition of the [[Delete]] operator (8.6.2.5) does
-	 * not define a return value. Here we assume that the [[Delete]] method
-	 * doesn't return a value.
+	 * The delete operator
+	 * 
+	 * See ECMA 11.4.1
+	 * 
+	 * In ECMA 0.19, the description of the delete operator (11.4.1) assumes
+	 * that the [[Delete]] method returns a value. However, the definition of
+	 * the [[Delete]] operator (8.6.2.5) does not define a return value. Here we
+	 * assume that the [[Delete]] method doesn't return a value.
 	 */
 	public static Object delete(Object obj, Object id, Context cx) {
 		Scriptable sobj = toObjectOrNull(cx, obj);
@@ -1661,13 +1809,16 @@ public class ScriptRuntime {
 	}
 
 	/**
-	 * Returns the object in the scope chain that has a given property. The
-	 * order of evaluation of an assignment expression involves evaluating the
-	 * lhs to a reference, evaluating the rhs, and then modifying the reference
-	 * with the rhs value. This method is used to 'bind' the given name to an
-	 * object containing that property so that the side effects of evaluating
-	 * the rhs do not affect which property is modified. Typically used in
-	 * conjunction with setName. See ECMA 10.1.4
+	 * Returns the object in the scope chain that has a given property.
+	 * 
+	 * The order of evaluation of an assignment expression involves evaluating
+	 * the lhs to a reference, evaluating the rhs, and then modifying the
+	 * reference with the rhs value. This method is used to 'bind' the given
+	 * name to an object containing that property so that the side effects of
+	 * evaluating the rhs do not affect which property is modified. Typically
+	 * used in conjunction with setName.
+	 * 
+	 * See ECMA 10.1.4
 	 */
 	public static Scriptable bind(Context cx, Scriptable scope, String id) {
 		Scriptable firstXMLObject = null;
@@ -1746,6 +1897,30 @@ public class ScriptRuntime {
 		return value;
 	}
 
+	public static Object strictSetName(Scriptable bound, Object value,
+			Context cx, Scriptable scope, String id) {
+		if (bound != null) {
+			// TODO: The LeftHandSide also may not be a reference to a
+			// data property with the attribute value {[[Writable]]:false},
+			// to an accessor property with the attribute value
+			// {[[Put]]:undefined}, nor to a non-existent property of an
+			// object whose [[Extensible]] internal property has the value
+			// false. In these cases a TypeError exception is thrown (11.13.1).
+			if (bound instanceof XMLObject) {
+				XMLObject xmlObject = (XMLObject) bound;
+				xmlObject.ecmaPut(cx, id, value);
+			} else {
+				ScriptableObject.putProperty(bound, id, value);
+			}
+			return value;
+		} else {
+			// See ES5 8.7.2
+			String msg = "Assignment to undefined \"" + id
+					+ "\" in strict mode";
+			throw constructError("ReferenceError", msg);
+		}
+	}
+
 	public static Object setConst(Scriptable bound, Object value, Context cx,
 			String id) {
 		if (bound instanceof XMLObject) {
@@ -1758,50 +1933,121 @@ public class ScriptRuntime {
 	}
 
 	/**
-	 * This is the enumeration needed by the for..in statement. See ECMA 12.6.3.
+	 * This is the enumeration needed by the for..in statement.
+	 * 
+	 * See ECMA 12.6.3.
+	 * 
 	 * IdEnumeration maintains a ObjToIntMap to make sure a given id is
-	 * enumerated only once across multiple objects in a prototype chain. XXX -
-	 * ECMA delete doesn't hide properties in the prototype, but js/ref does.
-	 * This means that the js/ref for..in can avoid maintaining a hash table and
-	 * instead perform lookups to see if a given property has already been
-	 * enumerated.
+	 * enumerated only once across multiple objects in a prototype chain.
+	 * 
+	 * XXX - ECMA delete doesn't hide properties in the prototype, but js/ref
+	 * does. This means that the js/ref for..in can avoid maintaining a hash
+	 * table and instead perform lookups to see if a given property has already
+	 * been enumerated.
+	 * 
 	 */
-	private static class IdEnumeration {
+	private static class IdEnumeration implements Serializable {
+		private static final long serialVersionUID = 1L;
 		Scriptable obj;
-
 		Object[] ids;
-
 		int index;
-
 		ObjToIntMap used;
+		Object currentId;
+		int enumType; /*
+					 * one of ENUM_INIT_KEYS, ENUM_INIT_VALUES, ENUM_INIT_ARRAY
+					 */
 
-		String currentId;
+		// if true, integer ids will be returned as numbers rather than strings
+		boolean enumNumbers;
 
-		boolean enumValues;
+		Scriptable iterator;
 	}
 
+	public static Scriptable toIterator(Context cx, Scriptable scope,
+			Scriptable obj, boolean keyOnly) {
+		if (ScriptableObject.hasProperty(obj,
+				NativeIterator.ITERATOR_PROPERTY_NAME)) {
+			Object v = ScriptableObject.getProperty(obj,
+					NativeIterator.ITERATOR_PROPERTY_NAME);
+			if (!(v instanceof Callable)) {
+				throw typeError0("msg.invalid.iterator");
+			}
+			Callable f = (Callable) v;
+			Object[] args = new Object[] { keyOnly ? Boolean.TRUE
+					: Boolean.FALSE };
+			v = f.call(cx, scope, obj, args);
+			if (!(v instanceof Scriptable)) {
+				throw typeError0("msg.iterator.primitive");
+			}
+			return (Scriptable) v;
+		}
+		return null;
+	}
+
+	// for backwards compatibility with generated class files
 	public static Object enumInit(Object value, Context cx, boolean enumValues) {
+		return enumInit(value, cx, enumValues ? ENUMERATE_VALUES
+				: ENUMERATE_KEYS);
+	}
+
+	public static final int ENUMERATE_KEYS = 0;
+	public static final int ENUMERATE_VALUES = 1;
+	public static final int ENUMERATE_ARRAY = 2;
+	public static final int ENUMERATE_KEYS_NO_ITERATOR = 3;
+	public static final int ENUMERATE_VALUES_NO_ITERATOR = 4;
+	public static final int ENUMERATE_ARRAY_NO_ITERATOR = 5;
+
+	public static Object enumInit(Object value, Context cx, int enumType) {
 		IdEnumeration x = new IdEnumeration();
 		x.obj = toObjectOrNull(cx, value);
-		if (x.obj != null) {
+		if (x.obj == null) {
 			// null or undefined do not cause errors but rather lead to empty
 			// "for in" loop
-			x.enumValues = enumValues;
+			return x;
+		}
+		x.enumType = enumType;
+		x.iterator = null;
+		if (enumType != ENUMERATE_KEYS_NO_ITERATOR
+				&& enumType != ENUMERATE_VALUES_NO_ITERATOR
+				&& enumType != ENUMERATE_ARRAY_NO_ITERATOR) {
+			x.iterator = toIterator(cx, x.obj.getParentScope(), x.obj,
+					enumType == ScriptRuntime.ENUMERATE_KEYS);
+		}
+		if (x.iterator == null) {
 			// enumInit should read all initial ids before returning
 			// or "for (a.i in a)" would wrongly enumerate i in a as well
 			enumChangeObject(x);
 		}
+
 		return x;
 	}
 
+	public static void setEnumNumbers(Object enumObj, boolean enumNumbers) {
+		((IdEnumeration) enumObj).enumNumbers = enumNumbers;
+	}
+
 	public static Boolean enumNext(Object enumObj) {
-		// OPT this could be more efficient
-		boolean result;
 		IdEnumeration x = (IdEnumeration) enumObj;
+		if (x.iterator != null) {
+			Object v = ScriptableObject.getProperty(x.iterator, "next");
+			if (!(v instanceof Callable))
+				return Boolean.FALSE;
+			Callable f = (Callable) v;
+			Context cx = Context.getContext();
+			try {
+				x.currentId = f.call(cx, x.iterator.getParentScope(),
+						x.iterator, emptyArgs);
+				return Boolean.TRUE;
+			} catch (JavaScriptException e) {
+				if (e.getValue() instanceof NativeIterator.StopIteration) {
+					return Boolean.FALSE;
+				}
+				throw e;
+			}
+		}
 		for (;;) {
 			if (x.obj == null) {
-				result = false;
-				break;
+				return Boolean.FALSE;
 			}
 			if (x.index == x.ids.length) {
 				x.obj = x.obj.getPrototype();
@@ -1821,18 +2067,37 @@ public class ScriptRuntime {
 				int intId = ((Number) id).intValue();
 				if (!x.obj.has(intId, x.obj))
 					continue; // must have been deleted
-				x.currentId = String.valueOf(intId);
+				x.currentId = x.enumNumbers ? (Object) (Integer.valueOf(intId))
+						: String.valueOf(intId);
 			}
-			result = true;
-			break;
+			return Boolean.TRUE;
 		}
-		return wrapBoolean(result);
 	}
 
 	public static Object enumId(Object enumObj, Context cx) {
 		IdEnumeration x = (IdEnumeration) enumObj;
-		if (!x.enumValues)
+		if (x.iterator != null) {
 			return x.currentId;
+		}
+		switch (x.enumType) {
+		case ENUMERATE_KEYS:
+		case ENUMERATE_KEYS_NO_ITERATOR:
+			return x.currentId;
+		case ENUMERATE_VALUES:
+		case ENUMERATE_VALUES_NO_ITERATOR:
+			return enumValue(enumObj, cx);
+		case ENUMERATE_ARRAY:
+		case ENUMERATE_ARRAY_NO_ITERATOR:
+			Object[] elements = { x.currentId, enumValue(enumObj, cx) };
+			return cx.newArray(ScriptableObject.getTopLevelScope(x.obj),
+					elements);
+		default:
+			throw Kit.codeBug();
+		}
+	}
+
+	public static Object enumValue(Object enumObj, Context cx) {
+		IdEnumeration x = (IdEnumeration) enumObj;
 
 		Object result;
 
@@ -1921,7 +2186,7 @@ public class ScriptRuntime {
 
 		Object value;
 		for (;;) {
-			// Ignore XML lookup as requred by ECMA 357, 11.2.2.1
+			// Ignore XML lookup as required by ECMA 357, 11.2.2.1
 			value = ScriptableObject.getProperty(thisObj, index);
 			if (value != Scriptable.NOT_FOUND) {
 				break;
@@ -1949,18 +2214,37 @@ public class ScriptRuntime {
 	 * obj.property and make obj properly converted to Scriptable available as
 	 * ScriptRuntime.lastStoredScriptable() for consumption as thisObj. The
 	 * caller must call ScriptRuntime.lastStoredScriptable() immediately after
-	 * calling this method.
+	 * calling this method. Warning: this doesn't allow to resolve primitive
+	 * prototype properly when many top scopes are involved.
 	 */
 	public static Callable getPropFunctionAndThis(Object obj, String property,
 			Context cx) {
 		Scriptable thisObj = toObjectOrNull(cx, obj);
+		return getPropFunctionAndThisHelper(obj, property, cx, thisObj);
+	}
+
+	/**
+	 * Prepare for calling obj.property(...): return function corresponding to
+	 * obj.property and make obj properly converted to Scriptable available as
+	 * ScriptRuntime.lastStoredScriptable() for consumption as thisObj. The
+	 * caller must call ScriptRuntime.lastStoredScriptable() immediately after
+	 * calling this method.
+	 */
+	public static Callable getPropFunctionAndThis(Object obj, String property,
+			Context cx, final Scriptable scope) {
+		Scriptable thisObj = toObjectOrNull(cx, obj, scope);
+		return getPropFunctionAndThisHelper(obj, property, cx, thisObj);
+	}
+
+	private static Callable getPropFunctionAndThisHelper(Object obj,
+			String property, Context cx, Scriptable thisObj) {
 		if (thisObj == null) {
 			throw undefCallError(obj, property);
 		}
 
 		Object value;
 		for (;;) {
-			// Ignore XML lookup as requred by ECMA 357, 11.2.2.1
+			// Ignore XML lookup as required by ECMA 357, 11.2.2.1
 			value = ScriptableObject.getProperty(thisObj, property);
 			if (value != Scriptable.NOT_FOUND) {
 				break;
@@ -1982,7 +2266,7 @@ public class ScriptRuntime {
 			if (noSuchMethod instanceof Callable)
 				value = new NoSuchMethodShim((Callable) noSuchMethod, property);
 			else
-				throw notFunctionError(value, property);
+				throw notFunctionError(thisObj, value, property);
 		}
 
 		storeScriptable(cx, thisObj);
@@ -2049,7 +2333,9 @@ public class ScriptRuntime {
 	}
 
 	/**
-	 * Operator new. See ECMA 11.2.2
+	 * Operator new.
+	 * 
+	 * See ECMA 11.2.2
 	 */
 	public static Scriptable newObject(Object fun, Context cx,
 			Scriptable scope, Object[] args) {
@@ -2057,17 +2343,6 @@ public class ScriptRuntime {
 			throw notFunctionError(fun);
 		}
 		Function function = (Function) fun;
-		// HACK! Test if this alles makes a new Date with a java.util.Date
-		// constructor
-		// Then replace the date argument with the Long time object.
-		if (function instanceof BaseFunction) {
-			if ("Date".equals(((BaseFunction) function).getFunctionName())
-					&& args != null && args.length == 1
-					&& args[0] instanceof Date) {
-				args[0] = new Long(((Date) args[0]).getTime());
-			}
-		}
-
 		return function.construct(cx, scope, args);
 	}
 
@@ -2075,7 +2350,8 @@ public class ScriptRuntime {
 			Scriptable thisObj, Object[] args, Scriptable scope,
 			Scriptable callerThis, int callType, String filename, int lineNumber) {
 		if (callType == Node.SPECIALCALL_EVAL) {
-			if (NativeGlobal.isEvalFunction(fun)) {
+			if (thisObj.getParentScope() == null
+					&& NativeGlobal.isEvalFunction(fun)) {
 				return evalSpecial(cx, scope, callerThis, args, filename,
 						lineNumber);
 			}
@@ -2108,21 +2384,14 @@ public class ScriptRuntime {
 	}
 
 	/**
-	 * Function.prototype.apply and Function.prototype.call See Ecma 15.3.4.[34]
+	 * Function.prototype.apply and Function.prototype.call
+	 * 
+	 * See Ecma 15.3.4.[34]
 	 */
 	public static Object applyOrCall(boolean isApply, Context cx,
 			Scriptable scope, Scriptable thisObj, Object[] args) {
 		int L = args.length;
-		Callable function;
-		if (thisObj instanceof Callable) {
-			function = (Callable) thisObj;
-		} else {
-			Object value = thisObj.getDefaultValue(ScriptRuntime.FunctionClass);
-			if (!(value instanceof Callable)) {
-				throw ScriptRuntime.notFunctionError(value, thisObj);
-			}
-			function = (Callable) value;
-		}
+		Callable function = getCallable(thisObj);
 
 		Scriptable callThis = null;
 		if (L != 0) {
@@ -2136,19 +2405,8 @@ public class ScriptRuntime {
 		Object[] callArgs;
 		if (isApply) {
 			// Follow Ecma 15.3.4.3
-			if (L <= 1) {
-				callArgs = ScriptRuntime.emptyArgs;
-			} else {
-				Object arg1 = args[1];
-				if (arg1 == null || arg1 == Undefined.instance) {
-					callArgs = ScriptRuntime.emptyArgs;
-				} else if (arg1 instanceof NativeArray
-						|| arg1 instanceof Arguments) {
-					callArgs = cx.getElements((Scriptable) arg1);
-				} else {
-					throw ScriptRuntime.typeError0("msg.arg.isnt.array");
-				}
-			}
+			callArgs = L <= 1 ? ScriptRuntime.emptyArgs : getApplyArguments(cx,
+					args[1]);
 		} else {
 			// Follow Ecma 15.3.4.4
 			if (L <= 1) {
@@ -2162,17 +2420,40 @@ public class ScriptRuntime {
 		return function.call(cx, scope, callThis, callArgs);
 	}
 
+	static Object[] getApplyArguments(Context cx, Object arg1) {
+		if (arg1 == null || arg1 == Undefined.instance) {
+			return ScriptRuntime.emptyArgs;
+		} else if (arg1 instanceof NativeArray || arg1 instanceof Arguments) {
+			return cx.getElements((Scriptable) arg1);
+		} else {
+			throw ScriptRuntime.typeError0("msg.arg.isnt.array");
+		}
+	}
+
+	static Callable getCallable(Scriptable thisObj) {
+		Callable function;
+		if (thisObj instanceof Callable) {
+			function = (Callable) thisObj;
+		} else {
+			Object value = thisObj.getDefaultValue(ScriptRuntime.FunctionClass);
+			if (!(value instanceof Callable)) {
+				throw ScriptRuntime.notFunctionError(value, thisObj);
+			}
+			function = (Callable) value;
+		}
+		return function;
+	}
+
 	/**
-	 * The eval function property of the global object. See ECMA 15.1.2.1
+	 * The eval function property of the global object.
+	 * 
+	 * See ECMA 15.1.2.1
 	 */
 	public static Object evalSpecial(Context cx, Scriptable scope,
 			Object thisArg, Object[] args, String filename, int lineNumber) {
 		if (args.length < 1)
 			return Undefined.instance;
 		Object x = args[0];
-		if (x instanceof CharSequenceBuffer) {
-			x = ((CharSequenceBuffer) x).toString();
-		}
 		if (!(x instanceof String)) {
 			if (cx.hasFeature(Context.FEATURE_STRICT_MODE)
 					|| cx.hasFeature(Context.FEATURE_STRICT_EVAL)) {
@@ -2197,11 +2478,17 @@ public class ScriptRuntime {
 		ErrorReporter reporter;
 		reporter = DefaultErrorReporter.forEval(cx.getErrorReporter());
 
+		Evaluator evaluator = Context.createInterpreter();
+		if (evaluator == null) {
+			throw new JavaScriptException("Interpreter not present", filename,
+					lineNumber);
+		}
+
 		// Compile with explicit interpreter instance to force interpreter
 		// mode.
-		Script script = cx.compileString((String) x, new Interpreter(),
-				reporter, sourceName, 1, null);
-		((InterpretedFunction) script).idata.evalScriptFlag = true;
+		Script script = cx.compileString((String) x, evaluator, reporter,
+				sourceName, 1, null);
+		evaluator.setEvalScriptFlag(script);
 		Callable c = (Callable) script;
 		return c.call(cx, scope, (Scriptable) thisArg, ScriptRuntime.emptyArgs);
 	}
@@ -2214,23 +2501,16 @@ public class ScriptRuntime {
 			return "object";
 		if (value == Undefined.instance)
 			return "undefined";
-		if (value instanceof Scriptable) {
-			if (value instanceof XMLObject)
-				return "xml";
-
+		if (value instanceof ScriptableObject)
+			return ((ScriptableObject) value).getTypeOf();
+		if (value instanceof Scriptable)
 			return (value instanceof Callable) ? "function" : "object";
-		}
 		if (value instanceof String)
-			return "string";
-		if (value instanceof CharSequenceBuffer)
 			return "string";
 		if (value instanceof Number)
 			return "number";
 		if (value instanceof Boolean)
 			return "boolean";
-		// special support for date
-		if (value instanceof Date)
-			return "object";
 		throw errorWithClassName("msg.invalid.type", value);
 	}
 
@@ -2258,8 +2538,6 @@ public class ScriptRuntime {
 	// as "~toInt32(val)"
 
 	public static Object add(Object val1, Object val2, Context cx) {
-		if (val1 == null && val2 == null)
-			return null;
 		if (val1 instanceof Number && val2 instanceof Number) {
 			return wrapNumber(((Number) val1).doubleValue()
 					+ ((Number) val2).doubleValue());
@@ -2280,28 +2558,21 @@ public class ScriptRuntime {
 			val1 = ((Scriptable) val1).getDefaultValue(null);
 		if (val2 instanceof Scriptable)
 			val2 = ((Scriptable) val2).getDefaultValue(null);
-		// CharSequenceBuffer
-		if (val1 instanceof CharSequenceBuffer) {
-			if (val2 instanceof CharSequenceBuffer) {
-				return ((CharSequenceBuffer) val1)
-						.append((CharSequenceBuffer) val2);
-			} else {
-				return ((CharSequenceBuffer) val1).append(toString(val2));
-			}
-		}
 		if (!(val1 instanceof String) && !(val2 instanceof String))
 			if ((val1 instanceof Number) && (val2 instanceof Number))
 				return wrapNumber(((Number) val1).doubleValue()
 						+ ((Number) val2).doubleValue());
 			else
 				return wrapNumber(toNumber(val1) + toNumber(val2));
-		// CharSequenceBuffer
-		if (val2 instanceof CharSequenceBuffer) {
-			return new CharSequenceBuffer(toString(val1),
-					(CharSequenceBuffer) val2);
-		} else {
-			return new CharSequenceBuffer(toString(val1), toString(val2));
-		}
+		return toString(val1).concat(toString(val2));
+	}
+
+	public static String add(String val1, Object val2) {
+		return val1.concat(toString(val2));
+	}
+
+	public static String add(Object val1, String val2) {
+		return toString(val1).concat(val2);
 	}
 
 	/**
@@ -2441,45 +2712,27 @@ public class ScriptRuntime {
 		}
 	}
 
-	private static Object toPrimitive(Object val) {
+	public static Object toPrimitive(Object val) {
+		return toPrimitive(val, null);
+	}
+
+	public static Object toPrimitive(Object val, Class<?> typeHint) {
 		if (!(val instanceof Scriptable)) {
 			return val;
 		}
 		Scriptable s = (Scriptable) val;
-		Object result = s.getDefaultValue(null);
+		Object result = s.getDefaultValue(typeHint);
 		if (result instanceof Scriptable)
 			throw typeError0("msg.bad.default.value");
 		return result;
 	}
 
 	/**
-	 * Equality See ECMA 11.9
+	 * Equality
+	 * 
+	 * See ECMA 11.9
 	 */
 	public static boolean eq(Object x, Object y) {
-		// CharSequenceBuffer
-		if (x instanceof CharSequenceBuffer) {
-			return x.equals(y);
-		} else if (y instanceof CharSequenceBuffer) {
-			return y.equals(x);
-		}
-
-		// SPECIAL DATE HANDLING
-		if (x instanceof Date) {
-			if (y instanceof Wrapper) {
-				y = ((Wrapper) y).unwrap();
-			}
-			if (y instanceof Date) {
-				return ((Date) x).getTime() == ((Date) y).getTime();
-			}
-			return false;
-		} else if (y instanceof Date && x instanceof Wrapper) {
-			x = ((Wrapper) x).unwrap();
-			if (x instanceof Date) {
-				return ((Date) x).getTime() == ((Date) y).getTime();
-			}
-			return false;
-		}
-
 		if (x == null || x == Undefined.instance) {
 			if (y == null || y == Undefined.instance) {
 				return true;
@@ -2524,14 +2777,15 @@ public class ScriptRuntime {
 						return ((Boolean) test).booleanValue();
 					}
 				}
-				// UNWRAP AND CALL EQUALS not only ==
 				if (x instanceof Wrapper && y instanceof Wrapper) {
-					Object o1 = ((Wrapper) x).unwrap();
-					Object o2 = ((Wrapper) y).unwrap();
-					if (o1 != null && o2 != null) {
-						return o1.equals(o2);
-					}
-					return o1 == o2;
+					// See bug 413838. Effectively an extension to ECMA for
+					// the LiveConnect case.
+					Object unwrappedX = ((Wrapper) x).unwrap();
+					Object unwrappedY = ((Wrapper) y).unwrap();
+					return unwrappedX == unwrappedY
+							|| (isPrimitive(unwrappedX)
+									&& isPrimitive(unwrappedY) && eq(
+										unwrappedX, unwrappedY));
 				}
 				return false;
 			} else if (y instanceof Boolean) {
@@ -2548,42 +2802,18 @@ public class ScriptRuntime {
 			} else if (y instanceof String) {
 				return eqString((String) y, x);
 			}
-			boolean unwrapped = false;
-			if (x instanceof Wrapper) {
-				x = ((Wrapper) x).unwrap();
-				unwrapped = true;
-			}
-			if (y instanceof Wrapper) {
-				y = ((Wrapper) y).unwrap();
-				unwrapped = true;
-			}
-			if (x instanceof Date && y instanceof Date) {
-				return ((Date) x).getTime() == ((Date) y).getTime();
-			}
-			if (unwrapped && (x != null && y != null)) {
-				return x.equals(y);
-			}
 			// covers the case when y == Undefined.instance as well
 			return false;
 		} else {
 			warnAboutNonJSObject(x);
-			boolean unwrapped = false;
-			if (x instanceof Wrapper) {
-				x = ((Wrapper) x).unwrap();
-				unwrapped = true;
-			}
-			if (y instanceof Wrapper) {
-				y = ((Wrapper) y).unwrap();
-				unwrapped = true;
-			}
-			if (x instanceof Date && y instanceof Date) {
-				return ((Date) x).getTime() == ((Date) y).getTime();
-			}
-			if (unwrapped && (x != null && y != null)) {
-				return x.equals(y);
-			}
 			return x == y;
 		}
+	}
+
+	public static boolean isPrimitive(Object obj) {
+		return obj == null || obj == Undefined.instance
+				|| (obj instanceof Number) || (obj instanceof String)
+				|| (obj instanceof Boolean);
 	}
 
 	static boolean eqNumber(double x, Object y) {
@@ -2592,11 +2822,6 @@ public class ScriptRuntime {
 				return false;
 			} else if (y instanceof Number) {
 				return x == ((Number) y).doubleValue();
-				// CharSequenceBuffer
-			} else if (y instanceof CharSequenceBuffer) {
-				return x == ScriptRuntime.toNumber(y.toString());
-			} else if (y instanceof Date) {
-				return x == toNumber(y);
 			} else if (y instanceof String) {
 				return x == toNumber(y);
 			} else if (y instanceof Boolean) {
@@ -2623,11 +2848,6 @@ public class ScriptRuntime {
 				return false;
 			} else if (y instanceof String) {
 				return x.equals(y);
-				// CharSequenceBuffer
-			} else if (y instanceof CharSequenceBuffer) {
-				return y.equals(x);
-			} else if (y instanceof Date) {
-				return y.toString().equals(x);
 			} else if (y instanceof Number) {
 				return toNumber(x) == ((Number) y).doubleValue();
 			} else if (y instanceof Boolean) {
@@ -2657,16 +2877,7 @@ public class ScriptRuntime {
 			double d = ((Number) x).doubleValue();
 			return d == d;
 		}
-		// CharSequenceBuffer
-		if (x instanceof CharSequenceBuffer) {
-			return x.equals(y);
-		} else if (y instanceof CharSequenceBuffer) {
-			return y.equals(x);
-		} else if (y instanceof Date) {
-			return y.equals(x);
-		} else if (x instanceof Date) {
-			return x.equals(y);
-		} else if (x == null || x == Undefined.instance) {
+		if (x == null || x == Undefined.instance) {
 			return false;
 		} else if (x instanceof Number) {
 			if (y instanceof Number) {
@@ -2682,7 +2893,6 @@ public class ScriptRuntime {
 			}
 		} else if (x instanceof Scriptable) {
 			if (x instanceof Wrapper && y instanceof Wrapper) {
-				// TODO not equals call??
 				return ((Wrapper) x).unwrap() == ((Wrapper) y).unwrap();
 			}
 		} else {
@@ -2703,21 +2913,9 @@ public class ScriptRuntime {
 			throw typeError0("msg.instanceof.not.object");
 		}
 
-		if (a == null || a == Undefined.instance)
-			return false;
-
 		// for primitive values on LHS, return false
-		// XXX we may want to change this so that
-		// 5 instanceof Number == true
-		if (!(a instanceof Scriptable)) {
-			Scriptable converted = ScriptRuntime.toObject(cx, cx.topCallScope,
-					a);
-			if (converted != null) {
-				a = converted;
-			} else {
-				return false;
-			}
-		}
+		if (!(a instanceof Scriptable))
+			return false;
 
 		return ((Scriptable) b).hasInstance((Scriptable) a);
 	}
@@ -2740,10 +2938,12 @@ public class ScriptRuntime {
 	}
 
 	/**
-	 * The in operator. This is a new JS 1.3 language feature. The in operator
-	 * mirrors the operation of the for .. in construct, and tests whether the
-	 * rhs has the property given by the lhs. It is different from the for .. in
-	 * construct in that: <BR>
+	 * The in operator.
+	 * 
+	 * This is a new JS 1.3 language feature. The in operator mirrors the
+	 * operation of the for .. in construct, and tests whether the rhs has the
+	 * property given by the lhs. It is different from the for .. in construct
+	 * in that: <BR>
 	 * - it doesn't perform ToObject on the right hand side <BR>
 	 * - it returns true for DontEnum properties.
 	 * 
@@ -2751,6 +2951,7 @@ public class ScriptRuntime {
 	 *            the left hand operand
 	 * @param b
 	 *            the right hand operand
+	 * 
 	 * @return true if property name or element number a is a property of b
 	 */
 	public static boolean in(Object a, Object b, Context cx) {
@@ -2767,11 +2968,6 @@ public class ScriptRuntime {
 			d1 = ((Number) val1).doubleValue();
 			d2 = ((Number) val2).doubleValue();
 		} else {
-			if (val1 instanceof CharSequenceBuffer)
-				val1 = val1.toString();
-			if (val2 instanceof CharSequenceBuffer)
-				val2 = val2.toString();
-
 			if (val1 instanceof Scriptable)
 				val1 = ((Scriptable) val1).getDefaultValue(NumberClass);
 			if (val2 instanceof Scriptable)
@@ -2791,12 +2987,6 @@ public class ScriptRuntime {
 			d1 = ((Number) val1).doubleValue();
 			d2 = ((Number) val2).doubleValue();
 		} else {
-			// CharSequenceBuffer
-			if (val1 instanceof CharSequenceBuffer)
-				val1 = val1.toString();
-			if (val2 instanceof CharSequenceBuffer)
-				val2 = val2.toString();
-
 			if (val1 instanceof Scriptable)
 				val1 = ((Scriptable) val1).getDefaultValue(NumberClass);
 			if (val2 instanceof Scriptable)
@@ -2816,13 +3006,16 @@ public class ScriptRuntime {
 
 	public static ScriptableObject getGlobal(Context cx) {
 		final String GLOBAL_CLASS = "org.mozilla.javascript.tools.shell.Global";
-		Class globalClass = Kit.classOrNull(GLOBAL_CLASS);
+		Class<?> globalClass = Kit.classOrNull(GLOBAL_CLASS);
 		if (globalClass != null) {
 			try {
-				Class[] parm = { ScriptRuntime.ContextClass };
-				Constructor globalClassCtor = globalClass.getConstructor(parm);
+				Class<?>[] parm = { ScriptRuntime.ContextClass };
+				Constructor<?> globalClassCtor = globalClass
+						.getConstructor(parm);
 				Object[] arg = { cx };
 				return (ScriptableObject) globalClassCtor.newInstance(arg);
+			} catch (RuntimeException e) {
+				throw e;
 			} catch (Exception e) {
 				// fall through...
 			}
@@ -2890,6 +3083,14 @@ public class ScriptRuntime {
 			if (proto == null) {
 				return staticTopScope;
 			}
+		}
+	}
+
+	public static void addInstructionCount(Context cx, int instructionsToAdd) {
+		cx.instructionCount += instructionsToAdd;
+		if (cx.instructionCount > cx.instructionThreshold) {
+			cx.observeInstructionCount(cx.instructionCount);
+			cx.instructionCount = 0;
 		}
 	}
 
@@ -3008,6 +3209,12 @@ public class ScriptRuntime {
 				re = ee;
 				errorName = "InternalError";
 				errorMsg = ee.getMessage();
+			} else if (cx.hasFeature(Context.FEATURE_ENHANCED_JAVA_ACCESS)) {
+				// With FEATURE_ENHANCED_JAVA_ACCESS, scripts can catch
+				// all exception types
+				re = new WrappedException(t);
+				errorName = "JavaException";
+				errorMsg = t.toString();
 			} else {
 				// Script can catch only instances of JavaScriptException,
 				// EcmaError and EvaluatorException
@@ -3021,26 +3228,33 @@ public class ScriptRuntime {
 			int line = re.lineNumber();
 			Object args[];
 			if (line > 0) {
-				args = new Object[] { errorMsg, sourceUri, new Integer(line) };
+				args = new Object[] { errorMsg, sourceUri,
+						Integer.valueOf(line) };
 			} else {
 				args = new Object[] { errorMsg, sourceUri };
 			}
 
 			Scriptable errorObject = cx.newObject(scope, errorName, args);
 			ScriptableObject.putProperty(errorObject, "name", errorName);
+			// set exception in Error objects to enable non-ECMA "stack"
+			// property
+			if (errorObject instanceof NativeError) {
+				((NativeError) errorObject).setStackProvider(re);
+			}
 
-			if (javaException != null) {
+			if (javaException != null && isVisible(cx, javaException)) {
 				Object wrap = cx.getWrapFactory().wrap(cx, scope,
 						javaException, null);
 				ScriptableObject.defineProperty(errorObject, "javaException",
 						wrap, ScriptableObject.PERMANENT
 								| ScriptableObject.READONLY);
 			}
-			Object wrap = cx.getWrapFactory().wrap(cx, scope, re, null);
-			ScriptableObject.defineProperty(errorObject, "rhinoException",
-					wrap, ScriptableObject.PERMANENT
-							| ScriptableObject.READONLY);
-
+			if (isVisible(cx, re)) {
+				Object wrap = cx.getWrapFactory().wrap(cx, scope, re, null);
+				ScriptableObject.defineProperty(errorObject, "rhinoException",
+						wrap, ScriptableObject.PERMANENT
+								| ScriptableObject.READONLY);
+			}
 			obj = errorObject;
 		}
 
@@ -3049,17 +3263,25 @@ public class ScriptRuntime {
 		catchScopeObject.defineProperty(exceptionName, obj,
 				ScriptableObject.PERMANENT);
 
-		// Add special Rhino object __exception__ defined in the catch
-		// scope that can be used to retrieve the Java exception associated
-		// with the JavaScript exception (to get stack trace info, etc.)
-		catchScopeObject.defineProperty("__exception__",
-				Context.javaToJS(t, catchScopeObject),
-				ScriptableObject.PERMANENT | ScriptableObject.DONTENUM);
+		if (isVisible(cx, t)) {
+			// Add special Rhino object __exception__ defined in the catch
+			// scope that can be used to retrieve the Java exception associated
+			// with the JavaScript exception (to get stack trace info, etc.)
+			catchScopeObject.defineProperty("__exception__",
+					Context.javaToJS(t, scope), ScriptableObject.PERMANENT
+							| ScriptableObject.DONTENUM);
+		}
 
 		if (cacheObj) {
 			catchScopeObject.associateValue(t, obj);
 		}
 		return catchScopeObject;
+	}
+
+	private static boolean isVisible(Context cx, Object obj) {
+		ClassShutter shutter = cx.getClassShutter();
+		return shutter == null
+				|| shutter.visibleToScripts(obj.getClass().getName());
 	}
 
 	public static Scriptable enterWith(Object obj, Context cx, Scriptable scope) {
@@ -3114,6 +3336,13 @@ public class ScriptRuntime {
 		object.setPrototype(proto);
 	}
 
+	public static void setBuiltinProtoAndParent(ScriptableObject object,
+			Scriptable scope, TopLevel.Builtins type) {
+		scope = ScriptableObject.getTopLevelScope(scope);
+		object.setParentScope(scope);
+		object.setPrototype(TopLevel.getBuiltinPrototype(scope, type));
+	}
+
 	public static void initFunction(Context cx, Scriptable scope,
 			NativeFunction function, int type, boolean fromEvalCode) {
 		if (type == FunctionNode.FUNCTION_STATEMENT) {
@@ -3145,36 +3374,47 @@ public class ScriptRuntime {
 	}
 
 	public static Scriptable newArrayLiteral(Object[] objects,
-			int[] skipIndexces, Context cx, Scriptable scope) {
+			int[] skipIndices, Context cx, Scriptable scope) {
+		final int SKIP_DENSITY = 2;
 		int count = objects.length;
 		int skipCount = 0;
-		if (skipIndexces != null) {
-			skipCount = skipIndexces.length;
+		if (skipIndices != null) {
+			skipCount = skipIndices.length;
 		}
 		int length = count + skipCount;
-		Integer lengthObj = new Integer(length);
-		Scriptable arrayObj;
-		/*
-		 * If the version is 120, then new Array(4) means create a new array
-		 * with 4 as the first element. In this case, we have to set length
-		 * property manually.
-		 */
-		if (cx.getLanguageVersion() == Context.VERSION_1_2) {
-			arrayObj = cx.newObject(scope, "Array", ScriptRuntime.emptyArgs);
-			ScriptableObject.putProperty(arrayObj, "length", lengthObj);
-		} else {
-			arrayObj = cx.newObject(scope, "Array", new Object[] { lengthObj });
+		if (length > 1 && skipCount * SKIP_DENSITY < length) {
+			// If not too sparse, create whole array for constructor
+			Object[] sparse;
+			if (skipCount == 0) {
+				sparse = objects;
+			} else {
+				sparse = new Object[length];
+				int skip = 0;
+				for (int i = 0, j = 0; i != length; ++i) {
+					if (skip != skipCount && skipIndices[skip] == i) {
+						sparse[i] = Scriptable.NOT_FOUND;
+						++skip;
+						continue;
+					}
+					sparse[i] = objects[j];
+					++j;
+				}
+			}
+			return cx.newArray(scope, sparse);
 		}
+
+		Scriptable array = cx.newArray(scope, length);
+
 		int skip = 0;
 		for (int i = 0, j = 0; i != length; ++i) {
-			if (skip != skipCount && skipIndexces[skip] == i) {
+			if (skip != skipCount && skipIndices[skip] == i) {
 				++skip;
 				continue;
 			}
-			ScriptableObject.putProperty(arrayObj, i, objects[j]);
+			ScriptableObject.putProperty(array, i, objects[j]);
 			++j;
 		}
-		return arrayObj;
+		return array;
 	}
 
 	/**
@@ -3202,9 +3442,14 @@ public class ScriptRuntime {
 			int getterSetter = getterSetters[i];
 			Object value = propertyValues[i];
 			if (id instanceof String) {
-				if (getterSetter == 0)
-					ScriptableObject.putProperty(object, (String) id, value);
-				else {
+				if (getterSetter == 0) {
+					if (isSpecialProperty((String) id)) {
+						specialRef(object, (String) id, cx).set(cx, value);
+					} else {
+						ScriptableObject
+								.putProperty(object, (String) id, value);
+					}
+				} else {
 					Callable fun;
 					String definer;
 					if (getterSetter < 0) // < 0 means get foo() ...
@@ -3290,41 +3535,80 @@ public class ScriptRuntime {
 		return getMessage(messageId, arguments);
 	}
 
+	/**
+	 * This is an interface defining a message provider. Create your own
+	 * implementation to override the default error message provider.
+	 * 
+	 * @author Mike Harm
+	 */
+	public interface MessageProvider {
+
+		/**
+		 * Returns a textual message identified by the given messageId,
+		 * parameterized by the given arguments.
+		 * 
+		 * @param messageId
+		 *            the identifier of the message
+		 * @param arguments
+		 *            the arguments to fill into the message
+		 */
+		String getMessage(String messageId, Object[] arguments);
+	}
+
+	public static MessageProvider messageProvider = new DefaultMessageProvider();
+
+	public static String getMessage(String messageId, Object[] arguments) {
+		return messageProvider.getMessage(messageId, arguments);
+	}
+
 	/*
 	 * OPT there's a noticable delay for the first error! Maybe it'd make sense
 	 * to use a ListResourceBundle instead of a properties file to avoid
 	 * (synchronized) text parsing.
 	 */
-	public static String getMessage(String messageId, Object[] arguments) {
-		final String defaultResource = "org.mozilla.javascript.resources.Messages";
+	private static class DefaultMessageProvider implements MessageProvider {
+		public String getMessage(String messageId, Object[] arguments) {
+			final String defaultResource = "org.mozilla.javascript.resources.Messages";
 
-		Context cx = Context.getCurrentContext();
-		Locale locale = cx != null ? cx.getLocale() : Locale.getDefault();
+			Context cx = Context.getCurrentContext();
+			Locale locale = cx != null ? cx.getLocale() : Locale.getDefault();
 
-		// ResourceBundle does cacheing.
-		ResourceBundle rb = ResourceBundle.getBundle(defaultResource, locale);
+			// ResourceBundle does caching.
+			ResourceBundle rb = ResourceBundle.getBundle(defaultResource,
+					locale);
 
-		String formatString;
-		try {
-			formatString = rb.getString(messageId);
-		} catch (java.util.MissingResourceException mre) {
-			throw new RuntimeException(
-					"no message resource found for message property "
-							+ messageId);
+			String formatString;
+			try {
+				formatString = rb.getString(messageId);
+			} catch (java.util.MissingResourceException mre) {
+				throw new RuntimeException(
+						"no message resource found for message property "
+								+ messageId);
+			}
+
+			/*
+			 * It's OK to format the string, even if 'arguments' is null; we
+			 * need to format it anyway, to make double ''s collapse to single
+			 * 's.
+			 */
+			MessageFormat formatter = new MessageFormat(formatString);
+			return formatter.format(arguments);
 		}
-
-		/*
-		 * It's OK to format the string, even if 'arguments' is null; we need to
-		 * format it anyway, to make double ''s collapse to single 's.
-		 */
-		// TODO: MessageFormat is not available on pJava
-		MessageFormat formatter = new MessageFormat(formatString);
-		return formatter.format(arguments);
 	}
 
 	public static EcmaError constructError(String error, String message) {
 		int[] linep = new int[1];
 		String filename = Context.getSourcePositionFromStack(linep);
+		return constructError(error, message, filename, linep[0], null, 0);
+	}
+
+	public static EcmaError constructError(String error, String message,
+			int lineNumberDelta) {
+		int[] linep = new int[1];
+		String filename = Context.getSourcePositionFromStack(linep);
+		if (linep[0] != 0) {
+			linep[0] += lineNumberDelta;
+		}
 		return constructError(error, message, filename, linep[0], null, 0);
 	}
 
@@ -3368,8 +3652,7 @@ public class ScriptRuntime {
 
 	public static RuntimeException undefCallError(Object object, Object id) {
 		String idStr = (id == null) ? "null" : id.toString();
-		String objectStr = (object == null) ? "null" : toString(object);
-		return typeError2("msg.undef.method.call", objectStr, idStr);
+		return typeError2("msg.undef.method.call", toString(object), idStr);
 	}
 
 	public static RuntimeException undefWriteError(Object object, Object id,
@@ -3394,18 +3677,36 @@ public class ScriptRuntime {
 
 	public static RuntimeException notFunctionError(Object value,
 			Object messageHelper) {
-		// XXX Use value for better error reporting
+		// Use value for better error reporting
 		String msg = (messageHelper == null) ? "null" : messageHelper
 				.toString();
 		if (value == Scriptable.NOT_FOUND) {
 			return typeError1("msg.function.not.found", msg);
 		}
-		return typeError2("msg.isnt.function", msg, value == null ? "null"
-				: value.getClass().getName());
+		return typeError2("msg.isnt.function", msg, typeof(value));
+	}
+
+	public static RuntimeException notFunctionError(Object obj, Object value,
+			String propertyName) {
+		// Use obj and value for better error reporting
+		String objString = toString(obj);
+		if (obj instanceof NativeFunction) {
+			// Omit function body in string representations of functions
+			int curly = objString.indexOf('{');
+			if (curly > -1) {
+				objString = objString.substring(0, curly + 1) + "...}";
+			}
+		}
+		if (value == Scriptable.NOT_FOUND) {
+			return typeError2("msg.function.not.found.in", propertyName,
+					objString);
+		}
+		return typeError3("msg.isnt.function.in", propertyName, objString,
+				typeof(value));
 	}
 
 	private static RuntimeException notXmlError(Object value) {
-		throw typeError1("msg.isnt.xml.object", ScriptRuntime.toString(value));
+		throw typeError1("msg.isnt.xml.object", toString(value));
 	}
 
 	private static void warnAboutNonJSObject(Object nonJSObject) {
@@ -3415,10 +3716,9 @@ public class ScriptRuntime {
 				+ " of class "
 				+ nonJSObject.getClass().getName()
 				+ " where it expected String, Number, Boolean or Scriptable instance. Please check your code for missing Context.javaToJS() call.";
-		Context.reportWarning(message, new RuntimeException(message));
+		Context.reportWarning(message);
 		// Just to be sure that it would be noticed
 		System.err.println(message);
-		new RuntimeException().printStackTrace();
 	}
 
 	public static RegExpProxy getRegExpProxy(Context cx) {
@@ -3531,7 +3831,7 @@ public class ScriptRuntime {
 	}
 
 	private static void storeScriptable(Context cx, Scriptable value) {
-		// The previosly stored scratchScriptable should be consumed
+		// The previously stored scratchScriptable should be consumed
 		if (cx.scratchScriptable != null)
 			throw new IllegalStateException();
 		cx.scratchScriptable = value;
@@ -3563,8 +3863,28 @@ public class ScriptRuntime {
 		return Context.reportRuntimeError1(msg, val.getClass().getName());
 	}
 
-	public static final Object[] emptyArgs = new Object[0];
+	/**
+	 * Equivalent to executing "new Error(message)" from JavaScript.
+	 * 
+	 * @param cx
+	 *            the current context
+	 * @param scope
+	 *            the current scope
+	 * @param message
+	 *            the message
+	 * @return a JavaScriptException you should throw
+	 */
+	public static JavaScriptException throwError(Context cx, Scriptable scope,
+			String message) {
+		int[] linep = { 0 };
+		String filename = Context.getSourcePositionFromStack(linep);
+		final Scriptable error = newBuiltinObject(cx, scope,
+				TopLevel.Builtins.Error, new Object[] { message, filename,
+						Integer.valueOf(linep[0]) });
+		return new JavaScriptException(error, filename, linep[0]);
+	}
 
+	public static final Object[] emptyArgs = new Object[0];
 	public static final String[] emptyStrings = new String[0];
 
 }

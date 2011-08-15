@@ -59,7 +59,7 @@ public abstract class SecureCaller {
 	// need to have one renderer per class loader. We're using weak hash maps
 	// and soft references all the way, since we don't want to interfere with
 	// cleanup of either CodeSource or ClassLoader objects.
-	private static final Map callers = new WeakHashMap();
+	private static final Map<CodeSource, Map<ClassLoader, SoftReference<SecureCaller>>> callers = new WeakHashMap<CodeSource, Map<ClassLoader, SoftReference<SecureCaller>>>();
 
 	public abstract Object call(Callable callable, Context cx,
 			Scriptable scope, Scriptable thisObj, Object[] args);
@@ -74,24 +74,24 @@ public abstract class SecureCaller {
 		// Run in doPrivileged as we might be checked for "getClassLoader"
 		// runtime permission
 		final ClassLoader classLoader = (ClassLoader) AccessController
-				.doPrivileged(new PrivilegedAction() {
+				.doPrivileged(new PrivilegedAction<Object>() {
 					public Object run() {
 						return thread.getContextClassLoader();
 					}
 				});
-		Map classLoaderMap;
+		Map<ClassLoader, SoftReference<SecureCaller>> classLoaderMap;
 		synchronized (callers) {
-			classLoaderMap = (Map) callers.get(codeSource);
+			classLoaderMap = callers.get(codeSource);
 			if (classLoaderMap == null) {
-				classLoaderMap = new WeakHashMap();
+				classLoaderMap = new WeakHashMap<ClassLoader, SoftReference<SecureCaller>>();
 				callers.put(codeSource, classLoaderMap);
 			}
 		}
 		SecureCaller caller;
 		synchronized (classLoaderMap) {
-			SoftReference ref = (SoftReference) classLoaderMap.get(classLoader);
+			SoftReference<SecureCaller> ref = classLoaderMap.get(classLoader);
 			if (ref != null) {
-				caller = (SecureCaller) ref.get();
+				caller = ref.get();
 			} else {
 				caller = null;
 			}
@@ -100,10 +100,10 @@ public abstract class SecureCaller {
 					// Run in doPrivileged as we'll be checked for
 					// "createClassLoader" runtime permission
 					caller = (SecureCaller) AccessController
-							.doPrivileged(new PrivilegedExceptionAction() {
+							.doPrivileged(new PrivilegedExceptionAction<Object>() {
 								public Object run() throws Exception {
 									ClassLoader effectiveClassLoader;
-									Class thisClass = getClass();
+									Class<?> thisClass = getClass();
 									if (classLoader.loadClass(thisClass
 											.getName()) != thisClass) {
 										effectiveClassLoader = thisClass
@@ -113,7 +113,7 @@ public abstract class SecureCaller {
 									}
 									SecureClassLoaderImpl secCl = new SecureClassLoaderImpl(
 											effectiveClassLoader);
-									Class c = secCl.defineAndLinkClass(
+									Class<?> c = secCl.defineAndLinkClass(
 											SecureCaller.class.getName()
 													+ "Impl",
 											secureCallerImplBytecode,
@@ -121,7 +121,8 @@ public abstract class SecureCaller {
 									return c.newInstance();
 								}
 							});
-					classLoaderMap.put(classLoader, new SoftReference(caller));
+					classLoaderMap.put(classLoader,
+							new SoftReference<SecureCaller>(caller));
 				} catch (PrivilegedActionException ex) {
 					throw new UndeclaredThrowableException(ex.getCause());
 				}
@@ -135,19 +136,20 @@ public abstract class SecureCaller {
 			super(parent);
 		}
 
-		Class defineAndLinkClass(String name, byte[] bytes, CodeSource cs) {
-			Class cl = defineClass(name, bytes, 0, bytes.length, cs);
+		Class<?> defineAndLinkClass(String name, byte[] bytes, CodeSource cs) {
+			Class<?> cl = defineClass(name, bytes, 0, bytes.length, cs);
 			resolveClass(cl);
 			return cl;
 		}
 	}
 
 	private static byte[] loadBytecode() {
-		return (byte[]) AccessController.doPrivileged(new PrivilegedAction() {
-			public Object run() {
-				return loadBytecodePrivileged();
-			}
-		});
+		return (byte[]) AccessController
+				.doPrivileged(new PrivilegedAction<Object>() {
+					public Object run() {
+						return loadBytecodePrivileged();
+					}
+				});
 	}
 
 	private static byte[] loadBytecodePrivileged() {

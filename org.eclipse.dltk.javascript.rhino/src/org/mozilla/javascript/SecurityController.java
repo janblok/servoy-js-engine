@@ -38,6 +38,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 // API class
+
 package org.mozilla.javascript;
 
 /**
@@ -143,6 +144,15 @@ public abstract class SecurityController {
 			loader = sc.createClassLoader(parent, dynamicDomain);
 		}
 		return loader;
+	}
+
+	public static Class<?> getStaticSecurityDomainClass() {
+		SecurityController sc = Context.getContext().getSecurityController();
+		return sc == null ? null : sc.getStaticSecurityDomainClassInternal();
+	}
+
+	public Class<?> getStaticSecurityDomainClassInternal() {
+		return null;
 	}
 
 	/**

@@ -40,7 +40,9 @@
 package org.mozilla.javascript;
 
 /**
- * This class implements the activation object. See ECMA 10.1.6
+ * This class implements the activation object.
+ * 
+ * See ECMA 10.1.6
  * 
  * @see org.mozilla.javascript.Arguments
  * @author Norris Boyd
@@ -48,7 +50,7 @@ package org.mozilla.javascript;
 public final class NativeCall extends IdScriptableObject {
 	static final long serialVersionUID = -7471457301304454454L;
 
-	private static final Object CALL_TAG = new Object();
+	private static final Object CALL_TAG = "Call";
 
 	static void init(Scriptable scope, boolean sealed) {
 		NativeCall obj = new NativeCall();
@@ -77,7 +79,7 @@ public final class NativeCall extends IdScriptableObject {
 			}
 		}
 
-		// initialize "arguments" property but only if it was not overriden by
+		// initialize "arguments" property but only if it was not overridden by
 		// the parameter with the same name
 		if (!super.has("arguments", this)) {
 			defineProperty("arguments", new Arguments(this), PERMANENT);
@@ -96,14 +98,17 @@ public final class NativeCall extends IdScriptableObject {
 		}
 	}
 
+	@Override
 	public String getClassName() {
 		return "Call";
 	}
 
+	@Override
 	protected int findPrototypeId(String s) {
 		return s.equals("constructor") ? Id_constructor : 0;
 	}
 
+	@Override
 	protected void initPrototypeId(int id) {
 		String s;
 		int arity;
@@ -116,6 +121,7 @@ public final class NativeCall extends IdScriptableObject {
 		initPrototypeMethod(CALL_TAG, id, s, arity);
 	}
 
+	@Override
 	public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
 			Scriptable thisObj, Object[] args) {
 		if (!f.hasTag(CALL_TAG)) {
@@ -137,7 +143,6 @@ public final class NativeCall extends IdScriptableObject {
 	private static final int Id_constructor = 1, MAX_PROTOTYPE_ID = 1;
 
 	NativeFunction function;
-
 	Object[] originalArgs;
 
 	transient NativeCall parentActivationCall;

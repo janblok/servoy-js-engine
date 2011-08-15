@@ -54,7 +54,7 @@ public class DefiningClassLoader extends ClassLoader implements
 		this.parentLoader = parentLoader;
 	}
 
-	public Class defineClass(String name, byte[] data) {
+	public Class<?> defineClass(String name, byte[] data) {
 		// Use our own protection domain for the generated classes.
 		// TODO: we might want to use a separate protection domain for classes
 		// compiled from scripts, based on where the script was loaded from.
@@ -62,13 +62,14 @@ public class DefiningClassLoader extends ClassLoader implements
 				SecurityUtilities.getProtectionDomain(getClass()));
 	}
 
-	public void linkClass(Class cl) {
+	public void linkClass(Class<?> cl) {
 		resolveClass(cl);
 	}
 
-	public Class loadClass(String name, boolean resolve)
+	@Override
+	public Class<?> loadClass(String name, boolean resolve)
 			throws ClassNotFoundException {
-		Class cl = findLoadedClass(name);
+		Class<?> cl = findLoadedClass(name);
 		if (cl == null) {
 			if (parentLoader != null) {
 				cl = parentLoader.loadClass(name);

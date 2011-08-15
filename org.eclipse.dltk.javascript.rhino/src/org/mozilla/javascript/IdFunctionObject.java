@@ -37,6 +37,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 // API class
+
 package org.mozilla.javascript;
 
 public class IdFunctionObject extends BaseFunction {
@@ -102,6 +103,7 @@ public class IdFunctionObject extends BaseFunction {
 		addAsProperty(getParentScope());
 	}
 
+	@Override
 	public Scriptable getPrototype() {
 		// Lazy initialization of prototype: for native functions this
 		// may not be called at all
@@ -113,11 +115,13 @@ public class IdFunctionObject extends BaseFunction {
 		return proto;
 	}
 
+	@Override
 	public Object call(Context cx, Scriptable scope, Scriptable thisObj,
 			Object[] args) {
 		return idcall.execIdCall(this, cx, scope, thisObj, args);
 	}
 
+	@Override
 	public Scriptable createObject(Context cx, Scriptable scope) {
 		if (useCallAsConstructor) {
 			return null;
@@ -129,6 +133,7 @@ public class IdFunctionObject extends BaseFunction {
 		throw ScriptRuntime.typeError1("msg.not.ctor", functionName);
 	}
 
+	@Override
 	String decompile(int indent, int flags) {
 		StringBuffer sb = new StringBuffer();
 		boolean justbody = (0 != (flags & Decompiler.ONLY_BODY_FLAG));
@@ -150,14 +155,17 @@ public class IdFunctionObject extends BaseFunction {
 		return sb.toString();
 	}
 
+	@Override
 	public int getArity() {
 		return arity;
 	}
 
+	@Override
 	public int getLength() {
 		return getArity();
 	}
 
+	@Override
 	public String getFunctionName() {
 		return (functionName == null) ? "" : functionName;
 	}
@@ -169,14 +177,9 @@ public class IdFunctionObject extends BaseFunction {
 	}
 
 	private final IdFunctionCall idcall;
-
 	private final Object tag;
-
 	private final int methodId;
-
 	private int arity;
-
 	private boolean useCallAsConstructor;
-
 	private String functionName;
 }

@@ -52,13 +52,13 @@ import org.mozilla.javascript.xml.*;
  * @see XML
  */
 abstract class XMLObjectImpl extends XMLObject {
-	private static final Object XMLOBJECT_TAG = new Object();
-
+	private static final Object XMLOBJECT_TAG = "XMLObject";
 	private XMLLibImpl lib;
-
 	private boolean prototypeFlag;
 
-	protected XMLObjectImpl() {
+	protected XMLObjectImpl(XMLLibImpl lib, Scriptable scope,
+			XMLObject prototype) {
+		initialize(lib, scope, prototype);
 	}
 
 	final void initialize(XMLLibImpl lib, Scriptable scope, XMLObject prototype) {
@@ -70,6 +70,10 @@ abstract class XMLObjectImpl extends XMLObject {
 
 	final boolean isPrototype() {
 		return prototypeFlag;
+	}
+
+	XMLLibImpl getLib() {
+		return lib;
 	}
 
 	final XML newXML(XmlNode node) {
@@ -117,43 +121,53 @@ abstract class XMLObjectImpl extends XMLObject {
 	// Scriptable
 	//
 
+	@Override
 	public final Object get(String name, Scriptable start) {
 		return super.get(name, start);
 	}
 
+	@Override
 	public final boolean has(String name, Scriptable start) {
 		return super.has(name, start);
 	}
 
+	@Override
 	public final void put(String name, Scriptable start, Object value) {
 		super.put(name, start, value);
 	}
 
+	@Override
 	public final void delete(String name) {
 		// TODO I am not sure about this, but this is how I found it. DPC
 		throw new IllegalArgumentException("String: [" + name + "]");
 	}
 
+	@Override
 	public final Scriptable getPrototype() {
 		return super.getPrototype();
 	}
 
+	@Override
 	public final void setPrototype(Scriptable prototype) {
 		super.setPrototype(prototype);
 	}
 
+	@Override
 	public final Scriptable getParentScope() {
 		return super.getParentScope();
 	}
 
+	@Override
 	public final void setParentScope(Scriptable parent) {
 		super.setParentScope(parent);
 	}
 
-	public final Object getDefaultValue(Class hint) {
+	@Override
+	public final Object getDefaultValue(Class<?> hint) {
 		return this.toString();
 	}
 
+	@Override
 	public final boolean hasInstance(Scriptable scriptable) {
 		return super.hasInstance(scriptable);
 	}
@@ -195,7 +209,7 @@ abstract class XMLObjectImpl extends XMLObject {
 		return rv;
 	}
 
-	abstract XML XML();
+	abstract XML getXML();
 
 	// Methods from section 12.4.4 in the spec
 	abstract XMLList child(int index);
@@ -230,7 +244,10 @@ abstract class XMLObjectImpl extends XMLObject {
 
 	abstract XMLList text();
 
+	@Override
 	public abstract String toString();
+
+	abstract String toSource(int indent);
 
 	abstract String toXMLString();
 
@@ -254,6 +271,7 @@ abstract class XMLObjectImpl extends XMLObject {
 	 * returns {@link Scriptable#NOT_FOUND} for them but rather calls
 	 * equivalentXml(value) and wrap the result as Boolean.
 	 */
+	@Override
 	protected final Object equivalentValues(Object value) {
 		boolean result = equivalentXml(value);
 		return result ? Boolean.TRUE : Boolean.FALSE;
@@ -268,6 +286,7 @@ abstract class XMLObjectImpl extends XMLObject {
 	/**
 	 * Implementation of ECMAScript [[Has]]
 	 */
+	@Override
 	public final boolean ecmaHas(Context cx, Object id) {
 		if (cx == null)
 			cx = Context.getCurrentContext();
@@ -283,6 +302,7 @@ abstract class XMLObjectImpl extends XMLObject {
 	/**
 	 * Implementation of ECMAScript [[Get]]
 	 */
+	@Override
 	public final Object ecmaGet(Context cx, Object id) {
 		if (cx == null)
 			cx = Context.getCurrentContext();
@@ -302,6 +322,7 @@ abstract class XMLObjectImpl extends XMLObject {
 	/**
 	 * Implementation of ECMAScript [[Put]]
 	 */
+	@Override
 	public final void ecmaPut(Context cx, Object id, Object value) {
 		if (cx == null)
 			cx = Context.getCurrentContext();
@@ -318,6 +339,7 @@ abstract class XMLObjectImpl extends XMLObject {
 	/**
 	 * Implementation of ECMAScript [[Delete]].
 	 */
+	@Override
 	public final boolean ecmaDelete(Context cx, Object id) {
 		if (cx == null)
 			cx = Context.getCurrentContext();
@@ -333,12 +355,13 @@ abstract class XMLObjectImpl extends XMLObject {
 	}
 
 	// TODO Can this be made more strongly typed?
+	@Override
 	public Ref memberRef(Context cx, Object elem, int memberTypeFlags) {
 		boolean attribute = (memberTypeFlags & Node.ATTRIBUTE_FLAG) != 0;
 		boolean descendants = (memberTypeFlags & Node.DESCENDANTS_FLAG) != 0;
 		if (!attribute && !descendants) {
 			// Code generation would use ecma(Get|Has|Delete|Set) for
-			// normal name idenrifiers so one ATTRIBUTE_FLAG
+			// normal name identifiers so one ATTRIBUTE_FLAG
 			// or DESCENDANTS_FLAG has to be set
 			throw Kit.codeBug();
 		}
@@ -351,6 +374,7 @@ abstract class XMLObjectImpl extends XMLObject {
 	/**
 	 * Generic reference to implement x::ns, x.@ns::y, x..@ns::y etc.
 	 */
+	@Override
 	public Ref memberRef(Context cx, Object namespace, Object elem,
 			int memberTypeFlags) {
 		boolean attribute = (memberTypeFlags & Node.ATTRIBUTE_FLAG) != 0;
@@ -361,16 +385,19 @@ abstract class XMLObjectImpl extends XMLObject {
 		return rv;
 	}
 
+	@Override
 	public NativeWith enterWith(Scriptable scope) {
 		return new XMLWithScope(lib, scope, this);
 	}
 
+	@Override
 	public NativeWith enterDotQuery(Scriptable scope) {
 		XMLWithScope xws = new XMLWithScope(lib, scope, this);
 		xws.initAsDotQuery();
 		return xws;
 	}
 
+	@Override
 	public final Object addValues(Context cx, boolean thisIsLeft, Object value) {
 		if (value instanceof XMLObject) {
 			XMLObject v1, v2;
@@ -418,13 +445,15 @@ abstract class XMLObjectImpl extends XMLObject {
 			Id_propertyIsEnumerable = 30, Id_removeNamespace = 31,
 			Id_replace = 32, Id_setChildren = 33, Id_setLocalName = 34,
 			Id_setName = 35, Id_setNamespace = 36, Id_text = 37,
-			Id_toString = 38, Id_toXMLString = 39, Id_valueOf = 40,
+			Id_toString = 38, Id_toSource = 39, Id_toXMLString = 40,
+			Id_valueOf = 41,
 
-			MAX_PROTOTYPE_ID = 40;
+			MAX_PROTOTYPE_ID = 41;
 
+	@Override
 	protected int findPrototypeId(String s) {
 		int id;
-		// #generated# Last update: 2006-10-08 22:03:58 EDT
+		// #generated# Last update: 2008-10-21 12:32:31 MESZ
 		L0: {
 			id = 0;
 			String X = null;
@@ -473,8 +502,14 @@ abstract class XMLObjectImpl extends XMLObject {
 			case 8:
 				switch (s.charAt(2)) {
 				case 'S':
-					X = "toString";
-					id = Id_toString;
+					c = s.charAt(7);
+					if (c == 'e') {
+						X = "toSource";
+						id = Id_toSource;
+					} else if (c == 'g') {
+						X = "toString";
+						id = Id_toString;
+					}
 					break L;
 				case 'd':
 					X = "nodeKind";
@@ -617,6 +652,7 @@ abstract class XMLObjectImpl extends XMLObject {
 			}
 			if (X != null && X != s && !X.equals(s))
 				id = 0;
+			break L0;
 		}
 		// #/generated#
 		return id;
@@ -624,6 +660,7 @@ abstract class XMLObjectImpl extends XMLObject {
 
 	// #/string_id_map#
 
+	@Override
 	protected void initPrototypeId(int id) {
 		String s;
 		int arity;
@@ -787,6 +824,10 @@ abstract class XMLObjectImpl extends XMLObject {
 			arity = 0;
 			s = "toString";
 			break;
+		case Id_toSource:
+			arity = 1;
+			s = "toSource";
+			break;
 		case Id_toXMLString:
 			arity = 1;
 			s = "toXMLString";
@@ -814,6 +855,7 @@ abstract class XMLObjectImpl extends XMLObject {
 		throw ScriptRuntime.notFunctionError(object, name);
 	}
 
+	@Override
 	public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
 			Scriptable thisObj, Object[] args) {
 		if (!f.hasTag(XMLOBJECT_TAG)) {
@@ -829,7 +871,7 @@ abstract class XMLObjectImpl extends XMLObject {
 			throw incompatibleCallError(f);
 		XMLObjectImpl realThis = (XMLObjectImpl) thisObj;
 
-		XML xml = realThis.XML();
+		XML xml = realThis.getXML();
 		switch (id) {
 		case Id_appendChild: {
 			if (xml == null)
@@ -1025,6 +1067,9 @@ abstract class XMLObjectImpl extends XMLObject {
 			return realThis.text();
 		case Id_toString:
 			return realThis.toString();
+		case Id_toSource:
+			int indent = ScriptRuntime.toInt32(args, 0);
+			return realThis.toSource(indent);
 		case Id_toXMLString: {
 			return realThis.toXMLString();
 		}
@@ -1043,7 +1088,7 @@ abstract class XMLObjectImpl extends XMLObject {
 		return lib.newTextElementXML(reference, qname, value);
 	}
 
-	/** @deprecated Hopefully this can be replaced with ecmaToXml below. */
+	/* TODO: Hopefully this can be replaced with ecmaToXml below. */
 	final XML newXMLFromJs(Object inputObject) {
 		return lib.newXMLFromJs(inputObject);
 	}

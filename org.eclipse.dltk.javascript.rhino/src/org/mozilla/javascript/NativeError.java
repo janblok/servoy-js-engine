@@ -40,19 +40,24 @@
 package org.mozilla.javascript;
 
 /**
- * The class of error objects ECMA 15.11
+ * 
+ * The class of error objects
+ * 
+ * ECMA 15.11
  */
-public final class NativeError extends IdScriptableObject {
+final class NativeError extends IdScriptableObject {
 	static final long serialVersionUID = -5338413581437645187L;
 
-	private static final Object ERROR_TAG = new Object();
+	private static final Object ERROR_TAG = "Error";
+
+	private RhinoException stackProvider;
 
 	static void init(Scriptable scope, boolean sealed) {
 		NativeError obj = new NativeError();
 		ScriptableObject.putProperty(obj, "name", "Error");
 		ScriptableObject.putProperty(obj, "message", "");
 		ScriptableObject.putProperty(obj, "fileName", "");
-		ScriptableObject.putProperty(obj, "lineNumber", new Integer(0));
+		ScriptableObject.putProperty(obj, "lineNumber", Integer.valueOf(0));
 		obj.exportAsJSClass(MAX_PROTOTYPE_ID, scope, sealed);
 	}
 
@@ -73,33 +78,27 @@ public final class NativeError extends IdScriptableObject {
 				if (arglen >= 3) {
 					int line = ScriptRuntime.toInt32(args[2]);
 					ScriptableObject.putProperty(obj, "lineNumber",
-							new Integer(line));
+							Integer.valueOf(line));
 				}
-			}
-		}
-		if (arglen < 3
-				&& cx.hasFeature(Context.FEATURE_LOCATION_INFORMATION_IN_ERROR)) {
-			// Fill in fileName and lineNumber automatically when not specified
-			// explicitly, see Bugzilla issue #342807
-			int[] linep = new int[1];
-			String fileName = Context.getSourcePositionFromStack(linep);
-			ScriptableObject.putProperty(obj, "lineNumber", new Integer(
-					linep[0]));
-			if (arglen < 2) {
-				ScriptableObject.putProperty(obj, "fileName", fileName);
 			}
 		}
 		return obj;
 	}
 
+	@Override
 	public String getClassName() {
 		return "Error";
 	}
 
+	@Override
 	public String toString() {
-		return js_toString(this);
+		// According to spec, Error.prototype.toString() may return undefined.
+		Object toString = js_toString(this);
+		return toString instanceof String ? (String) toString : super
+				.toString();
 	}
 
+	@Override
 	protected void initPrototypeId(int id) {
 		String s;
 		int arity;
@@ -122,6 +121,7 @@ public final class NativeError extends IdScriptableObject {
 		initPrototypeMethod(ERROR_TAG, id, s, arity);
 	}
 
+	@Override
 	public Object execIdCall(IdFunctionObject f, Context cx, Scriptable scope,
 			Scriptable thisObj, Object[] args) {
 		if (!f.hasTag(ERROR_TAG)) {
@@ -141,9 +141,57 @@ public final class NativeError extends IdScriptableObject {
 		throw new IllegalArgumentException(String.valueOf(id));
 	}
 
-	private static String js_toString(Scriptable thisObj) {
-		return getString(thisObj, "name") + ": "
-				+ getString(thisObj, "message");
+	public void setStackProvider(RhinoException re) {
+		// We go some extra miles to make sure the stack property is only
+		// generated on demand, is cached after the first access, and is
+		// overwritable like an ordinary property. Hence this setup with
+		// the getter and setter below.
+		if (stackProvider == null) {
+			stackProvider = re;
+			try {
+				defineProperty("stack", null,
+						NativeError.class.getMethod("getStack"),
+						NativeError.class.getMethod("setStack", Object.class),
+						0);
+			} catch (NoSuchMethodException nsm) {
+				// should not happen
+				throw new RuntimeException(nsm);
+			}
+		}
+	}
+
+	public Object getStack() {
+		Object value = stackProvider == null ? NOT_FOUND : stackProvider
+				.getScriptStackTrace();
+		// We store the stack as local property both to cache it
+		// and to make the property writable
+		setStack(value);
+		return value;
+	}
+
+	public void setStack(Object value) {
+		if (stackProvider != null) {
+			stackProvider = null;
+			delete("stack");
+		}
+		put("stack", this, value);
+	}
+
+	private static Object js_toString(Scriptable thisObj) {
+		Object name = ScriptableObject.getProperty(thisObj, "name");
+		if (name == NOT_FOUND || name == Undefined.instance) {
+			name = "Error";
+		} else {
+			name = ScriptRuntime.toString(name);
+		}
+		Object msg = ScriptableObject.getProperty(thisObj, "message");
+		final Object result;
+		if (msg == NOT_FOUND || msg == Undefined.instance) {
+			result = Undefined.instance;
+		} else {
+			result = ((String) name) + ": " + ScriptRuntime.toString(msg);
+		}
+		return result;
 	}
 
 	private static String js_toSource(Context cx, Scriptable scope,
@@ -193,6 +241,7 @@ public final class NativeError extends IdScriptableObject {
 		return ScriptRuntime.toString(value);
 	}
 
+	@Override
 	protected int findPrototypeId(String s) {
 		int id;
 		// #string_id_map#

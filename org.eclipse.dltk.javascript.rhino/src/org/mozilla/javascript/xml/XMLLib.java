@@ -45,6 +45,7 @@ public abstract class XMLLib {
 
 	/**
 	 * An object which specifies an XMLLib implementation to be used at runtime.
+	 * 
 	 * This interface should be considered experimental. It may be better (and
 	 * certainly more flexible) to write an interface that returns an XMLLib
 	 * object rather than a class name, for example. But that would cause many
@@ -54,6 +55,7 @@ public abstract class XMLLib {
 	public static abstract class Factory {
 		public static Factory create(final String className) {
 			return new Factory() {
+				@Override
 				public String getImplementationClassName() {
 					return className;
 				}
@@ -66,7 +68,7 @@ public abstract class XMLLib {
 	public static XMLLib extractFromScopeOrNull(Scriptable scope) {
 		ScriptableObject so = ScriptRuntime.getLibraryScopeOrNull(scope);
 		if (so == null) {
-			// If librray is not yet initialized, return null
+			// If library is not yet initialized, return null
 			return null;
 		}
 
@@ -125,4 +127,44 @@ public abstract class XMLLib {
 	 * Construct namespace for default xml statement.
 	 */
 	public abstract Object toDefaultXmlNamespace(Context cx, Object uriValue);
+
+	public void setIgnoreComments(boolean b) {
+		throw new UnsupportedOperationException();
+	}
+
+	public void setIgnoreWhitespace(boolean b) {
+		throw new UnsupportedOperationException();
+	}
+
+	public void setIgnoreProcessingInstructions(boolean b) {
+		throw new UnsupportedOperationException();
+	}
+
+	public void setPrettyPrinting(boolean b) {
+		throw new UnsupportedOperationException();
+	}
+
+	public void setPrettyIndent(int i) {
+		throw new UnsupportedOperationException();
+	}
+
+	public boolean isIgnoreComments() {
+		throw new UnsupportedOperationException();
+	}
+
+	public boolean isIgnoreProcessingInstructions() {
+		throw new UnsupportedOperationException();
+	}
+
+	public boolean isIgnoreWhitespace() {
+		throw new UnsupportedOperationException();
+	}
+
+	public boolean isPrettyPrinting() {
+		throw new UnsupportedOperationException();
+	}
+
+	public int getPrettyIndent() {
+		throw new UnsupportedOperationException();
+	}
 }

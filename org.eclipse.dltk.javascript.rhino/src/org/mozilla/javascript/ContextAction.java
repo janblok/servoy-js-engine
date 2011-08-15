@@ -37,6 +37,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 // API class
+
 package org.mozilla.javascript;
 
 /**
@@ -49,7 +50,6 @@ public interface ContextAction {
 	 * calls the method, <tt>cx</tt> will be associated with the current thread
 	 * as active context.
 	 * 
-	 * @see Context#call(ContextAction)
 	 * @see ContextFactory#call(ContextAction)
 	 */
 	public Object run(Context cx);

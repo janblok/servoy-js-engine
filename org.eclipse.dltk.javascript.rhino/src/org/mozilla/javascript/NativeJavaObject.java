@@ -44,7 +44,7 @@ package org.mozilla.javascript;
 
 import java.io.*;
 import java.lang.reflect.*;
-import java.util.Hashtable;
+import java.util.Map;
 import java.util.Date;
 
 /**
@@ -66,22 +66,12 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 	}
 
 	public NativeJavaObject(Scriptable scope, Object javaObject,
-			Class staticType) {
+			Class<?> staticType) {
 		this(scope, javaObject, staticType, false);
 	}
 
 	public NativeJavaObject(Scriptable scope, Object javaObject,
-			JavaMembers members) {
-		this.parent = scope;
-		this.javaObject = javaObject;
-		this.members = members;
-		this.isAdapter = false;
-		this.fieldAndMethods = members.getFieldAndMethodsObjects(this,
-				javaObject, false);
-	}
-
-	public NativeJavaObject(Scriptable scope, Object javaObject,
-			Class staticType, boolean isAdapter) {
+			Class<?> staticType, boolean isAdapter) {
 		this.parent = scope;
 		this.javaObject = javaObject;
 		this.staticType = staticType;
@@ -90,7 +80,7 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 	}
 
 	protected void initMembers() {
-		Class dynamicType;
+		Class<?> dynamicType;
 		if (javaObject != null) {
 			dynamicType = javaObject.getClass();
 		} else {
@@ -153,7 +143,8 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 
 	public Scriptable getPrototype() {
 		if (prototype == null && javaObject instanceof String) {
-			return ScriptableObject.getClassPrototype(parent, "String");
+			return TopLevel.getBuiltinPrototype(parent,
+					TopLevel.Builtins.String);
 		}
 		return prototype;
 	}
@@ -185,10 +176,9 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 
 	/**
 	 * @deprecated Use {@link Context#getWrapFactory()} together with calling
-	 *             {@link WrapFactory#wrap(Context cx, Scriptable scope, Object
-	 *             obj, Class)}
+	 *             {@link WrapFactory#wrap(Context, Scriptable, Object, Class)}
 	 */
-	public static Object wrap(Scriptable scope, Object obj, Class staticType) {
+	public static Object wrap(Scriptable scope, Object obj, Class<?> staticType) {
 
 		Context cx = Context.getContext();
 		return cx.getWrapFactory().wrap(cx, scope, obj, staticType);
@@ -202,7 +192,7 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 		return "JavaObject";
 	}
 
-	public Object getDefaultValue(Class hint) {
+	public Object getDefaultValue(Class<?> hint) {
 		Object value;
 		if (hint == null) {
 			if (javaObject instanceof Boolean) {
@@ -243,34 +233,24 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 	 * desired one. This should be superceded by a conversion-cost calculation
 	 * function, but for now I'll hide behind precedent.
 	 */
-	public static boolean canConvert(Object fromObj, Class to) {
+	public static boolean canConvert(Object fromObj, Class<?> to) {
 		int weight = getConversionWeight(fromObj, to);
 
 		return (weight < CONVERSION_NONE);
 	}
 
 	private static final int JSTYPE_UNDEFINED = 0; // undefined type
-
 	private static final int JSTYPE_NULL = 1; // null
-
 	private static final int JSTYPE_BOOLEAN = 2; // boolean
-
 	private static final int JSTYPE_NUMBER = 3; // number
-
 	private static final int JSTYPE_STRING = 4; // string
-
 	private static final int JSTYPE_JAVA_CLASS = 5; // JavaClass
-
 	private static final int JSTYPE_JAVA_OBJECT = 6; // JavaObject
-
 	private static final int JSTYPE_JAVA_ARRAY = 7; // JavaArray
-
 	private static final int JSTYPE_OBJECT = 8; // Scriptable
 
 	static final byte CONVERSION_TRIVIAL = 1;
-
 	static final byte CONVERSION_NONTRIVIAL = 0;
-
 	static final byte CONVERSION_NONE = 99;
 
 	/**
@@ -281,7 +261,7 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 	 * "http://www.mozilla.org/js/liveconnect/lc3_method_overloading.html">
 	 * "preferred method conversions" from Live Connect 3</a>
 	 */
-	static int getConversionWeight(Object fromObj, Class to) {
+	static int getConversionWeight(Object fromObj, Class<?> to) {
 		int fromCode = getJSTypeCode(fromObj);
 
 		switch (fromCode) {
@@ -365,29 +345,18 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 			if (to.isInstance(javaObj)) {
 				return CONVERSION_NONTRIVIAL;
 			}
-			// unwrap this again as may be wrapped twice
-			if (javaObj instanceof Wrapper) {
-				javaObj = ((Wrapper) javaObj).unwrap();
-			}
-			if (to.isInstance(javaObj)) {
-				return CONVERSION_NONTRIVIAL;
-			}
 			if (to == ScriptRuntime.StringClass) {
 				return 2;
 			} else if (to.isPrimitive() && to != Boolean.TYPE) {
-				return (fromCode == JSTYPE_JAVA_ARRAY) ? CONVERSION_NONTRIVIAL
+				return (fromCode == JSTYPE_JAVA_ARRAY) ? CONVERSION_NONE
 						: 2 + getSizeRank(to);
-			} else if (to.isArray() && javaObj.getClass().isArray()) {
-				return CONVERSION_TRIVIAL;
-			} else if (to.isInstance(fromObj)) {
-				return CONVERSION_TRIVIAL;
 			}
 			break;
 
 		case JSTYPE_OBJECT:
 			// Other objects takes #1-#3 spots
-			if (to == fromObj.getClass()) {
-				// No conversion required
+			if (to != ScriptRuntime.ObjectClass && to.isInstance(fromObj)) {
+				// No conversion required, but don't apply for java.lang.Object
 				return 1;
 			}
 			if (to.isArray()) {
@@ -423,7 +392,7 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 		return CONVERSION_NONE;
 	}
 
-	static int getSizeRank(Class aType) {
+	static int getSizeRank(Class<?> aType) {
 		if (aType == Double.TYPE) {
 			return 1;
 		} else if (aType == Float.TYPE) {
@@ -469,7 +438,7 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 		} else if (value instanceof Class) {
 			return JSTYPE_JAVA_CLASS;
 		} else {
-			Class valueClass = value.getClass();
+			Class<?> valueClass = value.getClass();
 			if (valueClass.isArray()) {
 				return JSTYPE_JAVA_ARRAY;
 			} else {
@@ -482,10 +451,10 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 	 * Not intended for public use. Callers should use the public API
 	 * Context.toType.
 	 * 
-	 * @see org.mozilla.javascript.Context#jsToJava(Object, Class).
 	 * @deprecated as of 1.5 Release 4
+	 * @see org.mozilla.javascript.Context#jsToJava(Object, Class)
 	 */
-	public static Object coerceType(Class type, Object value) {
+	public static Object coerceType(Class<?> type, Object value) {
 		return coerceTypeImpl(type, value);
 	}
 
@@ -493,7 +462,7 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 	 * Type-munging for field setting and method invocation. Conforms to LC3
 	 * specification
 	 */
-	static Object coerceTypeImpl(Class type, Object value) {
+	static Object coerceTypeImpl(Class<?> type, Object value) {
 		if (value != null && value.getClass() == type) {
 			return value;
 		}
@@ -508,19 +477,13 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 			return null;
 
 		case JSTYPE_UNDEFINED:
-			if (type.isPrimitive()) {
-				reportConversionError(value, type);
+			if (type == ScriptRuntime.StringClass
+					|| type == ScriptRuntime.ObjectClass) {
+				return "undefined";
+			} else {
+				reportConversionError("undefined", type);
 			}
-			return null;
-			//
-			// if (type == ScriptRuntime.StringClass ||
-			// type == ScriptRuntime.ObjectClass) {
-			// return "undefined";
-			// }
-			// else {
-			// reportConversionError("undefined", type);
-			// }
-			// break;
+			break;
 
 		case JSTYPE_BOOLEAN:
 			// Under LC3, only JS Booleans can be coerced into a Boolean value
@@ -542,10 +505,6 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 			} else if ((type.isPrimitive() && type != Boolean.TYPE)
 					|| ScriptRuntime.NumberClass.isAssignableFrom(type)) {
 				return coerceToNumber(type, value);
-			} else if (type == ScriptRuntime.BooleanClass
-					|| type == Boolean.TYPE) {
-				return ScriptRuntime.toBoolean(value) ? Boolean.TRUE
-						: Boolean.FALSE;
 			} else {
 				reportConversionError(value, type);
 			}
@@ -561,7 +520,7 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 				// Placed here because it applies *only* to JS strings,
 				// not other JS objects converted to strings
 				if (((String) value).length() == 1) {
-					return new Character(((String) value).charAt(0));
+					return Character.valueOf(((String) value).charAt(0));
 				} else {
 					return coerceToNumber(type, value);
 				}
@@ -592,11 +551,6 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 		case JSTYPE_JAVA_ARRAY:
 			if (value instanceof Wrapper) {
 				value = ((Wrapper) value).unwrap();
-				// if we have another wrapper that doesn't match, unwrap this
-				// again
-				if (!type.isInstance(value) && value instanceof Wrapper) {
-					value = ((Wrapper) value).unwrap();
-				}
 			}
 			if (type.isPrimitive()) {
 				if (type == Boolean.TYPE) {
@@ -606,23 +560,12 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 			} else {
 				if (type == ScriptRuntime.StringClass) {
 					return value.toString();
-				} else if (type.isInstance(value)) {
-					return value;
-				} else if (type.isArray() && value.getClass().isArray()) {
-					long length = Array.getLength(value);
-					Class arrayType = type.getComponentType();
-					Object result = Array.newInstance(arrayType, (int) length);
-					for (int i = 0; i < length; ++i) {
-						try {
-							Array.set(result, i,
-									coerceType(arrayType, Array.get(value, i)));
-						} catch (EvaluatorException ee) {
-							reportConversionError(value, type);
-						}
-					}
-					return result;
 				} else {
-					reportConversionError(value, type);
+					if (type.isInstance(value)) {
+						return value;
+					} else {
+						reportConversionError(value, type);
+					}
 				}
 			}
 			break;
@@ -635,6 +578,8 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 					reportConversionError(value, type);
 				}
 				return coerceToNumber(type, value);
+			} else if (type.isInstance(value)) {
+				return value;
 			} else if (type == ScriptRuntime.DateClass
 					&& value instanceof NativeDate) {
 				double time = ((NativeDate) value).getJSTimeValue();
@@ -645,7 +590,7 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 				// to the target (component) type.
 				NativeArray array = (NativeArray) value;
 				long length = array.getLength();
-				Class arrayType = type.getComponentType();
+				Class<?> arrayType = type.getComponentType();
 				Object Result = Array.newInstance(arrayType, (int) length);
 				for (int i = 0; i < length; ++i) {
 					try {
@@ -662,12 +607,10 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 				if (type.isInstance(value))
 					return value;
 				reportConversionError(value, type);
-			} else if (type.isInstance(value)) {
-				return value;
 			} else if (type.isInterface() && value instanceof Callable) {
 				// Try to use function as implementation of Java interface.
 				//
-				// XXX: Curently only instances of ScriptableObject are
+				// XXX: Currently only instances of ScriptableObject are
 				// supported since the resulting interface proxies should
 				// be reused next time conversion is made and generic
 				// Callable has no storage for it. Weak references can
@@ -698,15 +641,15 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 		return value;
 	}
 
-	private static Object coerceToNumber(Class type, Object value) {
-		Class valueClass = value.getClass();
+	private static Object coerceToNumber(Class<?> type, Object value) {
+		Class<?> valueClass = value.getClass();
 
 		// Character
 		if (type == Character.TYPE || type == ScriptRuntime.CharacterClass) {
 			if (valueClass == ScriptRuntime.CharacterClass) {
 				return value;
 			}
-			return new Character((char) toInteger(value,
+			return Character.valueOf((char) toInteger(value,
 					ScriptRuntime.CharacterClass, Character.MIN_VALUE,
 					Character.MAX_VALUE));
 		}
@@ -746,7 +689,7 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 			if (valueClass == ScriptRuntime.IntegerClass) {
 				return value;
 			} else {
-				return new Integer((int) toInteger(value,
+				return Integer.valueOf((int) toInteger(value,
 						ScriptRuntime.IntegerClass, Integer.MIN_VALUE,
 						Integer.MAX_VALUE));
 			}
@@ -765,8 +708,8 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 				 */
 				final double max = Double.longBitsToDouble(0x43dfffffffffffffL);
 				final double min = Double.longBitsToDouble(0xc3e0000000000000L);
-				return new Long(toInteger(value, ScriptRuntime.LongClass, min,
-						max));
+				return Long.valueOf(toInteger(value, ScriptRuntime.LongClass,
+						min, max));
 			}
 		}
 
@@ -774,7 +717,7 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 			if (valueClass == ScriptRuntime.ShortClass) {
 				return value;
 			} else {
-				return new Short((short) toInteger(value,
+				return Short.valueOf((short) toInteger(value,
 						ScriptRuntime.ShortClass, Short.MIN_VALUE,
 						Short.MAX_VALUE));
 			}
@@ -784,9 +727,10 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 			if (valueClass == ScriptRuntime.ByteClass) {
 				return value;
 			} else {
-				return new Byte(
-						(byte) toInteger(value, ScriptRuntime.ByteClass,
-								Byte.MIN_VALUE, Byte.MAX_VALUE));
+				return Byte
+						.valueOf((byte) toInteger(value,
+								ScriptRuntime.ByteClass, Byte.MIN_VALUE,
+								Byte.MAX_VALUE));
 			}
 		}
 
@@ -831,7 +775,7 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 		}
 	}
 
-	private static long toInteger(Object value, Class type, double min,
+	private static long toInteger(Object value, Class<?> type, double min,
 			double max) {
 		double d = toDouble(value);
 
@@ -853,7 +797,7 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 		return (long) d;
 	}
 
-	static void reportConversionError(Object value, Class type) {
+	static void reportConversionError(Object value, Class<?> type) {
 		// It uses String.valueOf(value), not value.toString() since
 		// value can be null, bug 282447.
 		throw Context.reportRuntimeError2("msg.conversion.not.allowed",
@@ -925,24 +869,19 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 
 	protected transient Object javaObject;
 
-	protected transient Class staticType;
-
+	protected transient Class<?> staticType;
 	protected transient JavaMembers members;
-
-	private transient Hashtable fieldAndMethods;
-
+	private transient Map<String, FieldAndMethods> fieldAndMethods;
 	private transient boolean isAdapter;
 
-	private static final Object COERCED_INTERFACE_KEY = new Object();
-
+	private static final Object COERCED_INTERFACE_KEY = "Coerced Interface";
 	private static Method adapter_writeAdapterObject;
-
 	private static Method adapter_readAdapterObject;
 
 	static {
 		// Reflection in java is verbose
-		Class[] sig2 = new Class[2];
-		Class cl = Kit.classOrNull("org.mozilla.javascript.JavaAdapter");
+		Class<?>[] sig2 = new Class[2];
+		Class<?> cl = Kit.classOrNull("org.mozilla.javascript.JavaAdapter");
 		if (cl != null) {
 			try {
 				sig2[0] = ScriptRuntime.ObjectClass;
@@ -955,7 +894,7 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 				adapter_readAdapterObject = cl.getMethod("readAdapterObject",
 						sig2);
 
-			} catch (Exception ex) {
+			} catch (NoSuchMethodException e) {
 				adapter_writeAdapterObject = null;
 				adapter_readAdapterObject = null;
 			}

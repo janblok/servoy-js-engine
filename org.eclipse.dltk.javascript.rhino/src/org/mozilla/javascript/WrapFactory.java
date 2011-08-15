@@ -78,7 +78,7 @@ public class WrapFactory {
 	 * @return the wrapped value.
 	 */
 	public Object wrap(Context cx, Scriptable scope, Object obj,
-			Class staticType) {
+			Class<?> staticType) {
 		if (obj == null || obj == Undefined.instance
 				|| obj instanceof Scriptable) {
 			return obj;
@@ -87,7 +87,7 @@ public class WrapFactory {
 			if (staticType == Void.TYPE)
 				return Undefined.instance;
 			if (staticType == Character.TYPE)
-				return new Integer(((Character) obj).charValue());
+				return Integer.valueOf(((Character) obj).charValue());
 			return obj;
 		}
 		if (!isJavaPrimitiveWrap()) {
@@ -98,7 +98,7 @@ public class WrapFactory {
 				return String.valueOf(((Character) obj).charValue());
 			}
 		}
-		Class cls = obj.getClass();
+		Class<?> cls = obj.getClass();
 		if (cls.isArray()) {
 			return NativeJavaArray.wrap(scope, obj);
 		}
@@ -120,7 +120,7 @@ public class WrapFactory {
 		if (obj instanceof Scriptable) {
 			return (Scriptable) obj;
 		}
-		Class cls = obj.getClass();
+		Class<?> cls = obj.getClass();
 		if (cls.isArray()) {
 			return NativeJavaArray.wrap(scope, obj);
 		}
@@ -151,10 +151,29 @@ public class WrapFactory {
 	 * @return the wrapped value which shall not be null
 	 */
 	public Scriptable wrapAsJavaObject(Context cx, Scriptable scope,
-			Object javaObject, Class staticType) {
-		Scriptable wrap;
-		wrap = new NativeJavaObject(scope, javaObject, staticType);
-		return wrap;
+			Object javaObject, Class<?> staticType) {
+		return new NativeJavaObject(scope, javaObject, staticType);
+	}
+
+	/**
+	 * Wrap a Java class as Scriptable instance to allow access to its static
+	 * members and fields and use as constructor from JavaScript.
+	 * <p>
+	 * Subclasses can override this method to provide custom wrappers for Java
+	 * classes.
+	 * 
+	 * @param cx
+	 *            the current Context for this thread
+	 * @param scope
+	 *            the scope of the executing script
+	 * @param javaClass
+	 *            the class to be wrapped
+	 * @return the wrapped value which shall not be null
+	 * @since 1.7R3
+	 */
+	public Scriptable wrapJavaClass(Context cx, Scriptable scope,
+			Class javaClass) {
+		return new NativeJavaClass(scope, javaClass);
 	}
 
 	/**

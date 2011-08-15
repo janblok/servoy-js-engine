@@ -36,14 +36,17 @@
  * ***** END LICENSE BLOCK ***** */
 
 // API class
+
 package org.mozilla.javascript;
 
 /**
  * This is a helper class for implementing wrappers around Scriptable objects.
  * It implements the Function interface and delegates all invocations to a
  * delegee Scriptable object. The normal use of this class involves creating a
- * sub-class and overriding one or more of the methods. A useful application is
- * the implementation of interceptors, pre/post conditions, debugging.
+ * sub-class and overriding one or more of the methods.
+ * 
+ * A useful application is the implementation of interceptors, pre/post
+ * conditions, debugging.
  * 
  * @see Function
  * @see Scriptable
@@ -55,8 +58,10 @@ public class Delegator implements Function {
 	protected Scriptable obj = null;
 
 	/**
-	 * Create a Delegator prototype. This constructor should only be used for
-	 * creating prototype objects of Delegator.
+	 * Create a Delegator prototype.
+	 * 
+	 * This constructor should only be used for creating prototype objects of
+	 * Delegator.
 	 * 
 	 * @see org.mozilla.javascript.Delegator#construct
 	 */
@@ -83,7 +88,7 @@ public class Delegator implements Function {
 	 */
 	protected Delegator newInstance() {
 		try {
-			return (Delegator) this.getClass().newInstance();
+			return this.getClass().newInstance();
 		} catch (Exception ex) {
 			throw Context.throwAsScriptRuntimeEx(ex);
 		}
@@ -117,56 +122,56 @@ public class Delegator implements Function {
 	}
 
 	/**
-	 * @see org.mozilla.javascript.Scriptable#get
+	 * @see org.mozilla.javascript.Scriptable#get(String, Scriptable)
 	 */
 	public Object get(String name, Scriptable start) {
 		return obj.get(name, start);
 	}
 
 	/**
-	 * @see org.mozilla.javascript.Scriptable#get
+	 * @see org.mozilla.javascript.Scriptable#get(int, Scriptable)
 	 */
 	public Object get(int index, Scriptable start) {
 		return obj.get(index, start);
 	}
 
 	/**
-	 * @see org.mozilla.javascript.Scriptable#has
+	 * @see org.mozilla.javascript.Scriptable#has(String, Scriptable)
 	 */
 	public boolean has(String name, Scriptable start) {
 		return obj.has(name, start);
 	}
 
 	/**
-	 * @see org.mozilla.javascript.Scriptable#has
+	 * @see org.mozilla.javascript.Scriptable#has(int, Scriptable)
 	 */
 	public boolean has(int index, Scriptable start) {
 		return obj.has(index, start);
 	}
 
 	/**
-	 * @see org.mozilla.javascript.Scriptable#put
+	 * @see org.mozilla.javascript.Scriptable#put(String, Scriptable, Object)
 	 */
 	public void put(String name, Scriptable start, Object value) {
 		obj.put(name, start, value);
 	}
 
 	/**
-	 * @see org.mozilla.javascript.Scriptable#put
+	 * @see org.mozilla.javascript.Scriptable#put(int, Scriptable, Object)
 	 */
 	public void put(int index, Scriptable start, Object value) {
 		obj.put(index, start, value);
 	}
 
 	/**
-	 * @see org.mozilla.javascript.Scriptable#delete
+	 * @see org.mozilla.javascript.Scriptable#delete(String)
 	 */
 	public void delete(String name) {
 		obj.delete(name);
 	}
 
 	/**
-	 * @see org.mozilla.javascript.Scriptable#delete
+	 * @see org.mozilla.javascript.Scriptable#delete(int)
 	 */
 	public void delete(int index) {
 		obj.delete(index);
@@ -217,9 +222,10 @@ public class Delegator implements Function {
 	 * @param hint
 	 *            the type hint
 	 * @return the default value
+	 * 
 	 * @see org.mozilla.javascript.Scriptable#getDefaultValue
 	 */
-	public Object getDefaultValue(Class hint) {
+	public Object getDefaultValue(Class<?> hint) {
 		return (hint == null || hint == ScriptRuntime.ScriptableClass || hint == ScriptRuntime.FunctionClass) ? this
 				: obj.getDefaultValue(hint);
 	}
@@ -253,6 +259,7 @@ public class Delegator implements Function {
 	 * @param args
 	 *            the array of arguments
 	 * @return the allocated object
+	 * 
 	 * @see Function#construct(Context, Scriptable, Object[])
 	 */
 	public Scriptable construct(Context cx, Scriptable scope, Object[] args) {

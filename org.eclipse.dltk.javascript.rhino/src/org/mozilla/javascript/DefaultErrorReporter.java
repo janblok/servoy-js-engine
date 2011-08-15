@@ -47,7 +47,6 @@ class DefaultErrorReporter implements ErrorReporter {
 	static final DefaultErrorReporter instance = new DefaultErrorReporter();
 
 	private boolean forEval;
-
 	private ErrorReporter chainedReporter;
 
 	private DefaultErrorReporter() {

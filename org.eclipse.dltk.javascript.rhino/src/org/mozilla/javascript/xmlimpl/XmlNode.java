@@ -15,7 +15,7 @@
  *
  * The Initial Developer of the Original Code is
  * David P. Caldwell.
- * Portions created by David P. Caldwell are Copyright (C) 
+ * Portions created by David P. Caldwell are Copyright (C)
  * 2007 David P. Caldwell. All Rights Reserved.
  *
  *
@@ -36,16 +36,23 @@
 
 package org.mozilla.javascript.xmlimpl;
 
-import java.util.*;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-import org.w3c.dom.*;
-
-import org.mozilla.javascript.*;
-
-//	Disambiguate with org.mozilla.javascript
+import org.mozilla.javascript.Undefined;
+import org.w3c.dom.Attr;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.w3c.dom.ProcessingInstruction;
+import org.w3c.dom.UserDataHandler;
 
-class XmlNode {
+class XmlNode implements Serializable {
 	private static final String XML_NAMESPACES_NAMESPACE_URI = "http://www.w3.org/2000/xmlns/";
 
 	private static final String USER_DATA_XMLNODE_KEY = XmlNode.class.getName();
@@ -91,8 +98,10 @@ class XmlNode {
 			document = processor.newDocument();
 		}
 		Node referenceDom = (reference != null) ? reference.dom : null;
-		Element e = document.createElementNS(qname.getUri(),
-				qname.qualify(referenceDom));
+		Namespace ns = qname.getNamespace();
+		Element e = (ns == null || ns.getUri().length() == 0) ? document
+				.createElementNS(null, qname.getLocalName()) : document
+				.createElementNS(ns.getUri(), qname.qualify(referenceDom));
 		if (value != null) {
 			e.appendChild(document.createTextNode(value));
 		}
@@ -101,6 +110,12 @@ class XmlNode {
 
 	static XmlNode createText(XmlProcessor processor, String value) {
 		return createImpl(processor.newDocument().createTextNode(value));
+	}
+
+	static XmlNode createElementFromNode(Node node) {
+		if (node instanceof Document)
+			node = ((Document) node).getDocumentElement();
+		return createImpl(node);
 	}
 
 	static XmlNode createElement(XmlProcessor processor, String namespaceUri,
@@ -118,11 +133,7 @@ class XmlNode {
 
 	private static final long serialVersionUID = 1L;
 
-	private UserDataHandler events = new UserDataHandler() {
-		public void handle(short operation, String key, Object data, Node src,
-				Node dest) {
-		}
-	};
+	private UserDataHandler events = new XmlNodeUserDataHandler();
 
 	private Node dom;
 
@@ -140,6 +151,7 @@ class XmlNode {
 		return raw.ecmaToXmlString(this.dom);
 	}
 
+	@Override
 	public String toString() {
 		return "XmlNode: type=" + dom.getNodeType() + " dom=" + dom.toString();
 	}
@@ -350,9 +362,18 @@ class XmlNode {
 		return getNamespaceDeclaration(dom.getPrefix());
 	}
 
+	static class XmlNodeUserDataHandler implements UserDataHandler,
+			Serializable {
+		private static final long serialVersionUID = 4666895518900769588L;
+
+		public void handle(short operation, String key, Object data, Node src,
+				Node dest) {
+		}
+	}
+
 	private static class Namespaces {
-		private HashMap map = new HashMap();
-		private HashMap uriToPrefix = new HashMap();
+		private Map<String, String> map = new HashMap<String, String>();
+		private Map<String, String> uriToPrefix = new HashMap<String, String>();
 
 		Namespaces() {
 		}
@@ -372,27 +393,25 @@ class XmlNode {
 		Namespace getNamespaceByUri(String uri) {
 			if (uriToPrefix.get(uri) == null)
 				return null;
-			return Namespace.create(uri, (String) uriToPrefix.get(uri));
+			return Namespace.create(uri, uriToPrefix.get(uri));
 		}
 
 		Namespace getNamespace(String prefix) {
 			if (map.get(prefix) == null)
 				return null;
-			return Namespace.create(prefix, (String) map.get(prefix));
+			return Namespace.create(prefix, map.get(prefix));
 		}
 
 		Namespace[] getNamespaces() {
-			Iterator i = map.keySet().iterator();
-			ArrayList rv = new ArrayList();
-			while (i.hasNext()) {
-				String prefix = (String) i.next();
-				String uri = (String) map.get(prefix);
+			ArrayList<Namespace> rv = new ArrayList<Namespace>();
+			for (String prefix : map.keySet()) {
+				String uri = map.get(prefix);
 				Namespace n = Namespace.create(prefix, uri);
 				if (!n.isEmpty()) {
 					rv.add(n);
 				}
 			}
-			return (Namespace[]) rv.toArray(new Namespace[0]);
+			return rv.toArray(new Namespace[rv.size()]);
 		}
 	}
 
@@ -427,8 +446,8 @@ class XmlNode {
 	}
 
 	final void renameNode(QName qname) {
-		this.dom = dom.getOwnerDocument().renameNode(dom, qname.getUri(),
-				qname.qualify(dom));
+		this.dom = dom.getOwnerDocument().renameNode(dom,
+				qname.getNamespace().getUri(), qname.qualify(dom));
 	}
 
 	void invalidateNamespacePrefix() {
@@ -574,7 +593,7 @@ class XmlNode {
 	}
 
 	XmlNode[] getMatchingChildren(Filter filter) {
-		ArrayList rv = new ArrayList();
+		ArrayList<XmlNode> rv = new ArrayList<XmlNode>();
 		NodeList nodes = this.dom.getChildNodes();
 		for (int i = 0; i < nodes.getLength(); i++) {
 			Node node = nodes.item(i);
@@ -582,7 +601,7 @@ class XmlNode {
 				rv.add(createImpl(node));
 			}
 		}
-		return (XmlNode[]) rv.toArray(new XmlNode[0]);
+		return rv.toArray(new XmlNode[rv.size()]);
 	}
 
 	XmlNode[] getAttributes() {
@@ -631,14 +650,22 @@ class XmlNode {
 		}
 	}
 
-	static class Namespace {
+	static class Namespace implements Serializable {
+
+		/**
+		 * Serial version id for Namespace with fields prefix and uri
+		 */
+		private static final long serialVersionUID = 4073904386884677090L;
+
 		static Namespace create(String prefix, String uri) {
-			if (prefix == null)
+			if (prefix == null) {
 				throw new IllegalArgumentException(
 						"Empty string represents default namespace prefix");
-			if (uri == null)
+			}
+			if (uri == null) {
 				throw new IllegalArgumentException(
 						"Namespace may not lack a URI");
+			}
 			Namespace rv = new Namespace();
 			rv.prefix = prefix;
 			rv.uri = uri;
@@ -648,6 +675,12 @@ class XmlNode {
 		static Namespace create(String uri) {
 			Namespace rv = new Namespace();
 			rv.uri = uri;
+
+			// Avoid null prefix for "" namespace
+			if (uri.length() == 0) {
+				rv.prefix = "";
+			}
+
 			return rv;
 		}
 
@@ -659,6 +692,7 @@ class XmlNode {
 		private Namespace() {
 		}
 
+		@Override
 		public String toString() {
 			if (prefix == null)
 				return "XmlNode.Namespace [" + uri + "]";
@@ -705,7 +739,9 @@ class XmlNode {
 	}
 
 	// TODO Where is this class used? No longer using it in QName implementation
-	static class QName {
+	static class QName implements Serializable {
+		private static final long serialVersionUID = -6587069811691451077L;
+
 		static QName create(Namespace namespace, String localName) {
 			// A null namespace indicates a wild-card match for any namespace
 			// A null localName indicates "*" from the point of view of ECMA357
@@ -736,6 +772,7 @@ class XmlNode {
 		private QName() {
 		}
 
+		@Override
 		public String toString() {
 			return "XmlNode.QName [" + localName + "," + namespace + "]";
 		}
@@ -756,12 +793,25 @@ class XmlNode {
 			return equals(one.getUri(), two.getUri());
 		}
 
-		final boolean isEqualTo(QName other) {
+		final boolean equals(QName other) {
 			if (!namespacesEqual(this.namespace, other.namespace))
 				return false;
 			if (!equals(this.localName, other.localName))
 				return false;
 			return true;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (!(obj instanceof QName)) {
+				return false;
+			}
+			return equals((QName) obj);
+		}
+
+		@Override
+		public int hashCode() {
+			return localName == null ? 0 : localName.hashCode();
 		}
 
 		void lookupPrefix(org.w3c.dom.Node node) {
@@ -823,16 +873,6 @@ class XmlNode {
 					qualify(namespace.getPrefix(), localName), value);
 		}
 
-		/** @deprecated Use getNamespace() */
-		String getUri() {
-			return namespace.getUri();
-		}
-
-		/** @deprecated Use getNamespace() */
-		String getPrefix() {
-			return namespace.getPrefix();
-		}
-
 		Namespace getNamespace() {
 			return namespace;
 		}
@@ -842,32 +882,33 @@ class XmlNode {
 		}
 	}
 
-	static class List {
-		private java.util.Vector v;
+	static class InternalList implements Serializable {
+		private static final long serialVersionUID = -3633151157292048978L;
+		private List<XmlNode> list;
 
-		List() {
-			v = new java.util.Vector();
+		InternalList() {
+			list = new ArrayList<XmlNode>();
 		}
 
 		private void _add(XmlNode n) {
-			v.add(n);
+			list.add(n);
 		}
 
 		XmlNode item(int index) {
-			return (XmlNode) (v.get(index));
+			return list.get(index);
 		}
 
 		void remove(int index) {
-			v.remove(index);
+			list.remove(index);
 		}
 
-		void add(List other) {
+		void add(InternalList other) {
 			for (int i = 0; i < other.length(); i++) {
 				_add(other.item(i));
 			}
 		}
 
-		void add(List from, int startInclusive, int endExclusive) {
+		void add(InternalList from, int startInclusive, int endExclusive) {
 			for (int i = startInclusive; i < endExclusive; i++) {
 				_add(from.item(i));
 			}
@@ -877,12 +918,12 @@ class XmlNode {
 			_add(node);
 		}
 
-		/** @deprecated */
+		/* TODO: was marked deprecated by original author */
 		void add(XML xml) {
 			_add(xml.getAnnotation());
 		}
 
-		/** @deprecated */
+		/* TODO: was marked deprecated by original author */
 		void addToList(Object toAdd) {
 			if (toAdd instanceof Undefined) {
 				// Missing argument do nothing...
@@ -892,7 +933,7 @@ class XmlNode {
 			if (toAdd instanceof XMLList) {
 				XMLList xmlSrc = (XMLList) toAdd;
 				for (int i = 0; i < xmlSrc.length(); i++) {
-					this._add(((XML) xmlSrc.item(i)).getAnnotation());
+					this._add((xmlSrc.item(i)).getAnnotation());
 				}
 			} else if (toAdd instanceof XML) {
 				this._add(((XML) (toAdd)).getAnnotation());
@@ -902,17 +943,19 @@ class XmlNode {
 		}
 
 		int length() {
-			return v.size();
+			return list.size();
 		}
-	};
+	}
 
 	static abstract class Filter {
 		static final Filter COMMENT = new Filter() {
+			@Override
 			boolean accept(Node node) {
 				return node.getNodeType() == Node.COMMENT_NODE;
 			}
 		};
 		static final Filter TEXT = new Filter() {
+			@Override
 			boolean accept(Node node) {
 				return node.getNodeType() == Node.TEXT_NODE;
 			}
@@ -920,6 +963,7 @@ class XmlNode {
 
 		static Filter PROCESSING_INSTRUCTION(final XMLName name) {
 			return new Filter() {
+				@Override
 				boolean accept(Node node) {
 					if (node.getNodeType() == Node.PROCESSING_INSTRUCTION_NODE) {
 						ProcessingInstruction pi = (ProcessingInstruction) node;
@@ -931,11 +975,13 @@ class XmlNode {
 		}
 
 		static Filter ELEMENT = new Filter() {
+			@Override
 			boolean accept(Node node) {
 				return node.getNodeType() == Node.ELEMENT_NODE;
 			}
 		};
 		static Filter TRUE = new Filter() {
+			@Override
 			boolean accept(Node node) {
 				return true;
 			}

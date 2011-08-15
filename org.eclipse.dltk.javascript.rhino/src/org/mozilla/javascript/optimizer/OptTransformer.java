@@ -38,7 +38,8 @@
 package org.mozilla.javascript.optimizer;
 
 import org.mozilla.javascript.*;
-import java.util.Hashtable;
+import org.mozilla.javascript.ast.ScriptNode;
+import java.util.Map;
 
 /**
  * This class performs node transforms to prepare for optimization.
@@ -49,22 +50,25 @@ import java.util.Hashtable;
 
 class OptTransformer extends NodeTransformer {
 
-	OptTransformer(Hashtable possibleDirectCalls, ObjArray directCallTargets) {
+	OptTransformer(Map<String, OptFunctionNode> possibleDirectCalls,
+			ObjArray directCallTargets) {
 		this.possibleDirectCalls = possibleDirectCalls;
 		this.directCallTargets = directCallTargets;
 	}
 
-	protected void visitNew(Node node, ScriptOrFnNode tree) {
+	@Override
+	protected void visitNew(Node node, ScriptNode tree) {
 		detectDirectCall(node, tree);
 		super.visitNew(node, tree);
 	}
 
-	protected void visitCall(Node node, ScriptOrFnNode tree) {
+	@Override
+	protected void visitCall(Node node, ScriptNode tree) {
 		detectDirectCall(node, tree);
 		super.visitCall(node, tree);
 	}
 
-	private void detectDirectCall(Node node, ScriptOrFnNode tree) {
+	private void detectDirectCall(Node node, ScriptNode tree) {
 		if (tree.getType() == Token.FUNCTION) {
 			Node left = node.getFirstChild();
 
@@ -82,7 +86,9 @@ class OptTransformer extends NodeTransformer {
 
 			/*
 			 * Optimize a call site by converting call("a", b, c) into :
+			 * 
 			 * FunctionObjectFor"a" <-- instance variable init'd by constructor
+			 * 
 			 * // this is a DIRECTCALL node fn = GetProp(tmp = GetBase("a"),
 			 * "a"); if (fn == FunctionObjectFor"a") fn.call(tmp, b, c) else
 			 * ScriptRuntime.Call(fn, tmp, b, c)
@@ -93,10 +99,12 @@ class OptTransformer extends NodeTransformer {
 					targetName = left.getString();
 				} else if (left.getType() == Token.GETPROP) {
 					targetName = left.getFirstChild().getNext().getString();
+				} else if (left.getType() == Token.GETPROPNOWARN) {
+					throw Kit.codeBug();
 				}
 				if (targetName != null) {
 					OptFunctionNode ofn;
-					ofn = (OptFunctionNode) possibleDirectCalls.get(targetName);
+					ofn = possibleDirectCalls.get(targetName);
 					if (ofn != null && argCount == ofn.fnode.getParamCount()
 							&& !ofn.fnode.requiresActivation()) {
 						// Refuse to directCall any function with more
@@ -116,7 +124,6 @@ class OptTransformer extends NodeTransformer {
 		}
 	}
 
-	private Hashtable possibleDirectCalls;
-
+	private Map<String, OptFunctionNode> possibleDirectCalls;
 	private ObjArray directCallTargets;
 }
