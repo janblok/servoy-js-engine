@@ -3120,14 +3120,28 @@ public final class Interpreter extends Icode implements Evaluator {
 		} else {
 			if (lhs instanceof Scriptable || rhs instanceof Scriptable) {
 				stack[stackTop] = ScriptRuntime.add(lhs, rhs, cx);
-			} else if (lhs instanceof String) {
-				String lstr = (String) lhs;
-				String rstr = ScriptRuntime.toString(rhs);
-				stack[stackTop] = lstr.concat(rstr);
-			} else if (rhs instanceof String) {
-				String lstr = ScriptRuntime.toString(lhs);
-				String rstr = (String) rhs;
-				stack[stackTop] = lstr.concat(rstr);
+			} else if (lhs instanceof CharSequenceBuffer) {
+				// CharSequenceBuffer
+				if (rhs instanceof CharSequenceBuffer) {
+					lhs = ((CharSequenceBuffer) lhs)
+							.append((CharSequenceBuffer) rhs);
+				} else {
+					lhs = ((CharSequenceBuffer) lhs).append(ScriptRuntime
+							.toString(rhs));
+				}
+				stack[stackTop] = lhs;
+			} else if (lhs instanceof String || rhs instanceof String) {
+				if (rhs instanceof CharSequenceBuffer) {
+					CharSequenceBuffer sb = new CharSequenceBuffer(
+							ScriptRuntime.toString(lhs),
+							(CharSequenceBuffer) rhs);
+					stack[stackTop] = sb;
+				} else {
+					CharSequenceBuffer sb = new CharSequenceBuffer(
+							ScriptRuntime.toString(lhs),
+							ScriptRuntime.toString(rhs));
+					stack[stackTop] = sb;
+				}
 			} else {
 				double lDbl = (lhs instanceof Number) ? ((Number) lhs)
 						.doubleValue() : ScriptRuntime.toNumber(lhs);
@@ -3155,6 +3169,14 @@ public final class Interpreter extends Icode implements Evaluator {
 				stack[stackTop] = lstr.concat(rstr);
 			} else {
 				stack[stackTop] = rstr.concat(lstr);
+			}
+		} else if (lhs instanceof CharSequenceBuffer) {
+			CharSequenceBuffer lstr = (CharSequenceBuffer) lhs;
+			String rstr = ScriptRuntime.toString(d);
+			if (leftRightOrder) {
+				stack[stackTop] = lstr.append(rstr);
+			} else {
+				stack[stackTop] = new CharSequenceBuffer(rstr, lstr);
 			}
 		} else {
 			double lDbl = (lhs instanceof Number) ? ((Number) lhs)

@@ -52,7 +52,7 @@ import java.io.*;
  * @author Igor Bukanov
  */
 
-final class MemberBox implements Serializable {
+public final class MemberBox implements Serializable {
 	static final long serialVersionUID = 6358550398665688245L;
 
 	private transient Member memberObject;
@@ -60,7 +60,9 @@ final class MemberBox implements Serializable {
 	transient Object delegateTo;
 	transient boolean vararg;
 
-	MemberBox(Method method) {
+	transient Class returnType;
+
+	public MemberBox(Method method) {
 		init(method);
 	}
 
@@ -68,10 +70,22 @@ final class MemberBox implements Serializable {
 		init(constructor);
 	}
 
+	public Class[] getParameterTypes() {
+		return argTypes;
+	}
+
+	/**
+	 * @return the returnType
+	 */
+	public Class getReturnType() {
+		return returnType;
+	}
+
 	private void init(Method method) {
 		this.memberObject = method;
 		this.argTypes = method.getParameterTypes();
 		this.vararg = VMBridge.instance.isVarArgs(method);
+		this.returnType = method.getReturnType();
 	}
 
 	private void init(Constructor<?> constructor) {
@@ -108,7 +122,7 @@ final class MemberBox implements Serializable {
 		return memberObject.getName();
 	}
 
-	Class<?> getDeclaringClass() {
+	public Class<?> getDeclaringClass() {
 		return memberObject.getDeclaringClass();
 	}
 

@@ -39,6 +39,8 @@
 package org.mozilla.javascript;
 
 import java.io.*;
+import org.mozilla.javascript.debug.Debugger;
+import org.mozilla.javascript.debug.IDebuggerWithWatchPoints;
 
 /**
  * Base class for native object implementation that uses IdFunctionObject to
@@ -350,6 +352,14 @@ public abstract class IdScriptableObject extends ScriptableObject implements
 
 	@Override
 	public Object get(String name, Scriptable start) {
+		Context currentContext = Context.getCurrentContext();
+		if (currentContext != null) {
+			Debugger debugger = currentContext.getDebugger();
+			if (debugger instanceof IDebuggerWithWatchPoints) {
+				IDebuggerWithWatchPoints wp = (IDebuggerWithWatchPoints) debugger;
+				wp.access(name, this);
+			}
+		}
 		int info = findInstanceIdInfo(name);
 		if (info != 0) {
 			int id = (info & 0xFFFF);
@@ -370,6 +380,16 @@ public abstract class IdScriptableObject extends ScriptableObject implements
 
 	@Override
 	public void put(String name, Scriptable start, Object value) {
+		Context currentContext = Context.getCurrentContext();
+		if (currentContext != null) {
+			Debugger debugger = currentContext.getDebugger();
+			if (debugger != null) {
+				if (debugger instanceof IDebuggerWithWatchPoints) {
+					IDebuggerWithWatchPoints wp = (IDebuggerWithWatchPoints) debugger;
+					wp.modification(name, this);
+				}
+			}
+		}
 		int info = findInstanceIdInfo(name);
 		if (info != 0) {
 			if (start == this && isSealed()) {

@@ -52,6 +52,7 @@ package org.mozilla.javascript;
 import java.io.Serializable;
 import java.lang.reflect.*;
 import java.text.MessageFormat;
+import java.util.Date;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
@@ -334,12 +335,20 @@ public class ScriptRuntime {
 	 */
 	public static boolean toBoolean(Object val) {
 		for (;;) {
+			if (val instanceof Date)
+				return true;
 			if (val instanceof Boolean)
 				return ((Boolean) val).booleanValue();
 			if (val == null || val == Undefined.instance)
 				return false;
 			if (val instanceof String)
 				return ((String) val).length() != 0;
+			// CharSequenceBuffer
+			if (val instanceof CharSequenceBuffer)
+				return ((CharSequenceBuffer) val).length() != 0;
+			if (val.getClass().isArray()) {
+				return Array.getLength(val) != 0;
+			}
 			if (val instanceof Number) {
 				double d = ((Number) val).doubleValue();
 				return (d == d && d != 0.0);
@@ -379,6 +388,11 @@ public class ScriptRuntime {
 				return NaN;
 			if (val instanceof String)
 				return toNumber((String) val);
+			// CharSequenceBuffer
+			if (val instanceof CharSequenceBuffer)
+				return toNumber(((CharSequenceBuffer) val).toString());
+			if (val instanceof Date)
+				return ((Date) val).getTime();
 			if (val instanceof Boolean)
 				return ((Boolean) val).booleanValue() ? 1 : +0.0;
 			if (val instanceof Scriptable) {
@@ -768,7 +782,7 @@ public class ScriptRuntime {
 	public static String toString(Object val) {
 		for (;;) {
 			if (val == null) {
-				return "null";
+				return "";
 			}
 			if (val == Undefined.instance) {
 				return "undefined";
@@ -839,6 +853,9 @@ public class ScriptRuntime {
 		if (value == Undefined.instance) {
 			return "undefined";
 		}
+		if (value instanceof CharSequenceBuffer) {
+			value = ((CharSequenceBuffer) value).unwrap();
+		}
 		if (value instanceof String) {
 			String escaped = escapeString((String) value);
 			StringBuffer sb = new StringBuffer(escaped.length() + 2);
@@ -856,6 +873,9 @@ public class ScriptRuntime {
 		}
 		if (value instanceof Boolean) {
 			return toString(value);
+		}
+		if (value instanceof Date) {
+			return value.toString();
 		}
 		if (value instanceof Scriptable) {
 			Scriptable obj = (Scriptable) value;
@@ -1001,6 +1021,17 @@ public class ScriptRuntime {
 			setBuiltinProtoAndParent(result, scope, TopLevel.Builtins.String);
 			return result;
 		}
+		// CharSequenceBuffer
+		if (val instanceof CharSequenceBuffer) {
+			NativeString result = new NativeString(val.toString());
+			setBuiltinProtoAndParent(result, scope, TopLevel.Builtins.String);
+			return result;
+		}
+		if (val instanceof Date) {
+			Object[] args = { val };
+			scope = ScriptableObject.getTopLevelScope(scope);
+			return newObject(cx, scope, "Date", args);
+		}
 		if (val instanceof Number) {
 			NativeNumber result = new NativeNumber(((Number) val).doubleValue());
 			setBuiltinProtoAndParent(result, scope, TopLevel.Builtins.Number);
@@ -1047,6 +1078,12 @@ public class ScriptRuntime {
 		if (thisObj == null) {
 			throw undefCallError(thisObj, "function");
 		}
+		// Fix for client.. scope is wrong when jumping from form method to form
+		// method
+		if (function.getParentScope() != null) {
+			scope = function.getParentScope();
+		}
+
 		return function.call(cx, scope, thisObj, args);
 	}
 
@@ -2343,6 +2380,17 @@ public class ScriptRuntime {
 			throw notFunctionError(fun);
 		}
 		Function function = (Function) fun;
+		// HACK! Test if this alles makes a new Date with a java.util.Date
+		// constructor
+		// Then replace the date argument with the Long time object.
+		if (function instanceof BaseFunction) {
+			if ("Date".equals(((BaseFunction) function).getFunctionName())
+					&& args != null && args.length == 1
+					&& args[0] instanceof Date) {
+				args[0] = new Long(((Date) args[0]).getTime());
+			}
+		}
+
 		return function.construct(cx, scope, args);
 	}
 
@@ -2454,6 +2502,9 @@ public class ScriptRuntime {
 		if (args.length < 1)
 			return Undefined.instance;
 		Object x = args[0];
+		if (x instanceof CharSequenceBuffer) {
+			x = ((CharSequenceBuffer) x).toString();
+		}
 		if (!(x instanceof String)) {
 			if (cx.hasFeature(Context.FEATURE_STRICT_MODE)
 					|| cx.hasFeature(Context.FEATURE_STRICT_EVAL)) {
@@ -2507,6 +2558,12 @@ public class ScriptRuntime {
 			return (value instanceof Callable) ? "function" : "object";
 		if (value instanceof String)
 			return "string";
+		// CharSequenceBuffer
+		if (value instanceof CharSequenceBuffer)
+			return "string";
+		// special support for date
+		if (value instanceof Date)
+			return "object";
 		if (value instanceof Number)
 			return "number";
 		if (value instanceof Boolean)
@@ -2538,6 +2595,8 @@ public class ScriptRuntime {
 	// as "~toInt32(val)"
 
 	public static Object add(Object val1, Object val2, Context cx) {
+		if (val1 == null && val2 == null)
+			return null;
 		if (val1 instanceof Number && val2 instanceof Number) {
 			return wrapNumber(((Number) val1).doubleValue()
 					+ ((Number) val2).doubleValue());
@@ -2558,13 +2617,28 @@ public class ScriptRuntime {
 			val1 = ((Scriptable) val1).getDefaultValue(null);
 		if (val2 instanceof Scriptable)
 			val2 = ((Scriptable) val2).getDefaultValue(null);
+		// CharSequenceBuffer
+		if (val1 instanceof CharSequenceBuffer) {
+			if (val2 instanceof CharSequenceBuffer) {
+				return ((CharSequenceBuffer) val1)
+						.append((CharSequenceBuffer) val2);
+			} else {
+				return ((CharSequenceBuffer) val1).append(toString(val2));
+			}
+		}
 		if (!(val1 instanceof String) && !(val2 instanceof String))
 			if ((val1 instanceof Number) && (val2 instanceof Number))
 				return wrapNumber(((Number) val1).doubleValue()
 						+ ((Number) val2).doubleValue());
 			else
 				return wrapNumber(toNumber(val1) + toNumber(val2));
-		return toString(val1).concat(toString(val2));
+		// CharSequenceBuffer
+		if (val2 instanceof CharSequenceBuffer) {
+			return new CharSequenceBuffer(toString(val1),
+					(CharSequenceBuffer) val2);
+		} else {
+			return new CharSequenceBuffer(toString(val1), toString(val2));
+		}
 	}
 
 	public static String add(String val1, Object val2) {
@@ -2733,6 +2807,30 @@ public class ScriptRuntime {
 	 * See ECMA 11.9
 	 */
 	public static boolean eq(Object x, Object y) {
+		// CharSequenceBuffer
+		if (x instanceof CharSequenceBuffer) {
+			return x.equals(y);
+		} else if (y instanceof CharSequenceBuffer) {
+			return y.equals(x);
+		}
+
+		// SPECIAL DATE HANDLING
+		if (x instanceof Date) {
+			if (y instanceof Wrapper) {
+				y = ((Wrapper) y).unwrap();
+			}
+			if (y instanceof Date) {
+				return ((Date) x).getTime() == ((Date) y).getTime();
+			}
+			return false;
+		} else if (y instanceof Date && x instanceof Wrapper) {
+			x = ((Wrapper) x).unwrap();
+			if (x instanceof Date) {
+				return ((Date) x).getTime() == ((Date) y).getTime();
+			}
+			return false;
+		}
+
 		if (x == null || x == Undefined.instance) {
 			if (y == null || y == Undefined.instance) {
 				return true;
@@ -2780,6 +2878,8 @@ public class ScriptRuntime {
 				if (x instanceof Wrapper && y instanceof Wrapper) {
 					// See bug 413838. Effectively an extension to ECMA for
 					// the LiveConnect case.
+					// TODO check if this is enough for us.. an eq() call met 2
+					// unwrapped objects???
 					Object unwrappedX = ((Wrapper) x).unwrap();
 					Object unwrappedY = ((Wrapper) y).unwrap();
 					return unwrappedX == unwrappedY
@@ -2822,6 +2922,11 @@ public class ScriptRuntime {
 				return false;
 			} else if (y instanceof Number) {
 				return x == ((Number) y).doubleValue();
+				// CharSequenceBuffer
+			} else if (y instanceof CharSequenceBuffer) {
+				return x == ScriptRuntime.toNumber(y.toString());
+			} else if (y instanceof Date) {
+				return x == toNumber(y);
 			} else if (y instanceof String) {
 				return x == toNumber(y);
 			} else if (y instanceof Boolean) {
@@ -2848,6 +2953,11 @@ public class ScriptRuntime {
 				return false;
 			} else if (y instanceof String) {
 				return x.equals(y);
+				// CharSequenceBuffer
+			} else if (y instanceof CharSequenceBuffer) {
+				return y.equals(x);
+			} else if (y instanceof Date) {
+				return y.toString().equals(x);
 			} else if (y instanceof Number) {
 				return toNumber(x) == ((Number) y).doubleValue();
 			} else if (y instanceof Boolean) {
@@ -2877,7 +2987,16 @@ public class ScriptRuntime {
 			double d = ((Number) x).doubleValue();
 			return d == d;
 		}
-		if (x == null || x == Undefined.instance) {
+		// CharSequenceBuffer
+		if (x instanceof CharSequenceBuffer) {
+			return x.equals(y);
+		} else if (y instanceof CharSequenceBuffer) {
+			return y.equals(x);
+		} else if (y instanceof Date) {
+			return y.equals(x);
+		} else if (x instanceof Date) {
+			return x.equals(y);
+		} else if (x == null || x == Undefined.instance) {
 			return false;
 		} else if (x instanceof Number) {
 			if (y instanceof Number) {
@@ -2913,9 +3032,21 @@ public class ScriptRuntime {
 			throw typeError0("msg.instanceof.not.object");
 		}
 
-		// for primitive values on LHS, return false
-		if (!(a instanceof Scriptable))
+		if (a == null || a == Undefined.instance)
 			return false;
+
+		// for primitive values on LHS, return false
+		// XXX we may want to change this so that
+		// 5 instanceof Number == true
+		if (!(a instanceof Scriptable)) {
+			Scriptable converted = ScriptRuntime.toObject(cx, cx.topCallScope,
+					a);
+			if (converted != null) {
+				a = converted;
+			} else {
+				return false;
+			}
+		}
 
 		return ((Scriptable) b).hasInstance((Scriptable) a);
 	}
@@ -2968,6 +3099,11 @@ public class ScriptRuntime {
 			d1 = ((Number) val1).doubleValue();
 			d2 = ((Number) val2).doubleValue();
 		} else {
+			if (val1 instanceof CharSequenceBuffer)
+				val1 = val1.toString();
+			if (val2 instanceof CharSequenceBuffer)
+				val2 = val2.toString();
+
 			if (val1 instanceof Scriptable)
 				val1 = ((Scriptable) val1).getDefaultValue(NumberClass);
 			if (val2 instanceof Scriptable)
@@ -2987,6 +3123,12 @@ public class ScriptRuntime {
 			d1 = ((Number) val1).doubleValue();
 			d2 = ((Number) val2).doubleValue();
 		} else {
+			// CharSequenceBuffer
+			if (val1 instanceof CharSequenceBuffer)
+				val1 = val1.toString();
+			if (val2 instanceof CharSequenceBuffer)
+				val2 = val2.toString();
+
 			if (val1 instanceof Scriptable)
 				val1 = ((Scriptable) val1).getDefaultValue(NumberClass);
 			if (val2 instanceof Scriptable)
@@ -3716,7 +3858,7 @@ public class ScriptRuntime {
 				+ " of class "
 				+ nonJSObject.getClass().getName()
 				+ " where it expected String, Number, Boolean or Scriptable instance. Please check your code for missing Context.javaToJS() call.";
-		Context.reportWarning(message);
+		Context.reportWarning(message, new RuntimeException(message));
 		// Just to be sure that it would be noticed
 		System.err.println(message);
 	}

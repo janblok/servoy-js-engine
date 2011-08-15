@@ -66,6 +66,11 @@ public class NativeJavaMethod extends BaseFunction {
 		this.methods = new MemberBox[] { method };
 	}
 
+	public NativeJavaMethod(MemberBox[] methods, String name) {
+		this.functionName = name;
+		this.methods = methods;
+	}
+
 	public NativeJavaMethod(Method method, String name) {
 		this(new MemberBox(method), name);
 	}
@@ -151,10 +156,32 @@ public class NativeJavaMethod extends BaseFunction {
 
 		int index = findFunction(cx, methods, args);
 		if (index < 0) {
-			Class<?> c = methods[0].method().getDeclaringClass();
-			String sig = c.getName() + '.' + getFunctionName() + '('
-					+ scriptSignature(args) + ')';
-			throw Context.reportRuntimeError1("msg.java.no_such_method", sig);
+			for (int i = 0; i < args.length; i++) {
+				if (args[i] instanceof NativeJavaArray
+						&& ((NativeJavaArray) args[i]).array instanceof Object[]) {
+					args[i] = new NativeArray(
+							(Object[]) ((NativeJavaArray) args[i]).array);
+				}
+			}
+			index = findFunction(cx, methods, args);
+		}
+
+		if (index < 0) {
+			for (int i = 0; i < methods.length; i++) {
+				Class[] types = methods[i].method().getParameterTypes();
+
+				if (types.length == 1 && types[0] == Object[].class) {
+					index = i;
+					break;
+				}
+			}
+			if (index < 0) {
+				Class<?> c = methods[0].method().getDeclaringClass();
+				String sig = c.getName() + '.' + getFunctionName() + '('
+						+ scriptSignature(args) + ')';
+				throw Context.reportRuntimeError1("msg.java.no_such_method",
+						sig);
+			}
 		}
 
 		MemberBox meth = methods[index];
@@ -195,17 +222,55 @@ public class NativeJavaMethod extends BaseFunction {
 			// replace the original args with the new one
 			args = newArgs;
 		} else {
-			// First, we marshall the args.
-			Object[] origArgs = args;
-			for (int i = 0; i < args.length; i++) {
-				Object arg = args[i];
-				Object coerced = Context.jsToJava(arg, argTypes[i]);
-				if (coerced != arg) {
-					if (origArgs == args) {
-						args = args.clone();
-					}
-					args[i] = coerced;
+			if (argTypes.length == 1 && argTypes[0] == Object[].class) {
+				unwrapArray(args);
+				if (!(args.length == 1 && args[0] != null && args[0].getClass()
+						.isArray())) {
+					Object[] array = new Object[1];
+					array[0] = args;
+					args = array;
 				}
+			} else { // First, we marshall the args.
+				Object[] origArgs = args;
+				for (int i = 0; i < args.length; i++) {
+					Object arg = args[i];
+					Object coerced = Context.jsToJava(arg, argTypes[i]);
+					if (coerced != arg) {
+						if (origArgs == args) {
+							args = args.clone();
+						}
+						if (coerced instanceof Object[]
+								&& !coerced.getClass().getComponentType()
+										.isPrimitive()) {
+							if (Wrapper.class.isAssignableFrom(coerced
+									.getClass().getComponentType())) {
+								Object[] array = new Object[((Object[]) coerced).length];
+								System.arraycopy(coerced, 0, array, 0,
+										array.length);
+								coerced = array;
+							}
+							unwrapArray((Object[]) coerced);
+						}
+
+						args[i] = coerced;
+					}
+				}
+			}
+		}
+
+		// unwrap CharSequenceBuffers inside arrays and unwrap args second time
+		for (int i = 0; i < args.length; i++) {
+			if (args[i] instanceof Object[]) {
+				Object[] arg = (Object[]) args[i];
+				for (int j = 0; j < arg.length; j++) {
+					if (arg[j] instanceof CharSequenceBuffer) {
+						arg[j] = arg[j].toString();
+					} else if (arg[j] instanceof Wrapper) {
+						arg[j] = ((Wrapper) arg[j]).unwrap();
+					}
+				}
+			} else if (args[i] instanceof Wrapper) {
+				args[i] = ((Wrapper) args[i]).unwrap();
 			}
 		}
 		Object javaObject;
@@ -225,6 +290,10 @@ public class NativeJavaMethod extends BaseFunction {
 					if (c.isInstance(javaObject)) {
 						break;
 					}
+				}
+				if (c.isInstance(o)) {
+					javaObject = o;
+					break;
 				}
 				o = o.getPrototype();
 			}
@@ -471,8 +540,9 @@ public class NativeJavaMethod extends BaseFunction {
 	 */
 	private static int preferSignature(Object[] args, Class<?>[] sig1,
 			boolean vararg1, Class<?>[] sig2, boolean vararg2) {
-		int totalPreference = 0;
+		int totalPreference = PREFERENCE_EQUAL;
 		for (int j = 0; j < args.length; j++) {
+			Object arg = args[j];
 			Class<?> type1 = vararg1 && j >= sig1.length ? sig1[sig1.length - 1]
 					: sig1[j];
 			Class<?> type2 = vararg2 && j >= sig2.length ? sig2[sig2.length - 1]
@@ -480,7 +550,15 @@ public class NativeJavaMethod extends BaseFunction {
 			if (type1 == type2) {
 				continue;
 			}
-			Object arg = args[j];
+			// Test if it is an exact fit.. this also test primitive types so
+			// that double isnt choose above int if arg == Integer
+			else if (exactFit(type1, arg)) {
+				totalPreference |= PREFERENCE_FIRST_ARG;
+				continue;
+			} else if (exactFit(type2, arg)) {
+				totalPreference |= PREFERENCE_SECOND_ARG;
+				continue;
+			}
 
 			// Determine which of type1, type2 is easier to convert from arg.
 
@@ -514,6 +592,68 @@ public class NativeJavaMethod extends BaseFunction {
 			}
 		}
 		return totalPreference;
+	}
+
+	/**
+	 * @return the methods
+	 */
+	public MemberBox[] getMethods() {
+		return methods;
+	}
+
+	/**
+	 * @param type1
+	 * @param arg
+	 * @return
+	 */
+	private static boolean exactFit(Class type, Object arg) {
+		if (arg != null) {
+			if (type.getClass() == arg.getClass()) {
+				return true;
+			}
+			if (type.isPrimitive()) {
+				if (type == int.class) {
+					return arg.getClass() == Integer.class;
+				}
+				if (type == long.class) {
+					return arg.getClass() == Long.class;
+				}
+				if (type == float.class) {
+					return arg.getClass() == Float.class;
+				}
+				if (type == double.class) {
+					return arg.getClass() == Double.class;
+				}
+				if (type == boolean.class) {
+					return arg.getClass() == Boolean.class;
+				}
+				if (type == short.class) {
+					return arg.getClass() == Short.class;
+				}
+				if (type == char.class) {
+					return arg.getClass() == Character.class;
+				}
+				if (type == byte.class) {
+					return arg.getClass() == Byte.class;
+				}
+			}
+		}
+		return false;
+	}
+
+	/*
+	 * @param args
+	 */
+	private static void unwrapArray(Object[] args) {
+		for (int j = 0; j < args.length; j++) {
+			if (args[j] instanceof Wrapper) {
+				args[j] = ((Wrapper) args[j]).unwrap();
+				if (args[j] instanceof Object[]
+						&& !args[j].getClass().getComponentType().isPrimitive()) {
+					unwrapArray((Object[]) args[j]);
+				}
+			}
+		}
 	}
 
 	private static final boolean debug = false;

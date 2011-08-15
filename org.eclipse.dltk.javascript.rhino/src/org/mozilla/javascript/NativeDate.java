@@ -46,6 +46,8 @@ import java.util.Date;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 
+import java.util.Calendar;
+import java.util.GregorianCalendar;
 import java.util.TimeZone;
 import java.util.SimpleTimeZone;
 
@@ -54,7 +56,7 @@ import java.util.SimpleTimeZone;
  * 
  * @author Mike McCabe
  */
-final class NativeDate extends IdScriptableObject {
+public final class NativeDate extends IdScriptableObject implements Wrapper {
 	static final long serialVersionUID = -8307438915861678966L;
 
 	private static final Object DATE_TAG = "Date";
@@ -500,6 +502,7 @@ final class NativeDate extends IdScriptableObject {
 		case Id_setTime:
 			t = TimeClip(ScriptRuntime.toNumber(args, 0));
 			realThis.date = t;
+			updateJavaDateIfNecessary(realThis);
 			return ScriptRuntime.wrapNumber(t);
 
 		case Id_setMilliseconds:
@@ -512,6 +515,7 @@ final class NativeDate extends IdScriptableObject {
 		case Id_setUTCHours:
 			t = makeTime(t, args, id);
 			realThis.date = t;
+			updateJavaDateIfNecessary(realThis);
 			return ScriptRuntime.wrapNumber(t);
 
 		case Id_setDate:
@@ -522,6 +526,7 @@ final class NativeDate extends IdScriptableObject {
 		case Id_setUTCFullYear:
 			t = makeDate(t, args, id);
 			realThis.date = t;
+			updateJavaDateIfNecessary(realThis);
 			return ScriptRuntime.wrapNumber(t);
 
 		case Id_setYear: {
@@ -546,6 +551,7 @@ final class NativeDate extends IdScriptableObject {
 			}
 		}
 			realThis.date = t;
+			updateJavaDateIfNecessary(realThis);
 			return ScriptRuntime.wrapNumber(t);
 
 		case Id_toISOString:
@@ -798,7 +804,7 @@ final class NativeDate extends IdScriptableObject {
 	}
 
 	private static double now() {
-		return System.currentTimeMillis();
+		return convertToUTCMillisFromJava(System.currentTimeMillis());
 	}
 
 	/*
@@ -812,17 +818,17 @@ final class NativeDate extends IdScriptableObject {
 	private final static boolean TZO_WORKAROUND = false;
 
 	private static double DaylightSavingTA(double t) {
-		// Another workaround! The JRE doesn't seem to know about DST
-		// before year 1 AD, so we map to equivalent dates for the
-		// purposes of finding dst. To be safe, we do this for years
-		// outside 1970-2038.
-		if (t < 0.0 || t > 2145916800000.0) {
-			int year = EquivalentYear(YearFromTime(t));
-			double day = MakeDay(year, MonthFromTime(t), DateFromTime(t));
-			t = MakeDate(day, TimeWithinDay(t));
-		}
+		// // Another workaround! The JRE doesn't seem to know about DST
+		// // before year 1 AD, so we map to equivalent dates for the
+		// // purposes of finding dst. To be safe, we do this for years
+		// // outside 1970-2038.
+		// if (t < 0.0 || t > 2145916800000.0) {
+		// int year = EquivalentYear(YearFromTime(t));
+		// double day = MakeDay(year, MonthFromTime(t), DateFromTime(t));
+		// t = MakeDate(day, TimeWithinDay(t));
+		// }
 		if (!TZO_WORKAROUND) {
-			Date date = new Date((long) t);
+			Date date = new Date(convertFromUTCMillisToJava(t));
 			if (thisTimeZone.inDaylightTime(date))
 				return msPerHour;
 			else
@@ -859,57 +865,69 @@ final class NativeDate extends IdScriptableObject {
 	 * determining DST; it hasn't been proven not to produce an incorrect year
 	 * for times near year boundaries.
 	 */
-	private static int EquivalentYear(int year) {
-		int day = (int) DayFromYear(year) + 4;
-		day = day % 7;
-		if (day < 0)
-			day += 7;
-		// Years and leap years on which Jan 1 is a Sunday, Monday, etc.
-		if (IsLeapYear(year)) {
-			switch (day) {
-			case 0:
-				return 1984;
-			case 1:
-				return 1996;
-			case 2:
-				return 1980;
-			case 3:
-				return 1992;
-			case 4:
-				return 1976;
-			case 5:
-				return 1988;
-			case 6:
-				return 1972;
-			}
-		} else {
-			switch (day) {
-			case 0:
-				return 1978;
-			case 1:
-				return 1973;
-			case 2:
-				return 1974;
-			case 3:
-				return 1975;
-			case 4:
-				return 1981;
-			case 5:
-				return 1971;
-			case 6:
-				return 1977;
-			}
-		}
-		// Unreachable
-		throw Kit.codeBug();
-	}
+	// private static int EquivalentYear(int year) {
+	// int day = (int) DayFromYear(year) + 4;
+	// day = day % 7;
+	// if (day < 0)
+	// day += 7;
+	// // Years and leap years on which Jan 1 is a Sunday, Monday, etc.
+	// if (IsLeapYear(year)) {
+	// switch (day) {
+	// case 0:
+	// return 1984;
+	// case 1:
+	// return 1996;
+	// case 2:
+	// return 1980;
+	// case 3:
+	// return 1992;
+	// case 4:
+	// return 1976;
+	// case 5:
+	// return 1988;
+	// case 6:
+	// return 1972;
+	// }
+	// } else {
+	// switch (day) {
+	// case 0:
+	// return 1978;
+	// case 1:
+	// return 1973;
+	// case 2:
+	// return 1974;
+	// case 3:
+	// return 1975;
+	// case 4:
+	// return 1981;
+	// case 5:
+	// return 1971;
+	// case 6:
+	// return 1977;
+	// }
+	// }
+	// // Unreachable
+	// throw Kit.codeBug();
+	// }
 
 	private static double LocalTime(double t) {
 		return t + LocalTZA + DaylightSavingTA(t);
 	}
 
 	private static double internalUTC(double t) {
-		return t - LocalTZA - DaylightSavingTA(t - LocalTZA);
+		double varTime = t - LocalTZA;
+		// if time is between the first hour after entering dts, add an hour so
+		// the time is correctly displayed
+		// ex. if dts is changed at 3h, 3h will become 4h, so 3h10min will
+		// become 4h10min,
+		// as because of dts change the time between 3-4 does not exist
+		if (thisTimeZone.inDaylightTime(new Date(
+				convertFromUTCMillisToJava(varTime)))
+				&& !thisTimeZone.inDaylightTime(new Date(
+						convertFromUTCMillisToJava(varTime - msPerHour))))
+			varTime += msPerHour;
+
+		return varTime - DaylightSavingTA(varTime);
 	}
 
 	private static int HourFromTime(double t) {
@@ -1320,15 +1338,15 @@ final class NativeDate extends IdScriptableObject {
 			if (timeZoneFormatter == null)
 				timeZoneFormatter = new SimpleDateFormat("zzz");
 
-			// Find an equivalent year before getting the timezone
-			// comment. See DaylightSavingTA.
-			if (t < 0.0 || t > 2145916800000.0) {
-				int equiv = EquivalentYear(YearFromTime(local));
-				double day = MakeDay(equiv, MonthFromTime(t), DateFromTime(t));
-				t = MakeDate(day, TimeWithinDay(t));
-			}
+			// // Find an equivalent year before getting the timezone
+			// // comment. See DaylightSavingTA.
+			// if (t < 0.0 || t > 2145916800000.0) {
+			// int equiv = EquivalentYear(YearFromTime(local));
+			// double day = MakeDay(equiv, MonthFromTime(t), DateFromTime(t));
+			// t = MakeDate(day, TimeWithinDay(t));
+			// }
 			result.append(" (");
-			Date date = new Date((long) t);
+			java.util.Date date = new Date(convertFromUTCMillisToJava(t));
 			synchronized (timeZoneFormatter) {
 				result.append(timeZoneFormatter.format(date));
 			}
@@ -1338,7 +1356,7 @@ final class NativeDate extends IdScriptableObject {
 	}
 
 	/* the javascript constructor */
-	private static Object jsConstructor(Object[] args) {
+	public static Object jsConstructor(Object[] args) {
 		NativeDate obj = new NativeDate();
 
 		// if called as a constructor with no args,
@@ -1349,7 +1367,10 @@ final class NativeDate extends IdScriptableObject {
 		}
 
 		// if called with just one arg -
-		if (args.length == 1) {
+		if (args.length == 1 && !(args[0] instanceof Date)) {
+			if (args[0] instanceof CharSequenceBuffer) {
+				args[0] = args[0].toString();
+			}
 			Object arg0 = args[0];
 			if (arg0 instanceof Scriptable)
 				arg0 = ((Scriptable) arg0).getDefaultValue(null);
@@ -1365,11 +1386,15 @@ final class NativeDate extends IdScriptableObject {
 			return obj;
 		}
 
-		double time = date_msecFromArgs(args);
-
-		if (!Double.isNaN(time) && !Double.isInfinite(time))
-			time = TimeClip(internalUTC(time));
-
+		double time;
+		if (args.length == 1 && args[0] instanceof Date) {
+			obj.javaDate = (Date) args[0];
+			time = convertToUTCMillisFromJava(obj.javaDate.getTime());
+		} else {
+			time = date_msecFromArgs(args);
+			if (!Double.isNaN(time) && !Double.isInfinite(time))
+				time = TimeClip(internalUTC(time));
+		}
 		obj.date = time;
 
 		return obj;
@@ -1404,7 +1429,7 @@ final class NativeDate extends IdScriptableObject {
 		}
 
 		synchronized (formatter) {
-			return formatter.format(new Date((long) t));
+			return formatter.format(new Date(convertFromUTCMillisToJava(t)));
 		}
 	}
 
@@ -1955,6 +1980,58 @@ final class NativeDate extends IdScriptableObject {
 		return id;
 	}
 
+	/**
+	 * @see org.mozilla.javascript.Wrapper#unwrap()
+	 */
+	public Object unwrap() {
+		if (javaDate == null) {
+			javaDate = new Date(convertFromUTCMillisToJava(this.date));
+		}
+		return javaDate;
+	}
+
+	private void updateJavaDateIfNecessary(NativeDate realThis) {
+		if (realThis.javaDate != null) {
+			realThis.javaDate
+					.setTime(convertFromUTCMillisToJava(realThis.date));
+		}
+	}
+
+	/**
+	 * This method converts java date milliseconds into javaScript date
+	 * milliseconds (the two are not compatible; for example the same
+	 * milliseconds that mean in java 7 Jul 0010 mean in javaScript 5 Jul 0010).
+	 * When we convert from a Java date to a JS date, it should remain the same
+	 * not in milliseconds, but in actual year/month/day/hh/mm/ss/ms.
+	 */
+	private static double convertToUTCMillisFromJava(long javaMillis) {
+		GregorianCalendar calendar = new GregorianCalendar(
+				TimeZone.getTimeZone("GMT"));
+		calendar.setTimeInMillis(javaMillis);
+		return TimeClip(date_msecFromDate(calendar.get(Calendar.YEAR),
+				calendar.get(Calendar.MONTH),
+				calendar.get(Calendar.DAY_OF_MONTH),
+				calendar.get(Calendar.HOUR_OF_DAY),
+				calendar.get(Calendar.MINUTE), calendar.get(Calendar.SECOND),
+				calendar.get(Calendar.MILLISECOND)));
+	}
+
+	/**
+	 * This method converts javaScript date milliseconds into java date
+	 * milliseconds (the two are not compatible; for example the same
+	 * milliseconds that mean in java 7 Jul 0010 mean in javaScript 5 Jul 0010).
+	 * When we convert from a JS date to a Java date, it should remain the same
+	 * not in milliseconds, but in actual year/month/day/hh/mm/ss/ms.
+	 */
+	private static long convertFromUTCMillisToJava(double t) {
+		GregorianCalendar calendar = new GregorianCalendar(
+				TimeZone.getTimeZone("GMT"));
+		calendar.set(YearFromTime(t), MonthFromTime(t), DateFromTime(t),
+				HourFromTime(t), MinFromTime(t), SecFromTime(t));
+		calendar.set(Calendar.MILLISECOND, msFromTime(t));
+		return calendar.getTimeInMillis();
+	}
+
 	private static final int ConstructorId_now = -3, ConstructorId_parse = -2,
 			ConstructorId_UTC = -1,
 
@@ -1992,4 +2069,6 @@ final class NativeDate extends IdScriptableObject {
 	private static DateFormat localeTimeFormatter;
 
 	private double date;
+
+	private Date javaDate;
 }

@@ -110,6 +110,8 @@ public final class OptRuntime extends ScriptRuntime {
 	public static Object add(Object val1, double val2) {
 		if (val1 instanceof Scriptable)
 			val1 = ((Scriptable) val1).getDefaultValue(null);
+		if (val1 instanceof CharSequenceBuffer)
+			return ((CharSequenceBuffer) val1).append(toString(val2));
 		if (!(val1 instanceof String))
 			return wrapDouble(toNumber(val1) + val2);
 		return ((String) val1).concat(toString(val2));
@@ -118,6 +120,9 @@ public final class OptRuntime extends ScriptRuntime {
 	public static Object add(double val1, Object val2) {
 		if (val2 instanceof Scriptable)
 			val2 = ((Scriptable) val2).getDefaultValue(null);
+		if (val2 instanceof CharSequenceBuffer)
+			return new CharSequenceBuffer(toString(val1),
+					(CharSequenceBuffer) val2);
 		if (!(val2 instanceof String))
 			return wrapDouble(toNumber(val2) + val1);
 		return toString(val1).concat((String) val2);

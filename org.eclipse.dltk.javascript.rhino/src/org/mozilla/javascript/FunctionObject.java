@@ -171,8 +171,13 @@ public class FunctionObject extends BaseFunction {
 				for (int i = 0; i != arity; ++i) {
 					int tag = getTypeTag(types[i]);
 					if (tag == JAVA_UNSUPPORTED_TYPE) {
-						throw Context.reportRuntimeError2("msg.bad.parms",
-								types[i].getName(), methodName);
+						if (parmsLength > 1 || !types[i].isArray())
+							throw Context.reportRuntimeError2("msg.bad.parms",
+									types[i].getName(), methodName);
+						else {
+							parmsLength = VARARGS_METHOD;
+							break;
+						}
 					}
 					typeTags[i] = (byte) tag;
 				}
@@ -408,14 +413,17 @@ public class FunctionObject extends BaseFunction {
 		if (parmsLength < 0) {
 			if (parmsLength == VARARGS_METHOD) {
 				Object[] invokeArgs = { cx, thisObj, args, this };
-				result = member.invoke(null, invokeArgs);
+				if (!member.method().isVarArgs()) {
+					invokeArgs = new Object[] { args };
+				}
+				result = member.invoke(thisObj, invokeArgs);
 				checkMethodResult = true;
 			} else {
 				boolean inNewExpr = (thisObj == null);
 				Boolean b = inNewExpr ? Boolean.TRUE : Boolean.FALSE;
 				Object[] invokeArgs = { cx, args, this, b };
 				result = (member.isCtor()) ? member.newInstance(invokeArgs)
-						: member.invoke(null, invokeArgs);
+						: member.invoke(thisObj, invokeArgs);
 			}
 
 		} else {

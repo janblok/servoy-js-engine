@@ -155,7 +155,7 @@ public class ClassCache implements Serializable {
 	/**
 	 * @return a map from classes to associated JavaMembers objects
 	 */
-	Map<Class<?>, JavaMembers> getClassCacheMap() {
+	public Map<Class<?>, JavaMembers> getClassCacheMap() {
 		if (classTable == null) {
 			classTable = new HashMap<Class<?>, JavaMembers>();
 		}

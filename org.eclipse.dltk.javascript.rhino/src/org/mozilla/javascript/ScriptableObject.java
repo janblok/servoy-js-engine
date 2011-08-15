@@ -1266,6 +1266,7 @@ public abstract class ScriptableObject implements Scriptable, Serializable,
 		// Find out whether there are any methods that begin with
 		// "js". If so, then only methods that begin with special
 		// prefixes will be defined as JavaScript entities.
+		final String genericPrefix = "js_";
 		final String functionPrefix = "jsFunction_";
 		final String staticFunctionPrefix = "jsStaticFunction_";
 		final String getterPrefix = "jsGet_";
@@ -1344,6 +1345,8 @@ public abstract class ScriptableObject implements Scriptable, Serializable,
 					prefix = staticFunctionPrefix;
 				} else if (name.startsWith(getterPrefix)) {
 					prefix = getterPrefix;
+				} else if (name.startsWith(genericPrefix)) {
+					prefix = genericPrefix;
 				} else if (annotation == null) {
 					// note that setterPrefix is among the unhandled names here
 					// -

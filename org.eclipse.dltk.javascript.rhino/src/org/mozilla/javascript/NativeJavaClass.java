@@ -273,9 +273,13 @@ public class NativeJavaClass extends NativeJavaObject implements Function {
 		}
 
 		Object instance = ctor.newInstance(args);
-		// we need to force this to be wrapped, because construct _has_
-		// to return a scriptable
-		return cx.getWrapFactory().wrapNewObject(cx, topLevel, instance);
+		if (instance instanceof String) {
+			// we need to force this to be wrapped, because construct _has_
+			// to return a scriptable
+			return cx.getWrapFactory().wrapNewObject(cx, topLevel, instance);
+		} else {
+			return ScriptRuntime.toObject(scope, instance);
+		}
 	}
 
 	@Override

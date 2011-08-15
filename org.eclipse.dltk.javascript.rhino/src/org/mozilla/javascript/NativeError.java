@@ -45,7 +45,7 @@ package org.mozilla.javascript;
  * 
  * ECMA 15.11
  */
-final class NativeError extends IdScriptableObject {
+public final class NativeError extends IdScriptableObject {
 	static final long serialVersionUID = -5338413581437645187L;
 
 	private static final Object ERROR_TAG = "Error";

@@ -40,6 +40,7 @@
 
 package org.mozilla.javascript;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -818,12 +819,16 @@ public class NativeArray extends IdScriptableObject implements List {
 		// whether to return '4,unquoted,5' or '[4, "quoted", 5]'
 		String separator;
 
-		if (toSource) {
-			result.append('[');
-			separator = ", ";
-		} else {
-			separator = ",";
-		}
+		// if (toSource) {
+		// result.append('[');
+		// separator = ", ";
+		// } else {
+		// separator = ",";
+		// }
+
+		// We want always this to be default to this, just as native java array
+		result.append('[');
+		separator = ",";
 
 		boolean haslast = false;
 		long i = 0;
@@ -879,6 +884,17 @@ public class NativeArray extends IdScriptableObject implements List {
 						result.append(ScriptRuntime.toString(elem));
 					}
 				}
+				Object[] ids = thisObj.getIds();
+				for (int j = 0; j < ids.length; j++) {
+					if (ids[j] instanceof String) {
+						if (j > 0)
+							result.append(separator);
+						result.append(ids[j]);
+						result.append("=");
+						result.append(ScriptRuntime.toString(thisObj.get(
+								(String) ids[j], thisObj)));
+					}
+				}
 			}
 		} finally {
 			if (toplevel) {
@@ -886,13 +902,14 @@ public class NativeArray extends IdScriptableObject implements List {
 			}
 		}
 
-		if (toSource) {
-			// for [,,].length behavior; we want toString to be symmetric.
-			if (!haslast && i > 0)
-				result.append(", ]");
-			else
-				result.append(']');
-		}
+		// We want always this to be default to this, just as native java array
+		// if (toSource) {
+		// for [,,].length behavior; we want toString to be symmetric.
+		if (!haslast && i > 0)
+			result.append(", ]");
+		else
+			result.append(']');
+		// }
 		return result.toString();
 	}
 
@@ -2001,6 +2018,33 @@ public class NativeArray extends IdScriptableObject implements List {
 		}
 		// #/generated#
 		return id;
+	}
+
+	/**
+	 * @see org.mozilla.javascript.Wrapper#unwrap()
+	 */
+	public Object unwrap() {
+		Object[] ids = getIds();
+
+		for (int i = 0; i < ids.length; i++) {
+			if (ids[i] instanceof String) {
+				return this;
+			}
+		}
+
+		ArrayList<Object> al = new ArrayList<Object>(ids.length);
+		for (int i = 0; i < ids.length; i++) {
+			if (ids[i] instanceof Number) {
+				int index = ((Number) ids[i]).intValue();
+				Object o = get(index, this);
+				if (o != NOT_FOUND) {
+					while (al.size() <= index)
+						al.add(null);
+					al.set(index, o);
+				}
+			}
+		}
+		return al.toArray();
 	}
 
 	private static final int Id_constructor = 1, Id_toString = 2,

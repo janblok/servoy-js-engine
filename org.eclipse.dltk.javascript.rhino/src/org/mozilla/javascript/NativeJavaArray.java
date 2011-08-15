@@ -88,7 +88,9 @@ public class NativeJavaArray extends NativeJavaObject {
 
 	@Override
 	public boolean has(int index, Scriptable start) {
-		return 0 <= index && index < length;
+		// TODO is this has change really needed, it doesn't has it currently
+		// but it can be set..
+		return 0 <= index /* && index < length */;
 	}
 
 	@Override
@@ -118,14 +120,35 @@ public class NativeJavaArray extends NativeJavaObject {
 	public void put(String id, Scriptable start, Object value) {
 		// Ignore assignments to "length"--it's readonly.
 		if (!id.equals("length"))
-			throw Context.reportRuntimeError1(
-					"msg.java.array.member.not.found", id);
+			super.put(id, start, value);
+		else if (id.equals("length")) {
+			int prevLength = length;
+			length = ((Number) value).intValue();
+			if (prevLength != length) {
+				Object tmp = Array.newInstance(array.getClass()
+						.getComponentType(), length);
+				System.arraycopy(array, 0, tmp, 0, Math.min(prevLength, length));
+				array = tmp;
+			}
+		}
 	}
 
 	@Override
 	public void put(int index, Scriptable start, Object value) {
-		if (0 <= index && index < length) {
+		if (0 <= index /* && index < length */) {
+			if (index >= length) {
+				put("length", start, new Integer(index + 1));
+				int prevLength = Array.getLength(array);
+				if (index > prevLength) {
+					Object tmp = Array.newInstance(array.getClass()
+							.getComponentType(), length);
+					System.arraycopy(array, 0, tmp, 0,
+							Math.min(prevLength, length));
+					array = tmp;
+				}
+			}
 			Array.set(array, index, Context.jsToJava(value, cls));
+			return;
 		} else {
 			throw Context.reportRuntimeError2(
 					"msg.java.array.index.out.of.bounds",
@@ -135,8 +158,28 @@ public class NativeJavaArray extends NativeJavaObject {
 
 	@Override
 	public Object getDefaultValue(Class<?> hint) {
-		if (hint == null || hint == ScriptRuntime.StringClass)
-			return array.toString();
+		if (hint == null || hint == ScriptRuntime.StringClass) {
+
+			try {
+				int size = Array.getLength(array);
+
+				StringBuffer sb = new StringBuffer();
+				sb.append("["); //$NON-NLS-1$
+				size = size > 100 ? 100 : size;
+				for (int i = 0; i < size; i++) {
+					sb.append(Array.get(array, i));
+					sb.append(","); //$NON-NLS-1$
+				}
+				if (sb.length() > 1) {
+					sb.setLength(sb.length() - 1);
+				}
+				sb.append("]"); //$NON-NLS-1$
+				return sb.toString();
+
+			} catch (Exception e) {
+				return array.toString();
+			}
+		}
 		if (hint == ScriptRuntime.BooleanClass)
 			return Boolean.TRUE;
 		if (hint == ScriptRuntime.NumberClass)

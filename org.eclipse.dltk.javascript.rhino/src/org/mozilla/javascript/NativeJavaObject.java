@@ -71,6 +71,16 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 	}
 
 	public NativeJavaObject(Scriptable scope, Object javaObject,
+			JavaMembers members) {
+		this.parent = scope;
+		this.javaObject = javaObject;
+		this.members = members;
+		this.isAdapter = false;
+		this.fieldAndMethods = members.getFieldAndMethodsObjects(this,
+				javaObject, false);
+	}
+
+	public NativeJavaObject(Scriptable scope, Object javaObject,
 			Class<?> staticType, boolean isAdapter) {
 		this.parent = scope;
 		this.javaObject = javaObject;
@@ -345,11 +355,22 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 			if (to.isInstance(javaObj)) {
 				return CONVERSION_NONTRIVIAL;
 			}
+			// unwrap this again as may be wrapped twice
+			if (javaObj instanceof Wrapper) {
+				javaObj = ((Wrapper) javaObj).unwrap();
+			}
+			if (to.isInstance(javaObj)) {
+				return CONVERSION_NONTRIVIAL;
+			}
 			if (to == ScriptRuntime.StringClass) {
 				return 2;
 			} else if (to.isPrimitive() && to != Boolean.TYPE) {
 				return (fromCode == JSTYPE_JAVA_ARRAY) ? CONVERSION_NONE
 						: 2 + getSizeRank(to);
+			} else if (to.isArray() && javaObj.getClass().isArray()) {
+				return CONVERSION_TRIVIAL;
+			} else if (to.isInstance(fromObj)) {
+				return CONVERSION_TRIVIAL;
 			}
 			break;
 
@@ -477,13 +498,19 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 			return null;
 
 		case JSTYPE_UNDEFINED:
-			if (type == ScriptRuntime.StringClass
-					|| type == ScriptRuntime.ObjectClass) {
-				return "undefined";
-			} else {
-				reportConversionError("undefined", type);
+			if (type.isPrimitive()) {
+				reportConversionError(value, type);
 			}
-			break;
+			return null;
+			//
+			// if (type == ScriptRuntime.StringClass ||
+			// type == ScriptRuntime.ObjectClass) {
+			// return "undefined";
+			// }
+			// else {
+			// reportConversionError("undefined", type);
+			// }
+			// break;
 
 		case JSTYPE_BOOLEAN:
 			// Under LC3, only JS Booleans can be coerced into a Boolean value
@@ -505,6 +532,10 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 			} else if ((type.isPrimitive() && type != Boolean.TYPE)
 					|| ScriptRuntime.NumberClass.isAssignableFrom(type)) {
 				return coerceToNumber(type, value);
+			} else if (type == ScriptRuntime.BooleanClass
+					|| type == Boolean.TYPE) {
+				return ScriptRuntime.toBoolean(value) ? Boolean.TRUE
+						: Boolean.FALSE;
 			} else {
 				reportConversionError(value, type);
 			}
@@ -551,6 +582,11 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 		case JSTYPE_JAVA_ARRAY:
 			if (value instanceof Wrapper) {
 				value = ((Wrapper) value).unwrap();
+				// if we have another wrapper that doesn't match, unwrap this
+				// again
+				if (!type.isInstance(value) && value instanceof Wrapper) {
+					value = ((Wrapper) value).unwrap();
+				}
 			}
 			if (type.isPrimitive()) {
 				if (type == Boolean.TYPE) {
@@ -560,12 +596,23 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 			} else {
 				if (type == ScriptRuntime.StringClass) {
 					return value.toString();
-				} else {
-					if (type.isInstance(value)) {
-						return value;
-					} else {
-						reportConversionError(value, type);
+				} else if (type.isInstance(value)) {
+					return value;
+				} else if (type.isArray() && value.getClass().isArray()) {
+					long length = Array.getLength(value);
+					Class arrayType = type.getComponentType();
+					Object result = Array.newInstance(arrayType, (int) length);
+					for (int i = 0; i < length; ++i) {
+						try {
+							Array.set(result, i,
+									coerceType(arrayType, Array.get(value, i)));
+						} catch (EvaluatorException ee) {
+							reportConversionError(value, type);
+						}
 					}
+					return result;
+				} else {
+					reportConversionError(value, type);
 				}
 			}
 			break;
@@ -578,8 +625,6 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 					reportConversionError(value, type);
 				}
 				return coerceToNumber(type, value);
-			} else if (type.isInstance(value)) {
-				return value;
 			} else if (type == ScriptRuntime.DateClass
 					&& value instanceof NativeDate) {
 				double time = ((NativeDate) value).getJSTimeValue();
@@ -607,6 +652,8 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 				if (type.isInstance(value))
 					return value;
 				reportConversionError(value, type);
+			} else if (type.isInstance(value)) {
+				return value;
 			} else if (type.isInterface() && value instanceof Callable) {
 				// Try to use function as implementation of Java interface.
 				//

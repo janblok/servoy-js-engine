@@ -129,7 +129,7 @@ public class Codegen implements Evaluator {
 			f = (NativeFunction) ctor.newInstance(initArgs);
 		} catch (Exception ex) {
 			throw new RuntimeException("Unable to instantiate compiled class:"
-					+ ex.toString());
+					+ ex.toString(), ex);
 		}
 		return f;
 	}

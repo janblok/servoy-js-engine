@@ -54,7 +54,7 @@ import java.text.Collator;
  * @author Mike McCabe
  * @author Norris Boyd
  */
-final class NativeString extends IdScriptableObject {
+final class NativeString extends IdScriptableObject implements Wrapper {
 	static final long serialVersionUID = 920268368584188687L;
 
 	private static final Object STRING_TAG = "String";
@@ -953,6 +953,13 @@ final class NativeString extends IdScriptableObject {
 		}
 		// #/generated#
 		return id;
+	}
+
+	/**
+	 * @see org.mozilla.javascript.Wrapper#unwrap()
+	 */
+	public Object unwrap() {
+		return string;
 	}
 
 	private static final int ConstructorId_fromCharCode = -1,

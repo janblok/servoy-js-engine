@@ -42,6 +42,9 @@
 
 package org.mozilla.javascript;
 
+import java.io.PrintStream;
+import java.io.PrintWriter;
+
 /**
  * Java reflection of JavaScript exceptions. Instances of this class are thrown
  * by the JavaScript 'throw' keyword.
@@ -123,6 +126,39 @@ public class JavaScriptException extends RhinoException {
 	 */
 	public int getLineNumber() {
 		return lineNumber();
+	}
+
+	public void printStackTrace() {
+		super.printStackTrace();
+		Object v = value;
+		if (v instanceof Wrapper) {
+			v = ((Wrapper) v).unwrap();
+		}
+		if (v instanceof Throwable) {
+			((Throwable) v).printStackTrace();
+		}
+	}
+
+	public void printStackTrace(PrintStream s) {
+		super.printStackTrace(s);
+		Object v = value;
+		if (v instanceof Wrapper) {
+			v = ((Wrapper) v).unwrap();
+		}
+		if (v instanceof Throwable) {
+			((Throwable) v).printStackTrace(s);
+		}
+	}
+
+	public void printStackTrace(PrintWriter s) {
+		super.printStackTrace(s);
+		Object v = value;
+		if (v instanceof Wrapper) {
+			v = ((Wrapper) v).unwrap();
+		}
+		if (v instanceof Throwable) {
+			((Throwable) v).printStackTrace(s);
+		}
 	}
 
 	private Object value;
