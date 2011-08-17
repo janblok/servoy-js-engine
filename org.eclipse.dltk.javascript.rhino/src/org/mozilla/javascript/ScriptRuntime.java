@@ -2878,11 +2878,9 @@ public class ScriptRuntime {
 				if (x instanceof Wrapper && y instanceof Wrapper) {
 					// See bug 413838. Effectively an extension to ECMA for
 					// the LiveConnect case.
-					// TODO check if this is enough for us.. an eq() call met 2
-					// unwrapped objects???
 					Object unwrappedX = ((Wrapper) x).unwrap();
 					Object unwrappedY = ((Wrapper) y).unwrap();
-					return unwrappedX == unwrappedY
+					return unwrappedX == unwrappedY || (unwrappedX != null && unwrappedX.equals(unwrappedY))
 							|| (isPrimitive(unwrappedX)
 									&& isPrimitive(unwrappedY) && eq(
 										unwrappedX, unwrappedY));
