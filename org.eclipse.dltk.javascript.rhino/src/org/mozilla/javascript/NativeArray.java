@@ -57,7 +57,7 @@ import java.util.Set;
  * @author Norris Boyd
  * @author Mike McCabe
  */
-public class NativeArray extends IdScriptableObject implements List {
+public class NativeArray extends IdScriptableObject implements List, Wrapper {
 	static final long serialVersionUID = 7331366857676127338L;
 
 	/*
