@@ -315,13 +315,19 @@ public class NativeJavaMethod extends BaseFunction
 					}
 					else if (arg[j] instanceof Wrapper)
 					{
-						arg[j] = ((Wrapper)arg[j]).unwrap();
+						// in case of varargs (j >= argTypes.length) or method is declared with non-wrapper: call method with unwrapped
+						if (j >= argTypes.length || !Wrapper.class.isAssignableFrom(argTypes[j])) {
+							arg[j] = ((Wrapper) arg[j]).unwrap();
+						}
 					}
 				}
 			}
 			else if (args[i] instanceof Wrapper)
 			{
-				args[i] = ((Wrapper)args[i]).unwrap();
+				// in case of varargs (i >= argTypes.length) or method is declared with non-wrapper: call method with unwrapped
+				if (i >= argTypes.length || !Wrapper.class.isAssignableFrom(argTypes[i])) {
+					args[i] = ((Wrapper) args[i]).unwrap();
+				}
 			}
 		}
 		Object javaObject;
