@@ -266,9 +266,9 @@ public class NativeJavaMethod extends BaseFunction {
 					if (arg[j] instanceof CharSequenceBuffer) {
 						arg[j] = arg[j].toString();
 					} else if (arg[j] instanceof Wrapper) {
-						// in case of varargs (j >= argTypes.length) or method is declared with non-wrapper: call method with unwrapped
-						if (j >= argTypes.length || !Wrapper.class.isAssignableFrom(argTypes[j])) {
-							arg[j] = ((Wrapper) arg[j]).unwrap();
+						if (!Wrapper.class.isAssignableFrom(arg.getClass().getComponentType())) 
+						{
+						    arg[j] = ((Wrapper) arg[j]).unwrap();
 						}
 					}
 				}
