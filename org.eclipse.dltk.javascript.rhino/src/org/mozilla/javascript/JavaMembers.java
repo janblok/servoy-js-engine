@@ -788,16 +788,18 @@ public class JavaMembers {
 				MemberBox method = methods[i];
 				if (!isStatic || method.isStatic()) {
 					Class<?>[] params = method.argTypes;
-					if (params.length == 1) {
-						if (pass == 1) {
-							if (params[0] == type) {
-								return method;
-							}
-						} else {
-							if (pass != 2)
-								Kit.codeBug();
-							if (params[0].isAssignableFrom(type)) {
-								return method;
+					if (method.method().getReturnType() == Void.TYPE) {
+						if (params.length == 1) {
+							if (pass == 1) {
+								if (params[0] == type) {
+									return method;
+								}
+							} else {
+								if (pass != 2)
+									Kit.codeBug();
+								if (params[0].isAssignableFrom(type)) {
+									return method;
+								}
 							}
 						}
 					}
