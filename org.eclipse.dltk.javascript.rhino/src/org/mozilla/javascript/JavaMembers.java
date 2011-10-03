@@ -961,7 +961,7 @@ public class JavaMembers {
 	private boolean shouldDeleteGetAndSetMethods = false;
 
 	public class BeanProperty {
-		BeanProperty(MemberBox getter, MemberBox setter,
+		public BeanProperty(MemberBox getter, MemberBox setter,
 				NativeJavaMethod setters) {
 			this.getter = getter;
 			this.setter = setter;

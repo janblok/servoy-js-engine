@@ -94,7 +94,7 @@ public final class MemberBox implements Serializable {
 		this.vararg = VMBridge.instance.isVarArgs(constructor);
 	}
 
-	Method method() {
+	public Method method() {
 		return (Method) memberObject;
 	}
 
@@ -106,7 +106,7 @@ public final class MemberBox implements Serializable {
 		return memberObject;
 	}
 
-	boolean isMethod() {
+	public boolean isMethod() {
 		return memberObject instanceof Method;
 	}
 
