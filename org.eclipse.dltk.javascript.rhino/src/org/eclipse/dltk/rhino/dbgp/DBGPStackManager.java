@@ -82,6 +82,11 @@ public class DBGPStackManager {
 		if (stop)
 		{
 			System.err.print("Current script terminated");
+			if (throwException)
+			{
+				throwException = false;
+				throw new RuntimeException("Script execution stopped");
+			}
 			return;
 		}
 		if (suspenOnChangeLine) {
@@ -290,7 +295,7 @@ public class DBGPStackManager {
 	{
 		stop = true;
 		suspenOnChangeLine = false;
-		resume();
+		resumeWithStop();
 	}
 
 }
