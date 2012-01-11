@@ -2027,7 +2027,7 @@ public class NativeArray extends IdScriptableObject implements List, Wrapper {
 		Object[] ids = getIds();
 
 		for (int i = 0; i < ids.length; i++) {
-			if (ids[i] instanceof String) {
+			if (ids[i] instanceof String || (ids[i] instanceof Number && ((Number) ids[i]).intValue() < 0)) {
 				return this;
 			}
 		}
