@@ -57,7 +57,7 @@ Requires Ant version 1.2
   </target>
 
   <target name="compile-most">
-    <javac srcdir="src"
+    <javac debuglevel="lines,vars,source" srcdir="src"
            destdir="${classes}"
            includes="org/**/*.java"
            excludes="org/**/jdk15/*.java"
@@ -76,7 +76,7 @@ Requires Ant version 1.2
   </target>
 
   <target name="compile-jdk15" if="jdk15">
-    <javac srcdir="src"
+    <javac debuglevel="lines,vars,source" srcdir="src"
            destdir="${classes}"
            includes="org/**/jdk15/*.java"
            deprecation="on"
