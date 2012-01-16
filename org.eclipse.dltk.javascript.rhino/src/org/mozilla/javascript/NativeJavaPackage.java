@@ -148,37 +148,44 @@ public class NativeJavaPackage extends ScriptableObject {
 		Context cx = Context.getContext();
 		ClassShutter shutter = cx.getClassShutter();
 		Scriptable newValue = null;
-		if (shutter == null || shutter.visibleToScripts(className)) {
-			Class<?> cl = null;
-			if (classLoader != null) {
-				cl = Kit.classOrNull(classLoader, className);
-			} else {
-				cl = Kit.classOrNull(className);
+		try {
+			if (shutter == null || shutter.visibleToScripts(className)) {
+				Class<?> cl = null;
+				if (classLoader != null) {
+					cl = Kit.classOrNull(classLoader, className);
+				} else {
+					cl = Kit.classOrNull(className);
+				}
+				if (cl != null) {
+					WrapFactory wrapFactory = cx.getWrapFactory();
+					newValue = wrapFactory.wrapJavaClass(cx,
+							getTopLevelScope(this), cl);
+					newValue.setPrototype(getPrototype());
+				}
 			}
-			if (cl != null) {
-				WrapFactory wrapFactory = cx.getWrapFactory();
-				newValue = wrapFactory.wrapJavaClass(cx,
-						getTopLevelScope(this), cl);
-				newValue.setPrototype(getPrototype());
+			if (newValue == null) {
+				if (createPkg) {
+					NativeJavaPackage pkg;
+					pkg = new NativeJavaPackage(true, className, classLoader);
+					ScriptRuntime
+							.setObjectProtoAndParent(pkg, getParentScope());
+					newValue = pkg;
+				} else {
+					// add to negative cache
+					if (negativeCache == null)
+						negativeCache = new HashSet<String>();
+					negativeCache.add(name);
+				}
 			}
-		}
-		if (newValue == null) {
-			if (createPkg) {
-				NativeJavaPackage pkg;
-				pkg = new NativeJavaPackage(true, className, classLoader);
-				ScriptRuntime.setObjectProtoAndParent(pkg, getParentScope());
-				newValue = pkg;
-			} else {
-				// add to negative cache
-				if (negativeCache == null)
-					negativeCache = new HashSet<String>();
-				negativeCache.add(name);
+			if (newValue != null) {
+				// Make it available for fast lookup and sharing of
+				// lazily-reflected constructors and static members.
+				super.put(name, start, newValue);
 			}
-		}
-		if (newValue != null) {
-			// Make it available for fast lookup and sharing of
-			// lazily-reflected constructors and static members.
-			super.put(name, start, newValue);
+
+		} catch (Exception e) {
+			System.err.println("Can't load/resolve package " + name);
+			e.printStackTrace();
 		}
 		return newValue;
 	}
