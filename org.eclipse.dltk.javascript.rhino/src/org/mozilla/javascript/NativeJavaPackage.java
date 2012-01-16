@@ -148,24 +148,19 @@ public class NativeJavaPackage extends ScriptableObject {
 		Context cx = Context.getContext();
 		ClassShutter shutter = cx.getClassShutter();
 		Scriptable newValue = null;
-		try {
-			if (shutter == null || shutter.visibleToScripts(className)) {
-				Class<?> cl = null;
-				if (classLoader != null) {
-					cl = Kit.classOrNull(classLoader, className);
-				} else {
-					cl = Kit.classOrNull(className);
-				}
-				if (cl != null) {
-					WrapFactory wrapFactory = cx.getWrapFactory();
-					newValue = wrapFactory.wrapJavaClass(cx,
-							getTopLevelScope(this), cl);
-					newValue.setPrototype(getPrototype());
-				}
+		if (shutter == null || shutter.visibleToScripts(className)) {
+			Class<?> cl = null;
+			if (classLoader != null) {
+				cl = Kit.classOrNull(classLoader, className);
+			} else {
+				cl = Kit.classOrNull(className);
 			}
-		} catch (Exception e) {
-			System.err.println("Can't load/resolve package " + name);
-			e.printStackTrace();
+			if (cl != null) {
+				WrapFactory wrapFactory = cx.getWrapFactory();
+				newValue = wrapFactory.wrapJavaClass(cx,
+						getTopLevelScope(this), cl);
+				newValue.setPrototype(getPrototype());
+			}
 		}
 		if (newValue == null) {
 			if (createPkg) {
@@ -185,7 +180,6 @@ public class NativeJavaPackage extends ScriptableObject {
 			// lazily-reflected constructors and static members.
 			super.put(name, start, newValue);
 		}
-
 		return newValue;
 	}
 
