@@ -163,30 +163,29 @@ public class NativeJavaPackage extends ScriptableObject {
 					newValue.setPrototype(getPrototype());
 				}
 			}
-			if (newValue == null) {
-				if (createPkg) {
-					NativeJavaPackage pkg;
-					pkg = new NativeJavaPackage(true, className, classLoader);
-					ScriptRuntime
-							.setObjectProtoAndParent(pkg, getParentScope());
-					newValue = pkg;
-				} else {
-					// add to negative cache
-					if (negativeCache == null)
-						negativeCache = new HashSet<String>();
-					negativeCache.add(name);
-				}
-			}
-			if (newValue != null) {
-				// Make it available for fast lookup and sharing of
-				// lazily-reflected constructors and static members.
-				super.put(name, start, newValue);
-			}
-
 		} catch (Exception e) {
 			System.err.println("Can't load/resolve package " + name);
 			e.printStackTrace();
 		}
+		if (newValue == null) {
+			if (createPkg) {
+				NativeJavaPackage pkg;
+				pkg = new NativeJavaPackage(true, className, classLoader);
+				ScriptRuntime.setObjectProtoAndParent(pkg, getParentScope());
+				newValue = pkg;
+			} else {
+				// add to negative cache
+				if (negativeCache == null)
+					negativeCache = new HashSet<String>();
+				negativeCache.add(name);
+			}
+		}
+		if (newValue != null) {
+			// Make it available for fast lookup and sharing of
+			// lazily-reflected constructors and static members.
+			super.put(name, start, newValue);
+		}
+
 		return newValue;
 	}
 
