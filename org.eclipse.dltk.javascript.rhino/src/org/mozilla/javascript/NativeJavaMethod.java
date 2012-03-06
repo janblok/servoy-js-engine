@@ -500,11 +500,14 @@ public class NativeJavaMethod extends BaseFunction {
 		if (firstBestFit < 0) {
 			// Nothing was found
 			return -1;
-		} else if (extraBestFitsCount == 0) {
+		} else /* if (extraBestFitsCount == 0) */ {
 			// single best fit
 			return firstBestFit;
 		}
+		
+		// pick the first one if you have multiple
 
+		/*
 		// report remaining ambiguity
 		StringBuffer buf = new StringBuffer();
 		for (int j = -1; j != extraBestFitsCount; ++j) {
@@ -530,6 +533,7 @@ public class NativeJavaMethod extends BaseFunction {
 					memberClass, memberName, scriptSignature(args),
 					buf.toString());
 		}
+		*/
 	}
 
 	/** Types are equal */
