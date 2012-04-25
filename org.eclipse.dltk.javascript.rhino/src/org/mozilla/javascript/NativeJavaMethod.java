@@ -570,10 +570,17 @@ public class NativeJavaMethod extends BaseFunction {
 				continue;
 			}
 
+			// SERVOY PATCH
+			// if they are not equal anymore test if we are now going to test pure varargs
+			// skip those and return the best match until the var args
+			if (totalPreference != PREFERENCE_EQUAL) {
+				if (sig1.length-1==j && vararg1) continue;
+				if (sig2.length-1==j && vararg2) continue;
+			}
 			// Determine which of type1, type2 is easier to convert from arg.
-
 			int rank1 = NativeJavaObject.getConversionWeight(arg, type1);
-			int rank2 = NativeJavaObject.getConversionWeight(arg, type2);
+			int rank2 = NativeJavaObject.getConversionWeight(arg, type2); 
+				
 
 			int preference;
 			if (rank1 < rank2) {
