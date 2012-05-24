@@ -277,11 +277,11 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 		switch (fromCode) {
 
 		case JSTYPE_UNDEFINED:
-			if (to == ScriptRuntime.StringClass
-					|| to == ScriptRuntime.ObjectClass) {
-				return 1;
-			}
-			break;
+//			if (to == ScriptRuntime.StringClass
+//					|| to == ScriptRuntime.ObjectClass) {
+//				return 1;
+//			}
+//			break;
 
 		case JSTYPE_NULL:
 			if (!to.isPrimitive()) {
@@ -440,7 +440,7 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 			return JSTYPE_NULL;
 		} else if (value == Undefined.instance) {
 			return JSTYPE_UNDEFINED;
-		} else if (value instanceof String) {
+		} else if (value instanceof String || value instanceof CharSequenceBuffer) {
 			return JSTYPE_STRING;
 		} else if (value instanceof Number) {
 			return JSTYPE_NUMBER;
