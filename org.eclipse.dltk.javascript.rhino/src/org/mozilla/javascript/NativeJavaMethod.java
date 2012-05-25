@@ -582,7 +582,7 @@ public class NativeJavaMethod extends BaseFunction {
 			int rank2 = NativeJavaObject.getConversionWeight(arg, type2); 
 				
 
-			int preference;
+			int preference = PREFERENCE_EQUAL;
 			if (rank1 < rank2) {
 				preference = PREFERENCE_FIRST_ARG;
 			} else if (rank1 > rank2) {
@@ -595,20 +595,20 @@ public class NativeJavaMethod extends BaseFunction {
 					} else if (type2.isAssignableFrom(type1)) {
 						preference = PREFERENCE_FIRST_ARG;
 					} else {
-						preference = PREFERENCE_AMBIGUOUS;
+//						preference = PREFERENCE_AMBIGUOUS;
 					}
 				} else {
-					preference = PREFERENCE_AMBIGUOUS;
+//					preference = PREFERENCE_AMBIGUOUS;
 				}
 			}
 
 			totalPreference |= preference;
 
-			if (totalPreference == PREFERENCE_AMBIGUOUS) {
-				break;
-			}
+//			if (totalPreference == PREFERENCE_AMBIGUOUS) {
+//				break;
+//			}
 		}
-		return totalPreference;
+		return totalPreference == PREFERENCE_EQUAL?PREFERENCE_AMBIGUOUS:totalPreference;
 	}
 
 	/**
