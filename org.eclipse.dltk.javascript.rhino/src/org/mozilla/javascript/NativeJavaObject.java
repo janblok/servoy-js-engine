@@ -543,6 +543,7 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 
 		case JSTYPE_STRING:
 			if (type == ScriptRuntime.StringClass || type.isInstance(value)) {
+				// value can be a CharSequenceBuffer, so just call toString.
 				return value.toString();
 			} else if (type == Character.TYPE
 					|| type == ScriptRuntime.CharacterClass) {
