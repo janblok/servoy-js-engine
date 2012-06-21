@@ -175,7 +175,7 @@ public class DBGPDebugger extends Thread implements Debugger,
 			terminationListeners.remove(listener);
 		}
 	}
-
+	
 	protected void printProperty(String id, String fullName, Object value,
 			StringBuffer properties, int level, boolean addChilds) {
 		boolean hasChilds = false;
@@ -243,9 +243,11 @@ public class DBGPDebugger extends Thread implements Debugger,
 			if (addChilds) {
 				HashSet duplicates = new HashSet();
 				Scriptable prototype = p;
+				boolean includeFunc = true;
 				while (prototype != null) {
 					numC += createChilds(fullName, level, stringBuffer,
-							prototype, duplicates);
+							prototype, duplicates, includeFunc);
+					includeFunc = false;
 					prototype = prototype.getPrototype();
 				}
 			} else {
@@ -346,7 +348,7 @@ public class DBGPDebugger extends Thread implements Debugger,
 	 * @param ids
 	 */
 	private int createChilds(String fullName, int level,
-			StringBuffer stringBuffer, Scriptable p, HashSet duplicates) {
+			StringBuffer stringBuffer, Scriptable p, HashSet duplicates, boolean includeFunctions) {
 		Object[] ids = null;
 		if (p instanceof LazyInitScope) {
 			ids = ((LazyInitScope) p).getInitializedIds();
@@ -371,7 +373,7 @@ public class DBGPDebugger extends Thread implements Debugger,
 				// dont let the debugger crash.
 				e.printStackTrace();
 			}
-			if (!(pvalue instanceof Function)) // HACK because
+			if (!(pvalue instanceof Function) || includeFunctions) // HACK because
 												// ShowFunctionsAction
 			// doesnt work because of the lazy
 			// behavior of plugins in Eclipse
