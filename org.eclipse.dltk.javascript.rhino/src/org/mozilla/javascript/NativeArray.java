@@ -1366,7 +1366,11 @@ public class NativeArray extends IdScriptableObject implements List, Wrapper {
 						final NativeArray arg = (NativeArray) args[i];
 						canUseDense = arg.denseOnly;
 						length += arg.length;
-					} else {
+					} else if (ScriptRuntime.instanceOf(args[i], ctor, cx)) {
+						// Array-like but not NativeArray
+						canUseDense = false;
+					}
+					else {
 						length++;
 					}
 				}
