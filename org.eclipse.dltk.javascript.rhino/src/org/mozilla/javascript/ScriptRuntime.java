@@ -3010,7 +3010,9 @@ public class ScriptRuntime {
 			}
 		} else if (x instanceof Scriptable) {
 			if (x instanceof Wrapper && y instanceof Wrapper) {
-				return ((Wrapper) x).unwrap() == ((Wrapper) y).unwrap();
+				Object unwrap = ((Wrapper) x).unwrap();
+				if (unwrap != null) return unwrap.equals(((Wrapper) y).unwrap());
+				return unwrap == ((Wrapper) y).unwrap();
 			}
 		} else {
 			warnAboutNonJSObject(x);
