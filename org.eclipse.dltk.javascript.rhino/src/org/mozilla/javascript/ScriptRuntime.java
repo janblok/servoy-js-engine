@@ -2944,10 +2944,11 @@ public class ScriptRuntime
 		}
 		else if (x instanceof Scriptable)
 		{
-			if (x instanceof Wrapper && y instanceof Wrapper)
-			{
-				// TODO not equals call??
-				return ((Wrapper) x).unwrap() == ((Wrapper) y).unwrap();
+			if (x instanceof Wrapper && y instanceof Wrapper) {
+				Object unwrap = ((Wrapper) x).unwrap();
+				if (unwrap != null)
+					return unwrap.equals(((Wrapper) y).unwrap());
+				return unwrap == ((Wrapper) y).unwrap();
 			}
 		}
 		else
