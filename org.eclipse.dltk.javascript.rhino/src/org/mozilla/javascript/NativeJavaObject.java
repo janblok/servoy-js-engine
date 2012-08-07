@@ -333,6 +333,8 @@ public class NativeJavaObject implements Scriptable, Wrapper, Serializable {
 				} else if (to != Boolean.TYPE) {
 					return 4;
 				}
+			} else if (ScriptRuntime.NumberClass.isAssignableFrom(to)) {
+				return 4;
 			}
 			break;
 
