@@ -334,6 +334,9 @@ final class NativeJSON extends IdScriptableObject {
 		if (value instanceof String) {
 			return quote((String) value);
 		}
+		if (value instanceof CharSequenceBuffer) {
+			return quote(value.toString());
+		}
 
 		if (value instanceof Number) {
 			double d = ((Number) value).doubleValue();
