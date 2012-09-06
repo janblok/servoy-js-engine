@@ -3130,7 +3130,7 @@ public final class Interpreter extends Icode implements Evaluator {
 							.toString(rhs));
 				}
 				stack[stackTop] = lhs;
-			} else if (lhs instanceof String || rhs instanceof String) {
+			} else if (lhs instanceof String || rhs instanceof String || rhs instanceof CharSequenceBuffer) {
 				if (rhs instanceof CharSequenceBuffer) {
 					CharSequenceBuffer sb = new CharSequenceBuffer(
 							ScriptRuntime.toString(lhs),
