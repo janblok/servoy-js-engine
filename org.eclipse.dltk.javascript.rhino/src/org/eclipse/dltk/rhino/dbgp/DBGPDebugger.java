@@ -16,6 +16,7 @@ import org.mozilla.javascript.Function;
 import org.mozilla.javascript.NativeArray;
 import org.mozilla.javascript.NativeJavaArray;
 import org.mozilla.javascript.NativeJavaClass;
+import org.mozilla.javascript.NativeJavaMethod;
 import org.mozilla.javascript.NativeJavaObject;
 import org.mozilla.javascript.Scriptable;
 import org.mozilla.javascript.ScriptableObject;
@@ -253,6 +254,7 @@ public class DBGPDebugger extends Thread implements Debugger,
 			} else {
 				HashSet duplicates = new HashSet();
 				Scriptable prototype = p;
+				boolean includeFunc = true;
 				while (prototype != null) {
 					Object[] ids = null;
 					if (prototype instanceof LazyInitScope) {
@@ -266,16 +268,16 @@ public class DBGPDebugger extends Thread implements Debugger,
 						Object pvalue = null;
 						try {
 							if (ids[a] instanceof Integer) {
-								pvalue = p
+								pvalue = prototype
 										.get(((Integer) ids[a]).intValue(), p);
 							} else
-								pvalue = p.get(ids[a].toString(), p);
+								pvalue = prototype.get(ids[a].toString(), p);
 						} catch (Exception e) {
 							// dont let the debugger crash.
 							e.printStackTrace();
 						}
 
-						if (!(pvalue instanceof Function)) // HACK because
+						if (addProperty(pvalue) && (includeFunc || !(pvalue instanceof Function))) // HACK because
 						// ShowFunctionsAction
 						// doesnt work because of
 						// the lazy behavior of
@@ -284,6 +286,7 @@ public class DBGPDebugger extends Thread implements Debugger,
 							numC++;
 						}
 					}
+					includeFunc = false;
 					prototype = prototype.getPrototype();
 				}
 			}
@@ -348,7 +351,7 @@ public class DBGPDebugger extends Thread implements Debugger,
 	 * @param ids
 	 */
 	private int createChilds(String fullName, int level,
-			StringBuffer stringBuffer, Scriptable p, HashSet duplicates, boolean includeFunctions) {
+			StringBuffer stringBuffer, Scriptable p, HashSet duplicates, boolean includeFunc) {
 		Object[] ids = null;
 		if (p instanceof LazyInitScope) {
 			ids = ((LazyInitScope) p).getInitializedIds();
@@ -373,10 +376,7 @@ public class DBGPDebugger extends Thread implements Debugger,
 				// dont let the debugger crash.
 				e.printStackTrace();
 			}
-			if (!(pvalue instanceof Function) || includeFunctions) // HACK because
-												// ShowFunctionsAction
-			// doesnt work because of the lazy
-			// behavior of plugins in Eclipse
+			if (addProperty(pvalue) && (includeFunc || !(pvalue instanceof Function))) 
 			{
 				counter++;
 				if (ids[a] instanceof Integer) {
@@ -391,6 +391,20 @@ public class DBGPDebugger extends Thread implements Debugger,
 				break;
 		}
 		return counter;
+	}
+	
+	/* // HACK because ShowFunctionsAction doesnt work because of the lazy behavior of plugins in Eclipse
+	 * this method skips NativeJavaMethods and Servoys own methods, the rest are just reported */
+	public static boolean addProperty(Object property) {
+		if (property instanceof NativeJavaMethod)
+			return false;
+		if (property instanceof Function) {
+			Function function = (Function) property;
+			Object methodNameObj = function.get("_methodname_", function); //$NON-NLS-1$
+			return (methodNameObj == null || methodNameObj
+					.equals(Scriptable.NOT_FOUND)) ? true : false;
+		}
+		return true;
 	}
 
 	private String getDataType(Object value) {

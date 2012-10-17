@@ -78,7 +78,7 @@ final class ContextGetCommand extends DBGPDebugger.Command {
 							argsValue, properties, 0, true);
 				}
 
-				sendAllIds(properties, stackFrame, scriptable, doubles, false);
+//				sendAllIds(properties, stackFrame, scriptable, doubles, false);
 			}
 		} catch (Throwable t) {
 			// never let the debugger crash. the printResponse below has to go
