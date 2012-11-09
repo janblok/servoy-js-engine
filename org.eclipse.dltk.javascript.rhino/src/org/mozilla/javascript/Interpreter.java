@@ -944,7 +944,6 @@ public final class Interpreter extends Icode implements Evaluator {
 
 		Object interpreterResult = null;
 		double interpreterResultDbl = 0.0;
-
 		StateLoop: for (;;) {
 			withoutExceptions: try {
 
@@ -960,7 +959,6 @@ public final class Interpreter extends Icode implements Evaluator {
 					if (generatorState == null && frame.frozen)
 						Kit.codeBug();
 				}
-
 				// Use local variables for constant values in frame
 				// for faster access
 				Object[] stack = frame.stack;
@@ -979,6 +977,14 @@ public final class Interpreter extends Icode implements Evaluator {
 
 				// Store new frame in cx which is used for error reporting etc.
 				cx.lastInterpreterFrame = frame;
+
+				CallFrame loop = frame;
+				for(int stackDept=0;loop.parentFrame != null;stackDept++) {
+					if (stackDept == 1000) {
+						throw ScriptRuntime.constructError("ReferenceError", "Stack overflow encountered");
+					}
+					loop = loop.parentFrame;
+				}
 
 				Loop: for (;;) {
 
@@ -2321,7 +2327,6 @@ public final class Interpreter extends Icode implements Evaluator {
 					continue Loop;
 
 				} // end of Loop: for
-
 				exitFrame(cx, frame, null);
 				interpreterResult = frame.result;
 				interpreterResultDbl = frame.resultDbl;
