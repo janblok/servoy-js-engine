@@ -1388,7 +1388,8 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 
 		double time;
 		if (args.length == 1 && args[0] instanceof Date) {
-			obj.javaDate = (Date) args[0];
+			obj.javaDate = new Date();
+			obj.javaDate.setTime(((Date)args[0]).getTime());
 			time = convertToUTCMillisFromJava(obj.javaDate.getTime());
 		} else {
 			time = date_msecFromArgs(args);
