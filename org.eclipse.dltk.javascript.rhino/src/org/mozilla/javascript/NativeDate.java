@@ -2004,7 +2004,7 @@ public final class NativeDate extends IdScriptableObject implements Wrapper {
 	 * When we convert from a Java date to a JS date, it should remain the same
 	 * not in milliseconds, but in actual year/month/day/hh/mm/ss/ms.
 	 */
-	private static double convertToUTCMillisFromJava(long javaMillis) {
+	public static double convertToUTCMillisFromJava(long javaMillis) {
 		GregorianCalendar calendar = new GregorianCalendar(
 				TimeZone.getTimeZone("GMT"));
 		calendar.setTimeInMillis(javaMillis);
