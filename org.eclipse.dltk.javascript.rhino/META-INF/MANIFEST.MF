@@ -21,4 +21,4 @@ Export-Package: org.eclipse.dltk.rhino.dbgp,
  org.mozilla.javascript.serialize,
  org.mozilla.javascript.xml,
  org.mozilla.javascript.xmlimpl
-Bundle-RequiredExecutionEnvironment: J2SE-1.5
+Bundle-RequiredExecutionEnvironment: JavaSE-1.6
