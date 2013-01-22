@@ -32,8 +32,8 @@
 	<condition property="bundleBootClasspath" value="${J2SE-1.5}"	>
 		<isset property="J2SE-1.5"/>
 	</condition>
-	<condition property="bundleBootClasspath" value="${J2SE-1.5}"	>
-		<isset property="J2SE-1.5"/>
+	<condition property="bundleBootClasspath" value="${JavaSE-1.6}"	>
+		<isset property="JavaSE-1.6"/>
 	</condition>
 	<property name="bundleBootClasspath" value="${bootclasspath}"/>
 
