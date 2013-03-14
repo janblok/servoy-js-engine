@@ -555,10 +555,10 @@ public class NativeJavaMethod extends BaseFunction {
 			Object arg = args[j];
 			Class<?> type1 = vararg1 && j >= sig1.length ? sig1[sig1.length - 1]
 					: sig1[j];
-			if (vararg1 && j == (sig1.length - 1) && type1.isArray()) type1 = type1.getComponentType();
+			//if (vararg1 && j == (sig1.length - 1) && type1.isArray()) type1 = type1.getComponentType();
 			Class<?> type2 = vararg2 && j >= sig2.length ? sig2[sig2.length - 1]
 					: sig2[j];
-			if (vararg2 && j == (sig2.length - 1) && type2.isArray()) type2 = type2.getComponentType();
+			//if (vararg2 && j == (sig2.length - 1) && type2.isArray()) type2 = type2.getComponentType();
 			if (type1 == type2) {
 				continue;
 			}
