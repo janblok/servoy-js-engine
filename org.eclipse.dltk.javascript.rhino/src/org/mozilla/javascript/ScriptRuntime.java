@@ -1769,7 +1769,17 @@ public class ScriptRuntime {
 				Scriptable withObj = scope.getPrototype();
 				if (withObj instanceof XMLObject) {
 					XMLObject xmlObj = (XMLObject) withObj;
-					if (xmlObj.ecmaHas(cx, name)) {
+					if (asFunctionCall) {
+                        result = getPropFunctionAndThisHelper(xmlObj, name,
+                                                              cx, withObj,
+                                                              false);
+                        thisObj = lastStoredScriptable(cx); // Must consume
+
+                        if (result != null) {
+                            break;
+                        }
+                    }
+                    else if (xmlObj.ecmaHas(cx, name)) {
 						// function this should be the target object of with
 						thisObj = xmlObj;
 						result = xmlObj.ecmaGet(cx, name);
@@ -2257,7 +2267,7 @@ public class ScriptRuntime {
 	public static Callable getPropFunctionAndThis(Object obj, String property,
 			Context cx) {
 		Scriptable thisObj = toObjectOrNull(cx, obj);
-		return getPropFunctionAndThisHelper(obj, property, cx, thisObj);
+		return getPropFunctionAndThisHelper(obj, property, cx, thisObj, true);
 	}
 
 	/**
@@ -2270,11 +2280,11 @@ public class ScriptRuntime {
 	public static Callable getPropFunctionAndThis(Object obj, String property,
 			Context cx, final Scriptable scope) {
 		Scriptable thisObj = toObjectOrNull(cx, obj, scope);
-		return getPropFunctionAndThisHelper(obj, property, cx, thisObj);
+		return getPropFunctionAndThisHelper(obj, property, cx, thisObj, true);
 	}
 
 	private static Callable getPropFunctionAndThisHelper(Object obj,
-			String property, Context cx, Scriptable thisObj) {
+			String property, Context cx, Scriptable thisObj, boolean doThrow) {
 		if (thisObj == null) {
 			throw undefCallError(obj, property);
 		}
@@ -2302,8 +2312,10 @@ public class ScriptRuntime {
 					"__noSuchMethod__");
 			if (noSuchMethod instanceof Callable)
 				value = new NoSuchMethodShim((Callable) noSuchMethod, property);
+			else if (doThrow)
+                throw notFunctionError(thisObj, value, property);
 			else
-				throw notFunctionError(thisObj, value, property);
+                value = null;
 		}
 
 		storeScriptable(cx, thisObj);
