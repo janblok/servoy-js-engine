@@ -555,11 +555,21 @@ public class NativeJavaMethod extends BaseFunction {
 			Object arg = args[j];
 			Class<?> type1 = vararg1 && j >= sig1.length ? sig1[sig1.length - 1]
 					: sig1[j];
-			//if (vararg1 && j == (sig1.length - 1) && type1.isArray()) type1 = type1.getComponentType();
+			Class<?> type1Original = type1;
+			boolean firstSignatureIsVarargParam = vararg1 && j == (sig1.length - 1) && type1.isArray();
+			if (firstSignatureIsVarargParam) type1 = type1.getComponentType();
 			Class<?> type2 = vararg2 && j >= sig2.length ? sig2[sig2.length - 1]
 					: sig2[j];
-			//if (vararg2 && j == (sig2.length - 1) && type2.isArray()) type2 = type2.getComponentType();
-			if (type1 == type2) {
+			Class<?> type2Original = type2;
+			boolean secondSignatureIsVarargParam = vararg2 && j == (sig2.length - 1) && type2.isArray();
+			if (secondSignatureIsVarargParam) type2 = type2.getComponentType();
+			
+			if( (firstSignatureIsVarargParam || secondSignatureIsVarargParam) && (vararg1 != vararg2)){
+				// special case for method with one of the two methods having last parameter varargs
+				type1= type1Original;
+				type2 = type2Original;
+			}
+			else if (type1 == type2 ) {
 				continue;
 			}
 			// Test if it is an exact fit.. this also test primitive types so
