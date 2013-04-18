@@ -381,7 +381,7 @@ public class DBGPDebugger extends Thread implements Debugger,
 				counter++;
 				if (ids[a] instanceof Integer) {
 					printProperty(ids[a].toString(), fullName + "[" + ids[a]
-							+ "]", pvalue, stringBuffer, level + 1, false);
+							+ "]", pvalue, stringBuffer, level + 1, true);
 				} else {
 					printProperty(ids[a].toString(), fullName + "." + ids[a],
 							pvalue, stringBuffer, level + 1, false);
