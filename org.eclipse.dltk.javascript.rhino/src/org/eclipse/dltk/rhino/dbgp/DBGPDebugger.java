@@ -31,7 +31,6 @@ import org.mozilla.javascript.xml.XMLObject;
 
 public class DBGPDebugger extends Thread implements Debugger,
 		IDebuggerWithWatchPoints {
-
 	/**
 	 * @author jcompagner
 	 */
@@ -42,6 +41,13 @@ public class DBGPDebugger extends Thread implements Debugger,
 	static abstract class Command {
 		abstract void parseAndExecute(String command, HashMap options);
 	}
+	static abstract class FeatureCommand extends Command {
+		// get|set maximum depth that the debugger engine may return when sending
+		// arrays, hashs or object structures to the IDE.
+		final String MAX_DEPTH = "max_depth"; //$NON-NLS-1$
+	}
+	
+	int max_depth_feature = 2;
 
 	Socket socket;
 
@@ -55,6 +61,7 @@ public class DBGPDebugger extends Thread implements Debugger,
 
 	public volatile boolean isInited;
 
+	
 	private ArrayList terminationListeners;
 
 	private final BreakPointManager breakPointManager;
@@ -101,6 +108,14 @@ public class DBGPDebugger extends Thread implements Debugger,
 		strategies.put("stack_depth", new StackDepthCommand(this));
 		strategies.put("stack_get", new StackGetCommand(this));
 		out.flush();
+	}
+	
+	public void setMaxDepth(int maxDepth){
+		max_depth_feature = maxDepth;
+	}
+	
+	public int getMaxDepth(){
+		return max_depth_feature;
 	}
 
 	public void setContext(Context cx) {
@@ -381,10 +396,10 @@ public class DBGPDebugger extends Thread implements Debugger,
 				counter++;
 				if (ids[a] instanceof Integer) {
 					printProperty(ids[a].toString(), fullName + "[" + ids[a]
-							+ "]", pvalue, stringBuffer, level + 1, false);
+							+ "]", pvalue, stringBuffer, level + 1, level+1 < getMaxDepth());
 				} else {
 					printProperty(ids[a].toString(), fullName + "." + ids[a],
-							pvalue, stringBuffer, level + 1, false);
+							pvalue, stringBuffer, level + 1, level+1 < getMaxDepth());
 				}
 			}
 			if (counter > 5000)
