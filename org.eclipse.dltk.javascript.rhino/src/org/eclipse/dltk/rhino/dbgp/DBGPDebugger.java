@@ -41,11 +41,6 @@ public class DBGPDebugger extends Thread implements Debugger,
 	static abstract class Command {
 		abstract void parseAndExecute(String command, HashMap options);
 	}
-	static abstract class FeatureCommand extends Command {
-		// get|set maximum depth that the debugger engine may return when sending
-		// arrays, hashs or object structures to the IDE.
-		final String MAX_DEPTH = "max_depth"; //$NON-NLS-1$
-	}
 	
 	int max_depth_feature = 2;
 
