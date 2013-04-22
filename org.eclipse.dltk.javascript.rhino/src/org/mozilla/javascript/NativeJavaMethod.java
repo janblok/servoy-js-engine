@@ -42,6 +42,7 @@
 package org.mozilla.javascript;
 
 import java.lang.reflect.*;
+import java.util.HashSet;
 
 /**
  * This class reflects Java methods into the JavaScript environment and handles
@@ -662,12 +663,18 @@ public class NativeJavaMethod extends BaseFunction {
 	 * @param args
 	 */
 	private static void unwrapArray(Object[] args) {
+		unwrapArrayImpl(args, new HashSet<Object>());
+	}
+	
+	private static void unwrapArrayImpl(Object[] args, HashSet<Object> processed) {
 		for (int j = 0; j < args.length; j++) {
 			if (args[j] instanceof Wrapper) {
+				if (processed.contains(args[j])) continue;
+				processed.add(args[j]);
 				args[j] = ((Wrapper) args[j]).unwrap();
 				if (args[j] instanceof Object[]
 						&& !args[j].getClass().getComponentType().isPrimitive()) {
-					unwrapArray((Object[]) args[j]);
+					unwrapArrayImpl((Object[]) args[j], processed);
 				}
 			}
 		}
