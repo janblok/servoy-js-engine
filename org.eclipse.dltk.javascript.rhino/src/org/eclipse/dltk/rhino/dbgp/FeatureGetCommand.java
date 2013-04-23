@@ -7,7 +7,7 @@ import java.util.HashMap;
 
 import org.eclipse.dltk.rhino.dbgp.DBGPDebugger.Command;
 
-final class FeatureGetCommand extends DBGPDebugger.FeatureCommand {
+final class FeatureGetCommand extends DBGPDebugger.Command {
 	/**
 	 * 
 	 */
