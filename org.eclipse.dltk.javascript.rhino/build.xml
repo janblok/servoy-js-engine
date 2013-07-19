@@ -76,7 +76,9 @@
 		<delete dir="${temp.folder}"/>
 	</target>
 
-	<target name="@dot" depends="init" unless="@dot" description="Create jar: org.eclipse.dltk.javascript.rhino @dot.">
+	<target name="@dot.nestedJars">
+	</target>
+	<target name="@dot" depends="init,@dot.nestedJars" unless="@dot" description="Create jar: org.eclipse.dltk.javascript.rhino @dot.">
 		<delete dir="${build.result.folder}/@dot"/>
 		<mkdir dir="${build.result.folder}/@dot"/>
 		<path id="@dot.classpath">
@@ -220,7 +222,7 @@
 	</target>
 
 	<target name="refresh" depends="init" if="eclipse.running" description="Refresh this folder.">
-		<eclipse.convertPath fileSystemPath="C:/Users/Administrator/dev_v52x_branch/org.eclipse.dltk.javascript.rhino" property="resourcePath"/>
+		<eclipse.convertPath fileSystemPath="/Users/servoy/Servoy/Dev/dev_v52x/org.eclipse.dltk.javascript.rhino" property="resourcePath"/>
 		<eclipse.refreshLocal resource="${resourcePath}" depth="infinite"/>
 	</target>
 
@@ -245,7 +247,7 @@
 	</target>
 
 	<target name="apitools.generation" if="generateAPIDescription">
-		<apitooling.apigeneration  projectName="${projectName}" project="${projectLocation}" binary="${binary.folders}" target="${target.folder}" extramanifests="${extraManifests}"		/>
+		<apitooling.apigeneration  projectName="${projectName}" project="${projectLocation}" binary="${binary.folders}" target="${target.folder}" extramanifests="${extraManifests}" allownonapiproject="${allowNonApiProject}"		/>
 	</target>
 
 </project>
