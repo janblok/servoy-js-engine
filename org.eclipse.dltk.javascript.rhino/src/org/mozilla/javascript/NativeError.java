@@ -150,8 +150,8 @@ public final class NativeError extends IdScriptableObject {
 			stackProvider = re;
 			try {
 				defineProperty("stack", null,
-						NativeError.class.getMethod("getStack"),
-						NativeError.class.getMethod("setStack", Object.class),
+						NativeError.class.getMethod("getStack", Scriptable.class),
+						NativeError.class.getMethod("setStack", Scriptable.class, Object.class),
 						0);
 			} catch (NoSuchMethodException nsm) {
 				// should not happen
@@ -161,20 +161,35 @@ public final class NativeError extends IdScriptableObject {
 	}
 
 	public Object getStack() {
-		Object value = stackProvider == null ? NOT_FOUND : stackProvider
-				.getScriptStackTrace();
+		return getStack(this);
+	}
+
+	public static Object getStack(Scriptable obj) {
+		while(obj != null && !(obj instanceof NativeError)) {
+		    obj = obj.getPrototype();
+		}
+		NativeError er = (NativeError) obj;
+		Object value = er.stackProvider == null ? NOT_FOUND : er.stackProvider.getScriptStackTrace();
 		// We store the stack as local property both to cache it
 		// and to make the property writable
-		setStack(value);
+		setStack(obj, value);
 		return value;
 	}
 
 	public void setStack(Object value) {
-		if (stackProvider != null) {
-			stackProvider = null;
-			delete("stack");
+		setStack(this, value);
+	}
+	
+	public static void setStack(Scriptable obj, Object value) {
+		while(obj != null && !(obj instanceof NativeError)) {
+		    obj = obj.getPrototype();
 		}
-		put("stack", this, value);
+		NativeError er = (NativeError) obj;
+		if (er.stackProvider != null) {
+			er.stackProvider = null;
+			er.delete("stack");
+		}
+		er.put("stack", er, value);
 	}
 
 	private static Object js_toString(Scriptable thisObj) {
