@@ -78,7 +78,9 @@ final class ContextGetCommand extends DBGPDebugger.Command {
 							argsValue, properties, 0, true);
 				}
 
-//				sendAllIds(properties, stackFrame, scriptable, doubles, false);
+				if(scriptable instanceof ContextualScope){
+					sendAllIds(properties, stackFrame, ((ContextualScope)scriptable).getContextScriptable(), doubles, false);
+				}
 			}
 		} catch (Throwable t) {
 			// never let the debugger crash. the printResponse below has to go
