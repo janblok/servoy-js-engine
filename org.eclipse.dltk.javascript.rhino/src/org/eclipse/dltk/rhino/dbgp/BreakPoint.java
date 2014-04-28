@@ -148,6 +148,15 @@ public class BreakPoint {
 		return "";
 	}
 
+	/**
+	 * Used as a key in {@link BreakPointManager} callNames and returnNames The
+	 * method {@link DBGPDebugFrame#getWhere()} is used as a lookup key
+	 */
+
+	public String getFullyQualifiedName() {
+		return file + "." + method;
+	}
+
 	public String getHitCondition() {
 		if (hitCondition == 1)
 			return ">=";

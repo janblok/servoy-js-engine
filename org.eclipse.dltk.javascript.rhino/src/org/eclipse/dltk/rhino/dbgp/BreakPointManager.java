@@ -63,10 +63,10 @@ public class BreakPointManager {
 
 	public synchronized final void addBreakPoint(BreakPoint point) {
 		if (point.isReturn) {
-			returnNames.put(point.method, point);
+			returnNames.put(point.getFullyQualifiedName(), point);
 		}
 		if (point.isCall) {
-			callNames.put(point.method, point);
+			callNames.put(point.getFullyQualifiedName(), point);
 		}
 
 		if (point.isWatch) {
@@ -89,13 +89,12 @@ public class BreakPointManager {
 
 	public synchronized void removeBreakPoint(BreakPoint point) {
 		if (point.isReturn) {
-			returnNames.remove(point.method);
+			returnNames.remove(point.getFullyQualifiedName());
 		}
 		if (point.isCall) {
-			callNames.remove(point.method);
+			callNames.remove(point.getFullyQualifiedName());
 		}
 		if (point.isWatch) {
-
 			watchpoints.remove(point.expression);
 		}
 		HashMap object = (HashMap) fileMap.get(point.file);

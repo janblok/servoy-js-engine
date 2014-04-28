@@ -55,7 +55,7 @@ public class DBGPStackManager {
 		}
 
 		if (!suspenOnChangeLine && getManager().getSuspendOnEntry()) {
-			if (debugFrame.getWhere().equals("module")) {
+			if (debugFrame.getWhere().endsWith("module")) {
 				sendSuspend(null);
 			} else
 				suspenOnChangeLine = true;
@@ -81,8 +81,7 @@ public class DBGPStackManager {
 	public void changeLine(DBGPDebugFrame frame, int lineNumber) {
 		if (stop) {
 			System.err.print("Current script terminated");
-			if (throwException)
-			{
+			if (throwException) {
 				throwException = false;
 				throw new RuntimeException("Script execution stopped");
 			}

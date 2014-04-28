@@ -94,8 +94,15 @@ public class DBGPDebugFrame implements DebugFrame {
 		this.lineNumber = lineNumber;
 	}
 
+	/**
+	 * 
+	 * @return fully qualified name of js method e.g. /path/to/file.js.method. Used
+	 *         for getting the BreakPoint from the BreakPointManager see
+	 *         {@link org.eclipse.dltk.rhino.dbgp.BreakPoint#getFullyQualifiedName()}
+	 */
+
 	public String getWhere() {
-		return where;
+		return sourceName + "." + where;
 	}
 
 	public Object getValue(int num) {
