@@ -327,10 +327,10 @@ public class DBGPDebugger extends Thread implements Debugger,
 	}
 
 	private static String escapeHTML(String content) {
-		content = replace(content, '&', "&amp;"); //$NON-NLS-1$
-		content = replace(content, '"', "&quot;"); //$NON-NLS-1$
-		content = replace(content, '<', "&lt;"); //$NON-NLS-1$
-		return replace(content, '>', "&gt;"); //$NON-NLS-1$
+		content = replace(content, '&', "&amp;");
+		content = replace(content, '"', "&quot;");
+		content = replace(content, '<', "&lt;");
+		return replace(content, '>', "&gt;");
 	}
 
 	private static String replace(String text, char c, String s) {
@@ -410,7 +410,7 @@ public class DBGPDebugger extends Thread implements Debugger,
 			return false;
 		if (property instanceof Function) {
 			Function function = (Function) property;
-			Object methodNameObj = function.get("_methodname_", function); //$NON-NLS-1$
+			Object methodNameObj = function.get("_methodname_", function);
 			return (methodNameObj == null || methodNameObj
 					.equals(Scriptable.NOT_FOUND)) ? true : false;
 		}

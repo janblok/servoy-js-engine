@@ -11,7 +11,7 @@ final class FeatureSetCommand extends DBGPDebugger.Command {
 
 	// get|set maximum depth that the debugger engine may return when sending
 	// arrays, hashs or object structures to the IDE.
-	final String MAX_DEPTH = "max_depth"; //$NON-NLS-1$
+	final String MAX_DEPTH = "max_depth";
 
 	/**
 	 * 

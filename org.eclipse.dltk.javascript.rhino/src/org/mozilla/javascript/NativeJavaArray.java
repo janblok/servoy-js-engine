@@ -164,16 +164,16 @@ public class NativeJavaArray extends NativeJavaObject {
 				int size = Array.getLength(array);
 
 				StringBuffer sb = new StringBuffer();
-				sb.append("["); //$NON-NLS-1$
+				sb.append("[");
 				size = size > 100 ? 100 : size;
 				for (int i = 0; i < size; i++) {
 					sb.append(Array.get(array, i));
-					sb.append(","); //$NON-NLS-1$
+					sb.append(",");
 				}
 				if (sb.length() > 1) {
 					sb.setLength(sb.length() - 1);
 				}
-				sb.append("]"); //$NON-NLS-1$
+				sb.append("]");
 				return sb.toString();
 
 			} catch (Exception e) {

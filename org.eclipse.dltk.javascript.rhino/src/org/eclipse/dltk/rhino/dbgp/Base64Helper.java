@@ -18,18 +18,18 @@ public class Base64Helper {
 	/**
 	 * Encoding of the data
 	 */
-	private static final String DATA_ENCODING = "UTF-8"; //$NON-NLS-1$
+	private static final String DATA_ENCODING = "UTF-8";
 
 	/**
 	 * Encoding of the base64 digits - to be used instead of the default
 	 * encoding.
 	 */
-	private static final String BYTE_ENCODING = "ISO-8859-1"; //$NON-NLS-1$
+	private static final String BYTE_ENCODING = "ISO-8859-1";
 
 	/**
 	 * Empty string constant
 	 */
-	private static final String EMPTY = ""; //$NON-NLS-1$
+	private static final String EMPTY = "";
 
 	public static String encodeString(String s) {
 		if (s != null && s.length() != 0) {
