@@ -542,11 +542,15 @@ public class DBGPDebugger extends Thread implements Debugger,
 	}
 
 	public void notifyEnd() {
+		sendEnd(true);
+		System.exit(0);
+	}
+
+	public void sendEnd(boolean close) {
 		printResponse("<response command=\"run\"\r\n" + "status=\"stopped\""
 				+ " reason=\"ok\"" + " transaction_id=\"" + runTransctionId
 				+ "\">\r\n" + "</response>\r\n" + "");
-		close();
-		System.exit(0);
+		if (close) close();
 	}
 
 	public void close() {
